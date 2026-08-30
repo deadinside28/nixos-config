@@ -9,7 +9,7 @@ Built with **Flakes** and **Home Manager**. The desktop environment is managed b
 * **GPU:** AMD Radeon RX 7800 XT
 * **Monitors:** 
   * 🖥️ LG Ultrawide (2560x1080 @ 100Hz) — Primary
-  * 🖥️ Acer — Secondary
+  * 🖥️ Acer (1920x1080 @ 100Hz) — Secondary
 
 ## 🚀 Key Features & Technologies
 
