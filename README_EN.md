@@ -1,3 +1,5 @@
+🇷🇺 [Читать на русском](README.md)
+
 # ❄️ NixOS Gaming Config
 
 My personal, fully declarative **NixOS** configuration, optimized for maximum performance, gaming, and comfortable tiling. 
