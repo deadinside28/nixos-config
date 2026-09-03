@@ -14,28 +14,36 @@ hl.window_rule({
 
 -- Gaming
 
--- Добавляем Battle.net в одну группу со steam-играми и gamescope
-local gamingApps = "^(steam_app.*|gamescope|[Bb]attle\\.net\\.exe)$"
+-- Обновленный список (исправили класс Heroic на актуальный)
+local gamingApps = "^(steam_app.*|gamescope|net\\.lutris\\.Lutris|heroic)$"
 local gamingWorkspace = 5
 
 hl.window_rule({ match = { content = "game" }, workspace = gamingWorkspace })
-hl.window_rule({ match = { class = gamingApps }, workspace = gamingWorkspace })
+
+hl.window_rule({
+    match = { class = "^(net\\.lutris\\.Lutris|heroic)$" },
+    size = { "1200", "800" }
+})
+
+-- Отправляем игры/лаунчеры на 5 воркспейс и СРАЗУ делаем их плавающими
+hl.window_rule({ 
+    match = { class = gamingApps }, 
+    workspace = gamingWorkspace,
+    float = true,
+    center = true
+})
+
+-- Точечные настройки окон Steam
 hl.window_rule({ match = { class = "^(steam)$", title = "^(Friends List)$" }, float = true })
 hl.window_rule({ match = { class = "^(steam)$", title = "^(Launching\\.{3})$" }, float = true, center = true, workspace = gamingWorkspace })
 
--- Игры и Battle.net: плавающие окна по умолчанию. 
--- Без ограничений fullscreen_state Hyprland автоматически развернет окно, если игра это запросит.
+-- Оставляем это правило как подстраховку: 
+-- всё остальное, что открывается (например, диалоговые окна или дочерние процессы), 
+-- УЖЕ находясь на 5 воркспейсе, будет плавающим
 hl.window_rule({
-    match = { class = gamingApps },
+    match = { workspace = tostring(gamingWorkspace) },
     float = true,
-    center = true,
-})
-
--- Лаунчеры Lutris и Heroic принудительно переведены в тайлинг
-hl.window_rule({
-    match = { class = "^(net\\.lutris\\.Lutris|com\\.heroicgameslauncher\\.hgl)$" },
-    float = false,
-    workspace = gamingWorkspace
+    center = true
 })
 
 -- Apps

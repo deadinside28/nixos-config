@@ -3,26 +3,9 @@ local SUPER = "SUPER"
 hl.on("hyprland.start", function()
   hl.exec_cmd("dbus-update-activation-environment --systemd --all")
   hl.exec_cmd("systemctl --user start hyprland-session.target")
-
-  -- Запуск обоев для основного монитора (LG Ultrawide)
-  hl.exec_cmd("env MANGOHUD=0 linux-wallpaperengine --screen-root HDMI-A-1 --fps 30 /home/deadinside/.local/share/Steam/steamapps/workshop/content/431960/3202150992")
-
-  -- Запуск обоев для второго монитора (Acer)
-  hl.exec_cmd("env MANGOHUD=0 linux-wallpaperengine --screen-root HDMI-A-2 --fps 30 /home/deadinside/.local/share/Steam/steamapps/workshop/content/431960/3224603401")
-
-  
-  -- Форсируем LG Ultrawide как основной для XWayland-игр
+  require("dms.autostart")
   hl.exec_cmd("xrandr --output HDMI-A-1 --primary")
 
-  -- Запуск Discord и Steam
-  hl.exec_cmd("flatpak run com.discordapp.Discord")
-  hl.exec_cmd("steam")
-
-  -- Запуск Telegram 
-  hl.exec_cmd("Telegram")
-
-  -- Умный автозапуск YTMDesktop: ждем, пока Discord не создаст IPC-сокет
-  hl.exec_cmd("bash -c 'sleep 15 && ytmdesktop'")
 end)
 
 hl.env("QT_QPA_PLATFORM", "wayland")

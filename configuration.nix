@@ -360,7 +360,7 @@
   # ==========================================
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
 
-  programs.nix-ld = {
+programs.nix-ld = {
     enable = true;
     libraries = with pkgs; [
       # Базовые библиотеки
@@ -370,16 +370,20 @@
       openssl
       fuse
 
-      # Системные зависимости (включая libcom_err)
+      # Системные зависимости
       e2fsprogs
       libkrb5
       keyutils
 
-      # Графика, X11, Wayland, Шрифты, Звук
+      # Графика, Wayland, Шрифты, Звук
       libGL
+      vulkan-loader
       alsa-lib
+      libpulseaudio
       fontconfig
       freetype
+      harfbuzz
+      glib
       libx11
       libxcursor
       libxrandr
