@@ -2,7 +2,7 @@
 
 # ❄️ NixOS Gaming Config
 
-My personal, fully declarative **NixOS** configuration, optimized for maximum performance, gaming, and comfortable tiling. 
+My personal, declarative **NixOS** configuration, optimized for maximum performance, gaming, and comfortable tiling. 
 
 Built with **Flakes** and **Home Manager**. The desktop environment is managed by a custom shell based on **Hyprland**, with its configuration written in **Lua**.
 
@@ -58,7 +58,7 @@ The main modifier key (MainMod) is **SUPER (Windows)**.
 | `SUPER + T` | Terminal (Kitty) |
 | `SUPER + E` | File Manager (Nautilus) |
 | `SUPER + C` | Code Editor (VS Code) |
-| `SUPER + Space` | 🔍 Global Search / Spotlight (via DMS) |
+| `SUPER + Space` | 🔍 Global Search (via DMS) |
 
 ### 🛠 Utilities & Menus (DMS Integration)
 | Hotkey | Action |
