@@ -1,6 +1,4 @@
-{ config, pkgs, ... }:
-
-{
+{...}: {
   # --- Терминал Kitty ---
   programs.kitty = {
     enable = true;
@@ -18,7 +16,7 @@
       listen_on unix:/tmp/kitty
     '';
   };
-  
+
   # --- Fastfetch конфиг ---
   xdg.configFile."fastfetch/config.jsonc".text = ''
     {
@@ -54,7 +52,7 @@
       ]
     }
   '';
-  
+
   # --- Настройка Fish ---
   programs.fish = {
     enable = true;
@@ -64,5 +62,10 @@
           fastfetch
       end
     '';
+  };
+
+  programs.direnv = {
+    enable = true;
+    nix-direnv.enable = true; # Сильно ускоряет загрузку flakes
   };
 }

@@ -1,17 +1,15 @@
-{ config, pkgs, ... }:
-
-{
+{pkgs, ...}: {
   # --- Системные службы (Systemd User Session) ---
   systemd.user.targets.hyprland-session = {
     Unit = {
       Description = "Hyprland Session Target";
-      Requires = [ "graphical-session.target" ];
-      After = [ "graphical-session.target" ];
+      Requires = ["graphical-session.target"];
+      After = ["graphical-session.target"];
       # Подключаем стандартный автозапуск приложений вместе с DMS
-      Wants = [ 
-        "dms.service" 
-        "xdg-desktop-autostart.target" 
-      ]; 
+      Wants = [
+        "dms.service"
+        "xdg-desktop-autostart.target"
+      ];
     };
   };
 
@@ -32,14 +30,14 @@
 
         if [ -d "$VAR_APP" ]; then
           ${pkgs.findutils}/bin/find "$VAR_APP" -mindepth 4 -maxdepth 4 -path "*/config/autostart/*.desktop" 2>/dev/null | while read -r desktop_file; do
-            
+
             # Надежное извлечение ID через grep (ищет то, что стоит сразу после .var/app/)
             app_id=$(echo "$desktop_file" | ${pkgs.gnugrep}/bin/grep -oP '(?<=.var/app/)[^/]+')
             target="$HOST_AUTOSTART/flatpak-$app_id.desktop"
 
             cp "$desktop_file" "$target"
             chmod +w "$target"
-            
+
             # Строгая замена только в строке Exec (игнорирует TryExec и прочее)
             ${pkgs.gnused}/bin/sed -i -e "s|^Exec=.*|Exec=/bin/sh -c 'sleep 1; exec /run/current-system/sw/bin/flatpak run $app_id'|" "$target"
           done
@@ -66,15 +64,15 @@
       Unit = "sync-flatpak-autostart.service";
     };
     Install = {
-      WantedBy = [ "hyprland-session.target" ];
+      WantedBy = ["hyprland-session.target"];
     };
   };
 
   systemd.user.services.youtube-music = {
     Unit = {
       Description = "YouTube Music Desktop App";
-      PartOf = [ "graphical-session.target" ];
-      After = [ 
+      PartOf = ["graphical-session.target"];
+      After = [
         "graphical-session.target"
         "discord-flatpak-rpc.service"
       ];
@@ -97,7 +95,7 @@
       RestartSec = 3;
     };
     Install = {
-      WantedBy = [ "hyprland-session.target" ];
+      WantedBy = ["hyprland-session.target"];
     };
   };
 }

@@ -1,6 +1,4 @@
-{ config, pkgs, ... }:
-
-{
+{...}: {
   imports = [
     ./modules/dms/default.nix
     ./modules/terminal.nix

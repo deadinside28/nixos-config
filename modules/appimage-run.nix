@@ -1,6 +1,4 @@
-{ config, pkgs, ... }:
-
-{
+{pkgs, ...}: {
   # ==============================================================
   # 1. ОБЕРТКА ДЛЯ ЗАПОМИНАНИЯ ПУТИ К APPIMAGE
   # ==============================================================
@@ -23,7 +21,7 @@
       ${pkgs.appimage-run}/bin/appimage-run "$REAL_PATH" "$@"
       STATUS=$?
 
-      # 2. Если контейнер упал (конфликт библиотек Python/Qt, код != 0) — 
+      # 2. Если контейнер упал (конфликт библиотек Python/Qt, код != 0) —
       # прозрачно перезапускаем AppImage напрямую через Nix-LD
       if [ $STATUS -ne 0 ]; then
         chmod +x "$REAL_PATH"
@@ -46,7 +44,7 @@
       "application/x-iso9660-appimage"
       "application/x-appimage"
     ];
-    categories = [ "Utility" ];
+    categories = ["Utility"];
   };
 
   # ==============================================================
@@ -118,7 +116,7 @@
       Unit = "sync-appimage-desktops.service";
     };
     Install = {
-      WantedBy = [ "default.target" ];
+      WantedBy = ["default.target"];
     };
   };
 }

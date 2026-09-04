@@ -1,6 +1,4 @@
-{ config, pkgs, ... }:
-
-{
+{...}: {
   xdg.configFile = {
     # Главный конфиг Hyprland
     "hypr/hyprland.lua".source = ./hyprland.lua;
