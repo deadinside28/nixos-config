@@ -60,7 +60,9 @@
     enable = true;
     interactiveShellInit = ''
       set -g fish_greeting ""
-      fastfetch
+      if test "$TERM_PROGRAM" != "vscode"
+          fastfetch
+      end
     '';
   };
 }

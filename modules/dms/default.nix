@@ -6,7 +6,7 @@
     "hypr/hyprland.lua".source = ./hyprland.lua;
 
     # Пользовательские модули DMS
-    "hypr/dms/binds-user.lua".source = ./binds-user.lua;
+    "hypr/dms/binds.lua".source = ./binds.lua;
     "hypr/dms/windowrules.lua".source = ./windowrules.lua;
   };
 

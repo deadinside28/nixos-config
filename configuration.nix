@@ -279,19 +279,25 @@
   # ==========================================
   nixpkgs.config.allowUnfree = true;
 
+  # Разрешаем старый Electron для WinBoat
+  nixpkgs.config.permittedInsecurePackages = [
+    "electron-40.10.5"
+  ];
+
   environment.systemPackages = with pkgs; [
     
     # ==========================================
     # 1. БАЗОВЫЕ УТИЛИТЫ И РАЗРАБОТКА
     # ==========================================
-    git                # Контроль версий (мастхэв для кодинга на C# и других проектов)
-    vscode             # Редактор кода Visual Studio Code
-    gnome-text-editor  # Простой и легкий нативный текстовый редактор
-    appimage-run       # Утилита для запуска AppImage-файлов прямо в NixOS
-    psmisc             # Консольные утилиты (например, killall для завершения зависших процессов)
-    fastfetch          # Вывод красивой информации о системе в терминале
-    dsearch            # Мгновенный поиск файлов для DMS
-    seahorse           # Приложение для работы с ключами
+    git                       # Контроль версий (мастхэв для кодинга на C# и других проектов)
+    vscode                    # Редактор кода Visual Studio Code
+    gnome-text-editor         # Простой и легкий нативный текстовый редактор
+    appimage-run              # Утилита для запуска AppImage-файлов прямо в NixOS
+    psmisc                    # Консольные утилиты (например, killall для завершения зависших процессов)
+    fastfetch                 # Вывод красивой информации о системе в терминале
+    dsearch                   # Мгновенный поиск файлов для DMS
+    seahorse                  # Приложение для работы с ключами
+    onlyoffice-desktopeditors # Офис
     
     # ==========================================
     # 2. ФАЙЛОВЫЙ МЕНЕДЖЕР И ПРЕВЬЮ ФАЙЛОВ
@@ -353,6 +359,19 @@
     gst_all_1.gst-plugins-bad
     gst_all_1.gst-plugins-ugly
     gst_all_1.gst-libav
+
+    # ==========================================
+    # 8. АРХИВАТОРЫ
+    # ==========================================
+    file-roller # GUI-архиватор, отлично интегрируется с Nautilus
+    unzip       # Распаковка .zip
+    p7zip       # Распаковка .7z
+    unar        # Распаковка .rar и других проприетарных форматов
+
+    # ==========================================
+    # 9. ВИРТУАЛИЗАЦИЯ
+    # ==========================================
+    winboat
   ];
 
   # ==========================================
@@ -398,6 +417,11 @@ programs.nix-ld = {
   };
 
   # ==========================================
+  # ВИРТУАЛИЗАЦИЯ И DOCKER (WinBoat)
+  # ==========================================
+  virtualisation.docker.enable = true;
+
+  # ==========================================
   # 8. ПОЛЬЗОВАТЕЛЬ И HOME MANAGER
   # ==========================================
   programs.fish.enable = true; # Системное включение оболочки
@@ -405,7 +429,7 @@ programs.nix-ld = {
   users.users."deadinside" = {
     isNormalUser = true;
     description = "deadinside";
-    extraGroups = [ "networkmanager" "wheel" ];
+    extraGroups = [ "networkmanager" "wheel" "docker" ];
     shell = pkgs.fish;
     packages = with pkgs; [];
   };

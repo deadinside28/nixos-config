@@ -83,7 +83,7 @@
       Type = "simple";
       # Умная проверка: ждем появление реального сокета Discord до 5 секунд
       ExecStartPre = pkgs.writeShellScript "wait-for-discord-socket" ''
-        for i in $(seq 1 30); do
+        for i in $(seq 1 40); do
           if [ -S "$XDG_RUNTIME_DIR/app/com.discordapp.Discord/discord-ipc-0" ]; then
             sleep 2
             exit 0

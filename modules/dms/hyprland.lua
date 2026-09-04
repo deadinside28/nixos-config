@@ -3,8 +3,8 @@ local SUPER = "SUPER"
 hl.on("hyprland.start", function()
   hl.exec_cmd("dbus-update-activation-environment --systemd --all")
   hl.exec_cmd("systemctl --user start hyprland-session.target")
-  require("dms.autostart")
   hl.exec_cmd("xrandr --output HDMI-A-1 --primary")
+  require("dms.autostart")
 
 end)
 

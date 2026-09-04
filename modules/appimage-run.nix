@@ -49,15 +49,6 @@
     categories = [ "Utility" ];
   };
 
-  xdg.mimeApps = {
-    enable = true;
-    defaultApplications = {
-      "application/vnd.appimage" = [ "appimage-run.desktop" ];
-      "application/x-iso9660-appimage" = [ "appimage-run.desktop" ];
-      "application/x-appimage" = [ "appimage-run.desktop" ];
-    };
-  };
-
   # ==============================================================
   # 3. АВТОМАТИЧЕСКИЙ ИМПОРТ ЯРЛЫКОВ В ДЕСКТОП (DMS)
   # ==============================================================
