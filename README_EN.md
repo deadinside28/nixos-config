@@ -2,7 +2,7 @@
 
 # ❄️ NixOS Gaming Config
 
-My personal, declarative **NixOS** configuration, optimized for maximum performance, gaming, and comfortable tiling. 
+My personal **NixOS** configuration, optimized for maximum performance, gaming, and comfortable tiling. 
 
 Built with **Flakes** and **Home Manager**. The desktop environment is managed by a custom shell based on **Hyprland**, with its configuration written in **Lua**.
 
