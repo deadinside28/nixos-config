@@ -15,13 +15,13 @@ hl.window_rule({
 -- Gaming
 
 -- Обновленный список (исправили класс Heroic на актуальный)
-local gamingApps = "^(steam_app.*|gamescope|net\\.lutris\\.Lutris|heroic)$"
+local gamingApps = "^(steam_app.*|gamescope|net\\.lutris\\.Lutris|heroic|com\\.usebottles\\.bottles)$"
 local gamingWorkspace = 5
 
 hl.window_rule({ match = { content = "game" }, workspace = gamingWorkspace })
 
 hl.window_rule({
-    match = { class = "^(net\\.lutris\\.Lutris|heroic)$" },
+    match = { class = "^(net\\.lutris\\.Lutris|heroic|com\\.usebottles\\.bottles)$" },
     size = { "1200", "800" }
 })
 
@@ -137,6 +137,20 @@ hl.window_rule({
     },
     no_focus = true,
 })
+
+-- Жестко загоняем WinBoat (FreeRDP) в тайлинг, игнорируя его попытки задать размер
+hl.window_rule({ match = { class = "^(xfreerdp)$" }, tile = true })
+-- Добавляем специальное правило для отключения запросов размера от X11 (XWayland)
+hl.window_rule({ 
+    match = { class = "^(xfreerdp)$", xwayland = true }, 
+    float = false, -- Принудительно отключаем плавающий режим
+    fullscreen = false 
+})
+
+hl.window_rule({ match = { class = "^(winboat)$" }, tile = true })
+
+-- Делаем окна оболочки DMS плавающими, используя правильный класс
+hl.window_rule({ match = { class = "^(com\\.danklinux\\.dms)$" }, float = true, center = true })
 
 -- Autostart Apps to Monitor 2
 hl.window_rule({ match = { class = "^(discord)$" }, workspace = "6" })

@@ -293,7 +293,9 @@
     git # Контроль версий (мастхэв для кодинга на C# и других проектов)
     vscode # Редактор кода Visual Studio Code
     gnome-text-editor # Простой и легкий нативный текстовый редактор
-    appimage-run # Утилита для запуска AppImage-файлов прямо в NixOS
+    gnome-calculator # <-- Добавлен калькулятор
+    gnome-calendar # <-- Добавлен календарь
+    appimage-run
     psmisc # Консольные утилиты (например, killall для завершения зависших процессов)
     fastfetch # Вывод красивой информации о системе в терминале
     dsearch # Мгновенный поиск файлов для DMS
@@ -301,6 +303,8 @@
     onlyoffice-desktopeditors # Офис
     nixd # Cовременный языковой сервер для Nix
     alejandra # Автоформатер кода
+    distrobox
+    xhost # Критически важно для проброса графики XWayland в контейнер
 
     # ==========================================
     # 2. ФАЙЛОВЫЙ МЕНЕДЖЕР И ПРЕВЬЮ ФАЙЛОВ
@@ -385,37 +389,92 @@
   programs.nix-ld = {
     enable = true;
     libraries = with pkgs; [
-      # Базовые библиотеки
-      stdenv.cc.cc
+      # Базовые системные библиотеки
+      stdenv.cc.cc.lib
       glibc
       zlib
       openssl
       fuse
+      fuse3
+      icu
+      libuuid
+      libxml2
+      libsecret
+      harfbuzz
+      freetype
+      fontconfig
 
-      # Системные зависимости
-      e2fsprogs
-      libkrb5
-      keyutils
-
-      # Графика, Wayland, Шрифты, Звук
+      # Графика и UI тулкиты (включая виновника торжества - libadwaita)
+      mesa
       libGL
+      libGLU
+      libepoxy
+      libdrm
       vulkan-loader
+      gtk3
+      gtk4
+      libadwaita
+      pango
+      cairo
+      atk
+      gdk-pixbuf
+      glib
+
+      # X11 и Wayland (полный комплект)
+      wayland
+      libX11
+      libXext
+      libXrender
+      libXfixes
+      libXcomposite
+      libXdamage
+      libXcursor
+      libXi
+      libXrandr
+      libXScrnSaver
+      libXtst
+      libxcb
+      libxkbcommon
+
+      # Звук и медиа
       alsa-lib
       libpulseaudio
-      fontconfig
-      freetype
-      harfbuzz
-      glib
-      libx11
-      libxcursor
-      libxrandr
-      libxi
-      libxext
-      libxdamage
-      libxcomposite
-      libxfixes
-      libxkbcommon
+      pipewire
+      cups
+      ffmpeg
+
+      # Специфичное для Electron и браузерных движков
+      nss
+      nspr
+      expat
       dbus
+      at-spi2-core
+
+      # Аудио, ввод и легаси-крипто-стек для эмуляторов/игр (ShadPS4, RPCS3 и т.п.)
+      openal
+      libjack2
+      sndio
+      SDL2
+      libevdev
+      e2fsprogs
+      libuuid
+      libedit
+      libpng
+
+      # Математика и компрессия (gmp тянется через крипто-стек)
+      gmp
+      nettle
+      libtasn1
+      p11-kit
+      bzip2
+      xz
+      zstd
+      brotli
+      libffi
+
+      # Прочие фреймворки
+      udev
+      libnotify
     ];
   };
 
@@ -423,6 +482,7 @@
   # ВИРТУАЛИЗАЦИЯ И DOCKER (WinBoat)
   # ==========================================
   virtualisation.docker.enable = true;
+  virtualisation.podman.enable = true;
 
   # ==========================================
   # 8. ПОЛЬЗОВАТЕЛЬ И HOME MANAGER

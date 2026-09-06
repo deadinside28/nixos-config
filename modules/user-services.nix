@@ -76,6 +76,9 @@
         "graphical-session.target"
         "discord-flatpak-rpc.service"
       ];
+      # Перезапускать YTMDesktop вместе с Discord: при обрыве
+      # IPC-сокета он не переподключается, а падает с write EPIPE
+      BindsTo = ["discord-flatpak-rpc.service"];
     };
     Service = {
       Type = "simple";
