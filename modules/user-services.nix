@@ -76,25 +76,24 @@
         "graphical-session.target"
         "discord-flatpak-rpc.service"
       ];
-      # Перезапускать YTMDesktop вместе с Discord: при обрыве
-      # IPC-сокета он не переподключается, а падает с write EPIPE
-      BindsTo = ["discord-flatpak-rpc.service"];
     };
     Service = {
       Type = "simple";
-      # Умная проверка: ждем появление реального сокета Discord до 5 секунд
+      TimeoutStartSec = "120s";
       ExecStartPre = pkgs.writeShellScript "wait-for-discord-socket" ''
-        for i in $(seq 1 40); do
+        # Ждём сокет Discord до 30 секунд, дальше стартуем всё равно:
+        # без RPC приложение работает, просто без статуса в Discord
+        for i in $(seq 1 15); do
           if [ -S "$XDG_RUNTIME_DIR/app/com.discordapp.Discord/discord-ipc-0" ]; then
-            sleep 2
+            sleep 5
             exit 0
           fi
-          sleep 2
+          sleep 5
         done
         exit 0
       '';
       ExecStart = "${pkgs.lib.getExe pkgs.ytmdesktop}";
-      Restart = "on-failure";
+      Restart = "always";
       RestartSec = 3;
     };
     Install = {

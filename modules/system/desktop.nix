@@ -7,18 +7,6 @@
   programs.hyprland.enable = true;
   programs.dconf.enable = true;
 
-  # ВНИМАНИЕ: при чистой Wayland-сессии этот блок нужен только ради
-  # раскладки в иксовых приложениях. Если раскладка нормально задаётся
-  # средствами Hyprland — enable можно снять и не тянуть иксовый стек.
-  services.xserver = {
-    enable = true;
-    xkb = {
-      layout = "us,ru";
-      variant = "";
-      options = "grp:alt_shift_toggle";
-    };
-  };
-
   environment.sessionVariables = {
     NIXOS_OZONE_WL = "1"; # Electron-приложения на Wayland
     # Путь к кодекам, чтобы Nautilus и другие программы их видели
