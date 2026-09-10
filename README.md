@@ -119,3 +119,8 @@ sudo nix flake update
 
 # 3. Применяем конфигурацию системы
 sudo nixos-rebuild switch --flake /etc/nixos#nixos
+```
+
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
+
+

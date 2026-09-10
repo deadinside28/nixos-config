@@ -119,3 +119,5 @@ sudo nix flake update
 
 # 3. Apply the system configuration
 sudo nixos-rebuild switch --flake /etc/nixos#nixos
+```
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
