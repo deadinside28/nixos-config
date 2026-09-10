@@ -26,4 +26,19 @@
     ELECTRON_OZONE_PLATFORM_HINT=auto
     QT_QPA_PLATFORM=wayland
   '';
+
+  # Gear Lever — исключение из глобального xdg-data:ro.
+  #
+  # Его работа в том и состоит, чтобы писать ярлыки и иконки AppImage
+  # в ~/.local/share, а глобальный оверрайд выше монтирует весь xdg-data
+  # только для чтения. У Flatpak побеждает более конкретный путь, поэтому
+  # точечно открываем на запись две нужные папки, а не весь xdg-data.
+  #
+  # `home` нужен, чтобы он видел образы в ~/Games и подобных местах.
+  # Папку установки в его настройках держи вне ~/.local/share
+  # (например ~/Applications) — иначе понадобится открыть и её.
+  xdg.dataFile."flatpak/overrides/it.mijorus.gearlever".text = ''
+    [Context]
+    filesystems=home;xdg-data/applications;xdg-data/icons;
+  '';
 }

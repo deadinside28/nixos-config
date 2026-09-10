@@ -24,7 +24,8 @@ Built with **Flakes** and **Home Manager**. The desktop environment is managed b
   * System packages — Nix
   * User apps — Home Manager
   * Declarative Flatpaks — via `nix-flatpak`
-  * AppImages — via `appimage-run` (includes a `systemd` timer that automatically fetches `.desktop` files and icons for AppImages into the application menu).
+  * AppImages — run directly, the way they do on any ordinary distro: `chmod +x` and `./image.AppImage`. The loader comes from `nix-ld`, the runtime mounts itself over FUSE. Nothing is extracted and nothing is cached on disk: no wrapper, no `appimage-run`, no `binfmt`. If an image is missing a library, add it to `programs.nix-ld.libraries` (find it with `nix-locate`).
+  * Nautilus has "Add to application menu" / "Remove from application menu" context-menu entries — the desktop entry, its icon and description are taken from the image itself, and the image stays where it is.
 * **Terminal:** Kitty + Fish shell + custom Fastfetch output.
 * **Customization:** Live wallpapers directly from the Steam Workshop via `linux-wallpaperengine`.
 

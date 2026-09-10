@@ -2,8 +2,6 @@
   imports = [
     ./modules/dms/default.nix
     ./modules/terminal.nix
-    ./modules/appimage-run.nix
-    ./modules/user-services.nix
   ];
 
   home.username = username;

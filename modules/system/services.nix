@@ -5,6 +5,18 @@
 
   # Хранилище ключей
   services.gnome.gnome-keyring.enable = true;
+  security.pam.services.dms-greeter.enableGnomeKeyring = true;
+
+  systemd.user.targets.hyprland-session = {
+    description = "Hyprland Session Target";
+    requires = ["graphical-session.target"];
+    after = ["graphical-session.target"];
+    # Подключаем стандартный автозапуск приложений вместе с DMS
+    wants = [
+      "dms.service"
+      "xdg-desktop-autostart.target"
+    ];
+  };
 
   # Мост для передачи статуса из нативной системы в Flatpak-Discord
   systemd.user.services.discord-flatpak-rpc = {
@@ -28,6 +40,8 @@
     ];
   };
 
+  services.cpak.enable = true;
+
   # Звук (PipeWire)
   services.pulseaudio.enable = false;
   security.rtkit.enable = true;
@@ -40,5 +54,4 @@
 
   # Контейнеры (WinBoat, distrobox)
   virtualisation.docker.enable = true;
-  virtualisation.podman.enable = true;
 }

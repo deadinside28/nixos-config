@@ -26,8 +26,8 @@
     distrobox
     xhost # проброс графики XWayland в контейнер
 
-    # appimage-run намеренно НЕ здесь: враппер приезжает
-    # из modules/appimage-system.nix, иначе в PATH будет два разных.
+    # appimage-run здесь намеренно НЕТ и не нужен: образы запускаются
+    # напрямую через nix-ld + FUSE, см. modules/system/appimage.nix.
 
     # --- Файловый менеджер и превью ---
     nautilus

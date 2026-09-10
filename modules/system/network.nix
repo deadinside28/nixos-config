@@ -4,8 +4,8 @@
     hostName = "nixos";
     networkmanager.enable = true;
     firewall = {
-      allowedTCPPorts = [59999]; # Sunshine
-      allowedUDPPorts = [59999]; # Sunshine
+      allowedTCPPorts = [59999]; # MoonDeck Buddy (Sunshine — через openFirewall)
+      allowedUDPPorts = [59999];
     };
   };
 

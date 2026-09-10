@@ -6,6 +6,8 @@
 
     chaotic.url = "github:chaotic-cx/nyx/nyxpkgs-unstable";
 
+    cpak.url = "github:Containerpak/cpak/v2";
+
     home-manager = {
       url = "github:nix-community/home-manager";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -26,6 +28,7 @@
     home-manager,
     nix-flatpak,
     nix-index-database,
+    cpak,
     ...
   }: let
     # Одна точка правды: имя пользователя и хост.
@@ -33,10 +36,8 @@
     # "deadinside" по всему конфигу.
     username = "deadinside";
     hostname = "nixos";
-    system = "x86_64-linux";
   in {
     nixosConfigurations.${hostname} = nixpkgs.lib.nixosSystem {
-      inherit system;
       specialArgs = {inherit username hostname;};
       modules = [
         chaotic.nixosModules.default
@@ -48,6 +49,7 @@
 
         nix-flatpak.nixosModules.nix-flatpak
         nix-index-database.nixosModules.nix-index
+        cpak.nixosModules.default
 
         home-manager.nixosModules.home-manager
         {

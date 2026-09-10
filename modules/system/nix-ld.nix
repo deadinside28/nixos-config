@@ -1,5 +1,14 @@
 # nix-ld: запуск сторонних динамически слинкованных бинарников,
 # рассчитанных на FHS-систему.
+#
+# После отказа от враппера AppImage этот список стал ОСНОВНЫМ и
+# единственным рычагом совместимости: именно отсюда образы берут всё,
+# чего не принесли с собой. Если приложение падает с
+#   error while loading shared libraries: libчтото.so.N
+# то ищешь пакет через `nix-locate libчтото.so.N` (nix-index-database
+# подключён в flake.nix) и дописываешь его сюда. Это ровно тот же цикл,
+# что `pacman -S` на Arch, только с пересборкой и перезаходом в сессию —
+# NIX_LD_LIBRARY_PATH подхватывается при старте сессии.
 {pkgs, ...}: {
   nix.settings.experimental-features = ["nix-command" "flakes"];
 
@@ -11,7 +20,7 @@
       glibc
       zlib
       openssl
-      fuse
+      fuse # нужен рантайму AppImage (libfuse.so.2)
       fuse3
       icu
       libuuid
@@ -20,13 +29,20 @@
       harfbuzz
       freetype
       fontconfig
+      fribidi
+      libgcrypt
+      libgpg-error
+      keyutils.lib
+      curl
 
       # Графика и UI-тулкиты
       mesa
+      libgbm # Electron/Chromium: libgbm.so.1, отделён от mesa
       libGL
       libGLU
       libepoxy
       libdrm
+      libva
       vulkan-loader
       gtk3
       gtk4
@@ -34,8 +50,10 @@
       pango
       cairo
       atk
+      at-spi2-atk
       gdk-pixbuf
       glib
+      pciutils
 
       # X11 и Wayland
       wayland
@@ -52,6 +70,21 @@
       libXtst
       libxcb
       libxkbcommon
+      libsm
+      libice
+
+      # Хелперы xcb. Их dlopen'ит платформенный плагин `xcb` из Qt —
+      # в том числе Qt, который образ принёс с собой. Без них вылезает
+      # классическое "Could not load the Qt platform plugin xcb".
+      # Сам Qt сюда класть НЕ надо: почти все образы несут его внутри,
+      # а хостовый libQt6Core из LD_LIBRARY_PATH даст конфликт версий.
+      # Если Qt-образ всё же чудит — попробуй `env -u QT_PLUGIN_PATH ./образ`.
+      libxcb-util
+      libxcb-wm
+      libxcb-image
+      libxcb-keysyms
+      libxcb-render-util
+      libxcb-cursor
 
       # Звук и медиа
       alsa-lib
@@ -76,6 +109,8 @@
       e2fsprogs
       libedit
       libpng
+      libjpeg
+      libtiff
 
       # Математика и компрессия
       gmp
