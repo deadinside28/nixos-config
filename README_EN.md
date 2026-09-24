@@ -15,10 +15,11 @@ Everything is declarative: **Flakes** + **Home Manager**, with the Hyprland conf
 
 ## 🎯 The Idea: a Single Source of Truth
 
-At the top of `flake.nix` there are two blocks that get passed into every module:
+Everything that can differ is defined in one place and passed into every module:
 
-* `username` / `hostname` — so the user name isn't hardcoded all over the config;
-* `appearance` — the UI font and its weight, the monospace font, sizes, and the cursor.
+* `username` in `flake.nix` — the user name isn't hardcoded anywhere else;
+* `appearance` in `flake.nix` — the UI font and its weight, the monospace font, sizes, and the cursor;
+* `hosts/<name>/host.nix` — what's specific to one machine: monitors and their workspaces, AMD GPU, undervolt. The folder name is the host name.
 
 ```nix
 appearance = {
@@ -54,7 +55,7 @@ Change one line, rebuild, and the font or cursor changes in GTK, Qt, Flatpak, cp
 ### 🎨 A Uniform Look for Every App
 * **Google Sans** (the Pixel system font) at Medium weight across the whole system. A fontconfig rule swaps the "regular" weight for the chosen one, so GTK, Qt, Chrome, Electron and Flatpak all render medium-weight text.
 * **Qt via GTK:** Qt apps take their font, icons and palette from GTK — no separate qt6ct needed.
-* **Flatpak** sees the host's themes, icons, fonts, GTK/Qt settings and cursor (global override).
+* **Flatpak** sees the host's themes, icons, fonts, GTK/Qt settings and cursor — read-only. Apps get no extra permissions: they reach files through the shared file picker, and specific permissions can be granted in Flatseal.
 * **FHS compatibility:** `/usr/share/fonts`, `/usr/share/icons` and `/usr/share/themes` are mounted from the system, so AppImages, Steam, OnlyOffice and other software not built for NixOS find fonts and icons where they expect them.
 
 ### 📂 The Same File Picker Everywhere
@@ -74,7 +75,8 @@ The same host GTK file chooser opens everywhere, through xdg-desktop-portal:
 ### 🗂 Applications
 * **Nemo file manager** with previews (`nemo-preview`); "Open in Terminal" opens Kitty. An AppImage extension adds "Add to application menu" / "Remove from application menu" to the context menu. The desktop entry, its icon and description come from the image itself, and the image stays where it is.
 * **Zed** as the code editor; DMS generates its `DankShell Dark/Light` theme.
-* Qalculate!, Celluloid, Papers, Mission Center, Baobab, Loupe, GNOME Text Editor, GNOME Calendar, OnlyOffice, qBittorrent, Google Chrome, Telegram, YouTube Music.
+* **btop as an overlay** (`SUPER + M` or `SUPER + SHIFT + Esc`): CPU, AMD GPU, memory, network and processes in a drop-in window on the focused monitor. It takes its colors from the terminal, i.e. from DMS.
+* Qalculate!, Celluloid, Papers, Baobab, Loupe, GNOME Text Editor, GNOME Calendar, OnlyOffice, qBittorrent, Google Chrome, Telegram, YouTube Music.
 * **Terminal:** Kitty + Fish + Fastfetch (Fastfetch is skipped inside VS Code and Zed terminals).
 * **Live wallpapers** from the Steam Workshop via `linux-wallpaperengine`.
 
@@ -86,7 +88,7 @@ The same host GTK file chooser opens everywhere, through xdg-desktop-portal:
 
 ## 🖥️ Monitors & Workspaces
 
-Workspaces are strictly assigned to the two monitors, so you always know where each app lives and nothing gets lost while gaming.
+Workspaces are strictly assigned to the two monitors, so you always know where each app lives and nothing gets lost while gaming. The layout lives in `hosts/nixos/host.nix`: it generates the monitors and workspace rules for Hyprland (`hypr/host.lua`) and the login screen's monitors.
 
 **Primary monitor (LG Ultrawide, HDMI-A-1):**
 * Workspaces **1–4** plus the **5 (Gaming)** workspace. Switch with `SUPER + [1, 2, 3, 4, G]`.
@@ -132,7 +134,7 @@ The main modifier key is **SUPER (Windows)**.
 | Hotkey | Action |
 | :--- | :--- |
 | `SUPER + V` | Clipboard |
-| `SUPER + M` | Task manager |
+| `SUPER + M` / `SUPER + SHIFT + Esc` | System monitor (btop overlay) |
 | `SUPER + S` | DMS settings |
 | `SUPER + N` | Notification center |
 | `SUPER + Y` | Wallpaper picker |
@@ -174,11 +176,19 @@ The main modifier key is **SUPER (Windows)**.
 ## 🗃 Repository Layout
 
 ```
-flake.nix                 inputs, username/hostname and the appearance block
+flake.nix                 inputs, username, appearance; one host per folder in hosts/
 configuration.nix         list of system modules
 home.nix                  list of Home Manager modules
-hardware-configuration.nix, disks.nix   hardware and disks (for my machine)
-scripts/ruv.py            Ryzen undervolt via ryzen_smu
+
+hosts/nixos/              my machine (folder name = host name)
+  host.nix                monitors and workspaces, AMD GPU, undervolt
+  default.nix             pulls in the hardware:
+  hardware-configuration.nix, disks.nix
+
+scripts/
+  ruv.py                  Ryzen undervolt via ryzen_smu
+  safe-update.sh          update: build → diff → trial run → switch
+.github/workflows/        config check on every push, weekly update
 
 modules/system/
   boot.nix                bootloader, kernel, Plymouth, undervolt
@@ -191,6 +201,7 @@ modules/system/
   gaming.nix              Steam, Gamescope, Sunshine, LACT
   packages.nix            system packages
   services.nix            audio, Flatpak, cpak, gvfs, Docker
+  flatpak-overrides.nix   Flatpak permissions: shared look, files via the portal
   network.nix, users.nix  network, locale, user
 
 modules/
@@ -201,13 +212,14 @@ modules/
     hyprland.lua          main Hyprland config and animations
     binds.lua             keybindings
     windowrules.lua       window and workspace rules
-    default.nix           config placement, xdph, Flatpak overrides
+    default.nix           config placement, xdph, plugin enabling
+    host.nix              generates hypr/host.lua from host.nix
     plugins/dndSpring/    file drag-and-drop plugin
 ```
 
 ## 📦 How to Apply
 
-> **Warning:** the config contains hardware-specific settings: disk UUIDs in `disks.nix`, a Ryzen undervolt, and monitor names in `hyprland.lua`. Before using it on another machine, edit `hardware-configuration.nix`, `disks.nix` and `modules/system/boot.nix`, and change `username` and `hostname` in `flake.nix`.
+> **Your own machine.** All hardware lives in `hosts/<name>/`. Copy `hosts/nixos` to a folder named after your host, put your own `hardware-configuration.nix` there (`nixos-generate-config --show-hardware-config`), adjust or empty `disks.nix`, and describe your monitors, GPU and undervolt in `host.nix` (better to disable the undervolt: `undervolt = null;` — the offset is tuned per CPU). Change `username` in `flake.nix`. Build with `.#<folder name>`.
 
 The config lives in the home directory as a regular git repository:
 

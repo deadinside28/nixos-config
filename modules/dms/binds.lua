@@ -62,10 +62,10 @@ hl.bind(mainMod .. " + SHIFT + A", hl.dsp.exec_cmd([[sh -c 'grim /tmp/screen.png
 hl.bind(mainMod .. " + SHIFT + D", hl.dsp.exec_cmd([[sh -c "grim -g \"\$(hyprctl activewindow | awk '/at:/ {at=\$2} /size:/ {size=\$2} END {sub(\",\", \"x\", size); print at \" \" size}')\" /tmp/screen.png && wl-copy < /tmp/screen.png && notify-send -i /tmp/screen.png 'Скриншот' 'Окно скопировано в буфер обмена'"]]))
 
 -- Запись экрана без микрофона (Alt + F9)
-hl.bind("ALT + F9", hl.dsp.exec_cmd([[sh -c 'if pidof gpu-screen-recorder > /dev/null; then killall -SIGINT gpu-screen-recorder; while pidof gpu-screen-recorder > /dev/null; do sleep 0.1; done; FILE=$(ls -t $HOME/Videos/video_*.mp4 | head -n 1); ffmpeg -y -i "$FILE" -vframes 1 /tmp/gsr_thumb.jpg -loglevel error; notify-send -i /tmp/gsr_thumb.jpg "Запись завершена" "Файл сохранен в $HOME/Videos/"; else gpu-screen-recorder -w HDMI-A-1 -f 60 -a default_output -k av1 -o $HOME/Videos/video_$(date +%F_%H-%M-%S).mp4 & notify-send -i camera-video "Запись начата" "БЕЗ микрофона (AV1, 60 FPS)"; fi']]))
+hl.bind("ALT + F9", hl.dsp.exec_cmd([[sh -c 'if pidof gpu-screen-recorder > /dev/null; then killall -SIGINT gpu-screen-recorder; while pidof gpu-screen-recorder > /dev/null; do sleep 0.1; done; FILE=$(ls -t $HOME/Videos/video_*.mp4 | head -n 1); ffmpeg -y -i "$FILE" -vframes 1 /tmp/gsr_thumb.jpg -loglevel error; notify-send -i /tmp/gsr_thumb.jpg "Запись завершена" "Файл сохранен в $HOME/Videos/"; else gpu-screen-recorder -w ]] .. PRIMARY_MONITOR .. [[ -f 60 -a default_output -k av1 -o $HOME/Videos/video_$(date +%F_%H-%M-%S).mp4 & notify-send -i camera-video "Запись начата" "БЕЗ микрофона (AV1, 60 FPS)"; fi']]))
 
 -- Запись экрана с микрофоном (Alt + F10)
-hl.bind("ALT + F10", hl.dsp.exec_cmd([[sh -c 'if pidof gpu-screen-recorder > /dev/null; then killall -SIGINT gpu-screen-recorder; while pidof gpu-screen-recorder > /dev/null; do sleep 0.1; done; FILE=$(ls -t $HOME/Videos/video_*.mp4 | head -n 1); ffmpeg -y -i "$FILE" -vframes 1 /tmp/gsr_thumb.jpg -loglevel error; notify-send -i /tmp/gsr_thumb.jpg "Запись завершена" "Файл сохранен в $HOME/Videos/"; else gpu-screen-recorder -w HDMI-A-1 -f 60 -a "default_output|default_input" -k av1 -o $HOME/Videos/video_$(date +%F_%H-%M-%S).mp4 & notify-send -i camera-video "Запись начата" "С микрофоном (AV1, 60 FPS)"; fi']]))
+hl.bind("ALT + F10", hl.dsp.exec_cmd([[sh -c 'if pidof gpu-screen-recorder > /dev/null; then killall -SIGINT gpu-screen-recorder; while pidof gpu-screen-recorder > /dev/null; do sleep 0.1; done; FILE=$(ls -t $HOME/Videos/video_*.mp4 | head -n 1); ffmpeg -y -i "$FILE" -vframes 1 /tmp/gsr_thumb.jpg -loglevel error; notify-send -i /tmp/gsr_thumb.jpg "Запись завершена" "Файл сохранен в $HOME/Videos/"; else gpu-screen-recorder -w ]] .. PRIMARY_MONITOR .. [[ -f 60 -a "default_output|default_input" -k av1 -o $HOME/Videos/video_$(date +%F_%H-%M-%S).mp4 & notify-send -i camera-video "Запись начата" "С микрофоном (AV1, 60 FPS)"; fi']]))
 
 ------------------
 ---- LAUNCHER ----
@@ -74,7 +74,11 @@ hl.bind("ALT + F10", hl.dsp.exec_cmd([[sh -c 'if pidof gpu-screen-recorder > /de
 -- Application Launchers
 hl.bind(mainMod .. " + space", hl.dsp.exec_cmd("dms ipc call spotlight toggle"))
 hl.bind(mainMod .. " + V", hl.dsp.exec_cmd("dms ipc call clipboard toggle"))
-hl.bind(mainMod .. " + M", hl.dsp.exec_cmd("dms ipc call processlist focusOrToggle"))
+-- Мониторинг (btop): выезжающий воркспейс special:monitor поверх
+-- текущего, на мониторе с фокусом. Настройки — в windowrules.lua.
+hl.bind(mainMod .. " + M", hl.dsp.workspace.toggle_special("monitor"))
+hl.bind(mainMod .. " + SHIFT + Escape", hl.dsp.workspace.toggle_special("monitor"))
+hl.bind("CTRL + SHIFT + Escape", hl.dsp.workspace.toggle_special("monitor"))
 hl.bind(mainMod .. " + S", hl.dsp.exec_cmd("dms ipc call settings focusOrToggle"))
 hl.bind(mainMod .. " + N", hl.dsp.exec_cmd("dms ipc call notifications toggle"))
 hl.bind(mainMod .. " + Y", hl.dsp.exec_cmd("dms ipc call dankdash wallpaper"))

@@ -31,11 +31,11 @@
     cpak,
     ...
   }: let
-    # Одна точка правды: имя пользователя и хост.
-    # Прокидываются в модули через specialArgs, чтобы не хардкодить
-    # "deadinside" по всему конфигу.
+    inherit (nixpkgs) lib;
+
+    # Первая точка правды — пользователь. Один на все машины; прокидывается в
+    # модули через specialArgs, чтобы имя не было зашито по конфигу.
     username = "deadinside";
-    hostname = "nixos";
 
     # Вторая точка правды — внешний вид. Один и тот же набор значений
     # уезжает и в системные модули, и в home-manager, и в оверрайды
@@ -52,30 +52,48 @@
       cursorTheme = "Adwaita";
       cursorSize = 24;
     };
+
+    # Машины. Каждая папка в hosts/ — отдельный хост, имя папки становится
+    # именем хоста (networking.hostName) и именем конфигурации:
+    #   sudo nixos-rebuild switch --flake .#<имя>
+    # Внутри папки:
+    #   default.nix — железо (hardware-configuration.nix, disks.nix);
+    #   host.nix    — данные: мониторы, видеокарта, андервольт.
+    # Новая машина = скопировать папку, заменить hardware-configuration.nix
+    # и поправить host.nix.
+    hostNames = builtins.attrNames (
+      lib.filterAttrs (_: type: type == "directory") (builtins.readDir ./hosts)
+    );
+
+    mkHost = hostname: let
+      host = import ./hosts/${hostname}/host.nix;
+    in
+      lib.nixosSystem {
+        specialArgs = {inherit username hostname host appearance;};
+        modules = [
+          chaotic.nixosModules.default
+          ({pkgs, ...}: {
+            boot.kernelPackages = pkgs.linuxPackages_cachyos;
+          })
+
+          ./hosts/${hostname}
+          ./configuration.nix
+
+          nix-flatpak.nixosModules.nix-flatpak
+          nix-index-database.nixosModules.nix-index
+          cpak.nixosModules.default
+
+          home-manager.nixosModules.home-manager
+          {
+            home-manager.useGlobalPkgs = true;
+            home-manager.useUserPackages = true;
+            home-manager.backupFileExtension = "backup";
+            home-manager.extraSpecialArgs = {inherit username host appearance;};
+            home-manager.users.${username} = import ./home.nix;
+          }
+        ];
+      };
   in {
-    nixosConfigurations.${hostname} = nixpkgs.lib.nixosSystem {
-      specialArgs = {inherit username hostname appearance;};
-      modules = [
-        chaotic.nixosModules.default
-        ({pkgs, ...}: {
-          boot.kernelPackages = pkgs.linuxPackages_cachyos;
-        })
-
-        ./configuration.nix
-
-        nix-flatpak.nixosModules.nix-flatpak
-        nix-index-database.nixosModules.nix-index
-        cpak.nixosModules.default
-
-        home-manager.nixosModules.home-manager
-        {
-          home-manager.useGlobalPkgs = true;
-          home-manager.useUserPackages = true;
-          home-manager.backupFileExtension = "backup";
-          home-manager.extraSpecialArgs = {inherit username appearance;};
-          home-manager.users.${username} = import ./home.nix;
-        }
-      ];
-    };
+    nixosConfigurations = lib.genAttrs hostNames mkHost;
   };
 }

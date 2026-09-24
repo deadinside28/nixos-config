@@ -1,10 +1,20 @@
 # Hyprland, оболочка DMS, дисплейный менеджер, порталы, шрифты.
 {
   pkgs,
+  lib,
   username,
+  host,
   appearance,
   ...
-}: {
+}: let
+  # Мониторы экрана входа из hosts/<хост>/host.nix: greeter = null —
+  # монитор выключен, иначе «режим, позиция, масштаб».
+  greeterMonitors = lib.concatMapStringsSep "\n" (m:
+    if m.greeter == null
+    then "monitor = ${m.name}, disable"
+    else "monitor = ${m.name}, ${m.greeter}")
+  host.monitors;
+in {
   programs.hyprland.enable = true;
   programs.dconf.enable = true;
 
@@ -37,10 +47,6 @@
       enable = true;
       restartIfChanged = true;
     };
-    enableVPN = true;
-    enableDynamicTheming = true;
-    enableAudioWavelength = true;
-    enableCalendarEvents = true;
   };
 
   services.displayManager = {
@@ -54,11 +60,7 @@
             force_default_wallpaper = 0
           }
 
-          # Отключаем второй монитор (Acer)
-          monitor = HDMI-A-2, disable
-
-          # Основной монитор (LG Ultrawide)
-          monitor = HDMI-A-1, 2560x1080@100.000, 0x0, 1
+          ${greeterMonitors}
 
           env = XCURSOR_THEME,${appearance.cursorTheme}
           env = XCURSOR_SIZE,${toString appearance.cursorSize}

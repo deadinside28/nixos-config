@@ -109,6 +109,7 @@ in {
   # gtk.enable = false — иначе home-manager утащит settings.ini себе,
   # см. длинный комментарий выше.
   home.pointerCursor = {
+    enable = true;
     name = appearance.cursorTheme;
     package = pkgs.adwaita-icon-theme;
     size = appearance.cursorSize;

@@ -1,5 +1,10 @@
 # Игры, стриминг и утилиты железа.
-{pkgs, ...}: {
+{
+  pkgs,
+  lib,
+  host,
+  ...
+}: {
   hardware.steam-hardware.enable = true; # Поддержка Steam Controller
   programs.gamemode.enable = true;
   programs.gpu-screen-recorder.enable = true;
@@ -44,6 +49,6 @@
   };
 
   # Управление кулерами/частотами AMD (LACT)
-  systemd.packages = with pkgs; [lact];
-  systemd.services.lactd.wantedBy = ["multi-user.target"];
+  systemd.packages = lib.optionals host.amdGpu [pkgs.lact];
+  systemd.services.lactd = lib.mkIf host.amdGpu {wantedBy = ["multi-user.target"];};
 }

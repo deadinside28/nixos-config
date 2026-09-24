@@ -1,7 +1,9 @@
 {username, ...}: {
   imports = [
     ./modules/dms/default.nix
+    ./modules/dms/host.nix
     ./modules/terminal.nix
+    ./modules/btop.nix
     ./modules/appearance.nix
     ./modules/cpak-policy.nix
   ];

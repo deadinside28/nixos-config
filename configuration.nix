@@ -1,10 +1,8 @@
 # Точка сборки системы. Сам по себе файл ничего не настраивает —
-# только собирает модули. Всё содержательное лежит в modules/system/.
+# только собирает модули. Всё содержательное лежит в modules/system/,
+# железо конкретной машины — в hosts/<хост>/ (подключает flake.nix).
 {...}: {
   imports = [
-    ./hardware-configuration.nix
-    ./disks.nix
-
     ./modules/system/boot.nix
     ./modules/system/network.nix
     ./modules/system/services.nix

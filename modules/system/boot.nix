@@ -1,14 +1,16 @@
 # Загрузка, ядро, параметры железа AMD.
 {
   config,
+  lib,
   pkgs,
+  host,
   ...
 }: {
   boot.loader.systemd-boot.enable = true;
   boot.loader.efi.canTouchEfiVariables = true;
 
   # Ранняя загрузка драйвера видеокарты (чтобы не было серого экрана)
-  boot.initrd.kernelModules = ["amdgpu"];
+  boot.initrd.kernelModules = lib.optionals host.amdGpu ["amdgpu"];
 
   # Отключаем текстовые логи при загрузке
   boot.consoleLogLevel = 0;
@@ -20,35 +22,36 @@
     theme = "bgrt";
   };
 
-  boot.kernelParams = [
-    "amdgpu.ppfeaturemask=0xffffffff"
-    "quiet"
-    "splash"
-    "boot.shell_on_fail"
-    "loglevel=3"
-    "rd.systemd.show_status=false"
-    "rd.udev.log_level=3"
-    "udev.log_priority=3"
-    "usbcore.autosuspend=-1"
-  ];
+  boot.kernelParams =
+    lib.optionals host.amdGpu ["amdgpu.ppfeaturemask=0xffffffff"]
+    ++ [
+      "quiet"
+      "splash"
+      "boot.shell_on_fail"
+      "loglevel=3"
+      "rd.systemd.show_status=false"
+      "rd.udev.log_level=3"
+      "udev.log_priority=3"
+      "usbcore.autosuspend=-1"
+    ];
 
   # Планировщик sched-ext (по умолчанию scx_rustland)
   services.scx.enable = true;
   # services.scx.scheduler = "scx_rusty"; # если захочешь сменить вручную
 
   # Чтение потребляемой мощности и управление Curve Optimizer
-  boot.extraModulePackages = with config.boot.kernelPackages; [ryzen-smu];
-  boot.kernelModules = ["ryzen_smu" "k10temp"];
+  boot.extraModulePackages = lib.optionals (host.undervolt != null) [config.boot.kernelPackages.ryzen-smu];
+  boot.kernelModules = ["k10temp"] ++ lib.optionals (host.undervolt != null) ["ryzen_smu"];
   boot.blacklistedKernelModules = [];
 
   # Андервольт CPU. Скрипт лежит в scripts/ и подтягивается декларативно.
-  systemd.services.ryzen-undervolt = {
+  systemd.services.ryzen-undervolt = lib.mkIf (host.undervolt != null) {
     description = "AMD Ryzen 7 5700X3D Undervolt";
     wantedBy = ["multi-user.target" "post-resume.target"];
     after = ["suspend.target"];
     serviceConfig = {
       Type = "oneshot";
-      ExecStart = "${pkgs.python3}/bin/python ${../../scripts/ruv.py} -c 8 -o -25";
+      ExecStart = "${pkgs.python3}/bin/python ${../../scripts/ruv.py} -c ${toString host.undervolt.cores} -o ${toString host.undervolt.offset}";
       RemainAfterExit = true;
     };
   };

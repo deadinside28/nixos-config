@@ -18,11 +18,9 @@ hl.env("MANGOHUD", "1")
 -- отсюда он доставался только детям Hyprland, а нужен ещё грайтеру,
 -- systemd --user и всему, что стартует не из компоновщика.
 
--- Monitors
-MONITOR1 = "HDMI-A-1"
-MONITOR2 = "HDMI-A-2"
-MONITOR3 = ""
-PRIMARY_MONITOR = MONITOR1
+-- Мониторы и воркспейсы этой машины: MONITOR1.., PRIMARY_MONITOR и
+-- правила воркспейсов. hypr/host.lua генерируется из hosts/<хост>/host.nix.
+require("host")
 
 hl.config({
     input = {
@@ -50,18 +48,6 @@ hl.config({
         }
     }
 })
-
--- default = true означает «этот воркспейс — дефолтный ДЛЯ ЭТОГО МОНИТОРА».
--- Он должен быть ровно один на монитор; когда их пять, кто победит — лотерея.
-hl.workspace_rule({ workspace = "1", monitor = MONITOR1, default = true, persistent = true })
-hl.workspace_rule({ workspace = "2", monitor = MONITOR1, persistent = true })
-hl.workspace_rule({ workspace = "3", monitor = MONITOR1, persistent = true })
-hl.workspace_rule({ workspace = "4", monitor = MONITOR1, persistent = true })
-hl.workspace_rule({ workspace = "5", monitor = MONITOR1, persistent = true })
-hl.workspace_rule({ workspace = "6", monitor = MONITOR2, default = true, persistent = true })
-hl.workspace_rule({ workspace = "7", monitor = MONITOR2, persistent = true })
-hl.workspace_rule({ workspace = "8", monitor = MONITOR2, persistent = true })
-hl.workspace_rule({ workspace = "9", monitor = MONITOR2, persistent = true })
 
 -- Делаем все окна прозрачными на 90%, чтобы сквозь них стало видно размытие,
 -- но при этом жестко фиксируем 100% непрозрачность (1.0) для полноэкранных окон.

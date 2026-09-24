@@ -15,10 +15,11 @@
 
 ## 🎯 Идея: одна точка правды
 
-В начале `flake.nix` лежат два блока, которые прокидываются во все модули:
+Всё, что может отличаться, задаётся в одном месте и прокидывается во все модули:
 
-* `username` / `hostname` — чтобы имя пользователя не было захардкожено по всему конфигу;
-* `appearance` — шрифт интерфейса и его начертание, моноширинный шрифт, кегли, курсор.
+* `username` в `flake.nix` — имя пользователя нигде больше не зашито;
+* `appearance` в `flake.nix` — шрифт интерфейса и его начертание, моноширинный шрифт, кегли, курсор;
+* `hosts/<имя>/host.nix` — особенности конкретной машины: мониторы и их воркспейсы, видеокарта AMD, андервольт. Имя папки — это имя хоста.
 
 ```nix
 appearance = {
@@ -54,7 +55,7 @@ appearance = {
 ### 🎨 Единый вид для всех приложений
 * **Шрифт Google Sans** (системный шрифт Pixel) начертанием Medium во всей системе. Правило fontconfig подменяет «обычное» начертание на выбранное, поэтому среднежирный текст получают и GTK, и Qt, и Chrome, и Electron, и Flatpak.
 * **Qt через GTK:** Qt-приложения берут шрифт, иконки и палитру из GTK — отдельный qt6ct не нужен.
-* **Flatpak** видит темы, иконки, шрифты, настройки GTK/Qt и курсор хоста (глобальный override).
+* **Flatpak** видит темы, иконки, шрифты, настройки GTK/Qt и курсор хоста — только на чтение. Лишних прав приложения не получают: к файлам они ходят через общий диалог, а точечные разрешения можно дать во Flatseal.
 * **Совместимость с FHS:** `/usr/share/fonts`, `/usr/share/icons` и `/usr/share/themes` смонтированы из системы — AppImage, Steam, OnlyOffice и прочий софт «не для NixOS» находят шрифты и иконки там, где привыкли.
 
 ### 📂 Одинаковые диалоги выбора файлов
@@ -74,7 +75,8 @@ appearance = {
 ### 🗂 Приложения
 * **Файловый менеджер Nemo** с превью (`nemo-preview`); «Открыть в терминале» открывает Kitty. Есть расширение для AppImage: в контекстном меню есть «Добавить в меню приложений» и «Убрать из меню приложений». Ярлык с иконкой и описанием берётся из самого образа, а образ остаётся на месте.
 * **Zed** — редактор кода; тему `DankShell Dark/Light` для него генерирует DMS.
-* Qalculate!, Celluloid, Papers, Mission Center, Baobab, Loupe, GNOME Text Editor, GNOME Calendar, OnlyOffice, qBittorrent, Google Chrome, Telegram, YouTube Music.
+* **btop поверх экрана** (`SUPER + M` или `SUPER + SHIFT + Esc`): процессор, видеокарта AMD, память, сеть и процессы в выезжающем окне на мониторе с фокусом. Цвета берёт из терминала, то есть от DMS.
+* Qalculate!, Celluloid, Papers, Baobab, Loupe, GNOME Text Editor, GNOME Calendar, OnlyOffice, qBittorrent, Google Chrome, Telegram, YouTube Music.
 * **Терминал:** Kitty + Fish + Fastfetch (в терминалах VS Code и Zed Fastfetch не запускается).
 * **Живые обои** из Steam Workshop через `linux-wallpaperengine`.
 
@@ -86,7 +88,7 @@ appearance = {
 
 ## 🖥️ Мониторы и воркспейсы
 
-Воркспейсы жёстко распределены по двум мониторам, поэтому всегда понятно, где какое приложение, и во время игры ничего не теряется.
+Воркспейсы жёстко распределены по двум мониторам, поэтому всегда понятно, где какое приложение, и во время игры ничего не теряется. Раскладка задаётся в `hosts/nixos/host.nix`: из него генерируются мониторы и правила воркспейсов для Hyprland (`hypr/host.lua`) и мониторы экрана входа.
 
 **Основной монитор (LG Ultrawide, HDMI-A-1):**
 * Воркспейсы **1–4** и игровой **5 (Gaming)**. Переключение: `SUPER + [1, 2, 3, 4, G]`.
@@ -132,7 +134,7 @@ appearance = {
 | Хоткей | Действие |
 | :--- | :--- |
 | `SUPER + V` | Буфер обмена |
-| `SUPER + M` | Диспетчер задач |
+| `SUPER + M` / `SUPER + SHIFT + Esc` | Мониторинг (btop поверх экрана) |
 | `SUPER + S` | Настройки DMS |
 | `SUPER + N` | Центр уведомлений |
 | `SUPER + Y` | Выбор обоев |
@@ -174,11 +176,19 @@ appearance = {
 ## 🗃 Структура репозитория
 
 ```
-flake.nix                 входы, username/hostname и блок appearance
+flake.nix                 входы, username, appearance; по хосту на папку в hosts/
 configuration.nix         список системных модулей
 home.nix                  список модулей Home Manager
-hardware-configuration.nix, disks.nix   железо и диски (под мою машину)
-scripts/ruv.py            андервольт Ryzen через ryzen_smu
+
+hosts/nixos/              моя машина (имя папки = имя хоста)
+  host.nix                мониторы и воркспейсы, AMD GPU, андервольт
+  default.nix             подключает железо:
+  hardware-configuration.nix, disks.nix
+
+scripts/
+  ruv.py                  андервольт Ryzen через ryzen_smu
+  safe-update.sh          обновление: сборка → разница → пробный запуск → switch
+.github/workflows/        проверка конфига на каждый push, еженедельное обновление
 
 modules/system/
   boot.nix                загрузчик, ядро, Plymouth, андервольт
@@ -191,6 +201,7 @@ modules/system/
   gaming.nix              Steam, Gamescope, Sunshine, LACT
   packages.nix            системные пакеты
   services.nix            звук, Flatpak, cpak, gvfs, Docker
+  flatpak-overrides.nix   права Flatpak: общий вид для всех, файлы через портал
   network.nix, users.nix  сеть, локаль, пользователь
 
 modules/
@@ -201,13 +212,14 @@ modules/
     hyprland.lua          основной конфиг Hyprland и анимации
     binds.lua             горячие клавиши
     windowrules.lua       правила окон и воркспейсов
-    default.nix           раскладка конфигов, xdph, Flatpak overrides
+    default.nix           раскладка конфигов, xdph, включение плагина
+    host.nix              генерирует hypr/host.lua из host.nix
     plugins/dndSpring/    плагин перетаскивания файлов
 ```
 
 ## 📦 Как применить
 
-> **Внимание:** в конфиге есть настройки под конкретное железо: UUID дисков в `disks.nix`, андервольт под Ryzen, имена мониторов в `hyprland.lua`. Перед использованием на другой машине отредактируйте `hardware-configuration.nix`, `disks.nix` и `modules/system/boot.nix`, а в `flake.nix` поменяйте `username` и `hostname`.
+> **Своя машина.** Всё железо лежит в `hosts/<имя>/`. Скопируйте `hosts/nixos` в папку с именем своего хоста, положите туда свой `hardware-configuration.nix` (`nixos-generate-config --show-hardware-config`), поправьте или очистите `disks.nix` и опишите мониторы, видеокарту и андервольт в `host.nix` (андервольт лучше выключить: `undervolt = null;` — смещение подбирается под конкретный процессор). В `flake.nix` поменяйте `username`. Собирать — `.#<имя папки>`.
 
 Конфиг хранится в домашней папке как обычный git-репозиторий:
 

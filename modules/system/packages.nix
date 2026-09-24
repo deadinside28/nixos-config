@@ -8,7 +8,6 @@
 
   environment.systemPackages = with pkgs; [
     # --- Базовые утилиты и разработка ---
-    btop
     git
     gnome-text-editor
     nemo
@@ -64,7 +63,6 @@
     mpv
     celluloid # GTK4-оболочка для mpv
     papers # просмотр PDF с аннотациями (GNOME 50)
-    mission-center # диспетчер задач с графиками GPU
     baobab # что занимает место на диске
     zed-editor # лёгкий редактор кода, DMS красит его через matugen
     ffmpeg

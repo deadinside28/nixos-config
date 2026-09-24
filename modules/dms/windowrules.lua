@@ -166,3 +166,30 @@ hl.window_rule({ match = { class = "^(discord)$" }, workspace = "6" })
 hl.window_rule({ match = { class = "^(org\\.telegram\\.desktop)$" }, workspace = "7" })
 hl.window_rule({ match = { class = "^(com.pocoguy.Muse|youtube-music-desktop-app)$"  }, workspace = "8" })
 hl.window_rule({ match = { class = "^(steam)$" }, workspace = "9" })
+
+-- Мониторинг (btop) — выезжающий воркспейс special:monitor.
+--   - при первом открытии (и после выхода из btop клавишей q) btop
+--     запускается сам;
+--   - раскладка dwindle: единственное окно занимает весь экран, как
+--     обычное развёрнутое окно, и подстраивается под размер монитора;
+--   - шрифт 12: btop помещается целиком и на 1080p.
+hl.workspace_rule({
+    workspace        = "special:monitor",
+    layout           = "dwindle",
+    on_created_empty = "kitty --class btop-monitor -o font_size=12 btop",
+})
+-- Окно прозрачнее обычных (0.8 против 0.93), чтобы за ним было видно
+-- размытый рабочий стол.
+hl.window_rule({
+    match   = { class = "^(btop-monitor)$" },
+    opacity = "0.8 override 0.8 override 1.0 override",
+})
+-- Своё размытие для выезжающих воркспейсов: пока такой воркспейс открыт,
+-- весь экран под ним размывается и затемняется, а окно btop размывает
+-- уже размытое — выходит заметно сильнее, чем у обычных окон.
+hl.config({
+    decoration = {
+        dim_special = 0.35,
+        blur = { special = true },
+    },
+})
