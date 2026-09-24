@@ -1,6 +1,6 @@
 # Фоновые сервисы: звук, печать, ключи, Flatpak, контейнеры.
 {...}: {
-  services.gvfs.enable = true; # Корзина, сетевые диски и MTP для Nautilus
+  services.gvfs.enable = true; # Корзина, сетевые диски и MTP для Nemo
   services.printing.enable = true;
 
   # Хранилище ключей

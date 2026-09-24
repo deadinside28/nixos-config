@@ -134,7 +134,7 @@
     # Без этого блока generic-семейства (sans-serif / monospace / serif)
     # резолвятся непредсказуемо. Порядок важен: первый доступный побеждает.
     fontconfig.defaultFonts = {
-      sansSerif = [appearance.uiFont "Noto Sans" "Noto Color Emoji"];
+      sansSerif = [appearance.uiFont "Inter" "Noto Sans" "Noto Color Emoji"];
       serif = ["Noto Serif" "Noto Color Emoji"];
       monospace = [appearance.monoFont "Noto Sans Mono" "Symbols Nerd Font" "Noto Color Emoji"];
       emoji = ["Noto Color Emoji"];

@@ -62,7 +62,7 @@
     enable = true;
     interactiveShellInit = ''
       set -g fish_greeting ""
-      if test "$TERM_PROGRAM" != "vscode"
+      if not contains -- "$TERM_PROGRAM" vscode zed
           fastfetch
       end
     '';

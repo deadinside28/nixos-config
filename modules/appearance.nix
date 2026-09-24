@@ -19,9 +19,45 @@
   appearance,
   ...
 }: let
-  uiFontSpec = "${appearance.uiFont} ${toString appearance.uiFontSize}";
-  monoFontSpec = "${appearance.monoFont} ${toString appearance.monoFontSize}";
+  uiFontSpec = "${appearance.uiFont} ${appearance.uiFontStyle} ${toString appearance.uiFontSize}";
+  monoFontSpec = "${appearance.monoFont} ${appearance.monoFontStyle} ${toString appearance.monoFontSize}";
 in {
+  # НАЧЕРТАНИЕ ВО ВСЕЙ СИСТЕМЕ.
+  # GTK берёт начертание из строки шрифта («Google Sans Medium 12»), но
+  # Qt, Chrome, kitty и прочие просят у fontconfig просто «обычное». Это
+  # правило подменяет «обычное» у интерфейсного и моноширинного шрифтов
+  # на выбранное в appearance (flake.nix). Жирный остаётся жирным, так что
+  # разница между обычным и выделенным текстом сохраняется.
+  #
+  # Файл лежит в ~/.config/fontconfig, а не в /etc/fonts: этот каталог
+  # проброшен во Flatpak (xdg-config/fontconfig), и песочницы тоже его видят.
+  #
+  # У Google Sans три отдельных начертания: Regular, Medium и Bold.
+  # SemiBold у него есть только как промежуточное значение оси веса, и
+  # fontconfig в этом случае выбирает Bold — поэтому для Google Sans
+  # имеет смысл только Regular / Medium / Bold.
+  xdg.configFile."fontconfig/conf.d/60-font-weight.conf".text = let
+    rule = family: style: ''
+      <match target="pattern">
+        <test name="family" qual="first"><string>${family}</string></test>
+        <test name="weight" compare="eq"><const>regular</const></test>
+        <edit name="weight" mode="assign" binding="strong"><const>${lib.toLower style}</const></edit>
+      </match>
+      <match target="pattern">
+        <test name="family" qual="first"><string>${family}</string></test>
+        <test name="style" compare="eq"><string>Regular</string></test>
+        <edit name="style" mode="assign" binding="strong"><string>${style}</string></edit>
+      </match>
+    '';
+  in ''
+    <?xml version="1.0"?>
+    <!DOCTYPE fontconfig SYSTEM "urn:fontconfig:fonts.dtd">
+    <fontconfig>
+    ${rule appearance.uiFont appearance.uiFontStyle}
+    ${rule appearance.monoFont appearance.monoFontStyle}
+    </fontconfig>
+  '';
+
   # ВНИМАНИЕ: модуль gtk из home-manager здесь не используется намеренно.
   # Он кладёт ~/.config/gtk-3.0/settings.ini симлинком в /nix/store, файл
   # становится недоступным для записи, а скрипт иконок DMS проверяет ровно

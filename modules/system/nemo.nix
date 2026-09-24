@@ -1,7 +1,11 @@
-# Расширения Nautilus: пункты «Добавить в меню приложений» / «Убрать из меню»
-# для AppImage.
+# Файловый менеджер Nemo (вместо Nautilus) + пункты контекстного меню
+# «Добавить в меню приложений» / «Убрать из меню» для AppImage.
 #
-# Ярлык генерируется САМ, без Gear Lever. Что важно:
+# Почему Nemo: две панели (F3), вкладки, больше настроек, свои действия
+# в меню, быстрый просмотр по пробелу (nemo-preview). Он на GTK3, поэтому
+# adw-gtk3 и DMS красят его так же, как остальные приложения.
+#
+# Ярлык AppImage генерируется САМ, без Gear Lever. Что важно:
 #   • образ остаётся там, где лежит — никаких копий и переносов;
 #   • Exec идёт через шим appimage-run (см. modules/system/appimage.nix).
 #     Образ исполняется сам и шим его не распаковывает — он только
@@ -12,14 +16,11 @@
 #   • ничего не распаковывается: образ монтируется своим рантаймом
 #     через FUSE, из него копируются два файла, и он размонтируется.
 #
-# Как Nautilus вообще находит расширение:
-#   1. нативные расширения грузятся из каталога в NAUTILUS_4_EXTENSION_DIR;
-#   2. одно из них — nautilus-python, мост к питону;
-#   3. он подхватывает .py из share/nautilus-python/extensions по XDG_DATA_DIRS.
-#
-# ВАЖНО: NAUTILUS_4_EXTENSION_DIR задаёт РОВНО ОДИН каталог и подменяет
-# стандартный. Поэтому ниже собирается объединённый: если какая-то
-# интеграция в Nautilus пропадёт — допиши её пакет в `paths` у extensionDir.
+# Как Nemo находит расширение: nemo-with-extensions собирает nemo вместе
+# со списком расширений и оборачивает его бинарники и D-Bus-сервисы
+# переменными NEMO_EXTENSION_DIR / NEMO_PYTHON_EXTENSION_DIR. Поэтому, в
+# отличие от Nautilus, никаких переменных окружения руками не нужно:
+# достаточно положить пакет с share/nemo-python/extensions/*.py в extensions.
 {pkgs, ...}: let
   binPath = pkgs.lib.makeBinPath (with pkgs; [
     coreutils
@@ -252,30 +253,25 @@
   '';
 
   extension = pkgs.writeTextFile {
-    name = "nautilus-appimage-extension";
-    destination = "/share/nautilus-python/extensions/appimage-menu.py";
+    name = "nemo-appimage-extension";
+    destination = "/share/nemo-python/extensions/appimage-menu.py";
     text = ''
-      # Пункты контекстного меню Nautilus для AppImage.
-      # Сгенерировано из modules/system/nautilus-extensions.nix
+      # Пункты контекстного меню Nemo для AppImage.
+      # Сгенерировано из modules/system/nemo.nix
 
       import os
       import subprocess
 
       import gi
 
-      # require_version намеренно завёрнут в try.
-      #
-      # nautilus-python загружает namespace Nautilus в процесс ДО того,
-      # как импортирует расширения. Если после этого запросить другую
-      # версию, pygobject падает с ValueError — а версия зависит от сборки
-      # Nautilus (4.0, 4.1, дальше будет больше). Так что просто
-      # соглашаемся с той, которую уже загрузил хост.
+      # nemo-python загружает namespace Nemo до импорта расширений; если
+      # версия уже выбрана хостом, повторный запрос бросает ValueError.
       try:
-          gi.require_version("Nautilus", "4.1")
+          gi.require_version("Nemo", "3.0")
       except ValueError:
           pass
 
-      from gi.repository import GObject, Nautilus
+      from gi.repository import GObject, Nemo
 
       ADD = "${integrate}"
       REMOVE = "${remove}"
@@ -331,10 +327,10 @@
           return paths
 
 
-      class AppImageMenuProvider(GObject.GObject, Nautilus.MenuProvider):
-          # В Nautilus 4.0 сигнатура get_file_items потеряла аргумент window,
-          # который был в 3.x. Принимаем *args и берём последний — так
-          # расширение переживёт обе версии.
+      class AppImageMenuProvider(GObject.GObject, Nemo.MenuProvider):
+          # В Nemo сигнатура get_file_items(window, files). *args с последним
+          # аргументом — на случай, если в будущей версии window уберут,
+          # как это сделали в Nautilus 4.
           def get_file_items(self, *args):
               files = args[-1] if args else []
               paths = _appimage_paths(files)
@@ -342,14 +338,14 @@
               if not paths:
                   return []
 
-              add = Nautilus.MenuItem(
+              add = Nemo.MenuItem(
                   name="AppImage::add",
                   label="Добавить в меню приложений",
                   tip="Создать ярлык с иконкой и описанием из образа",
               )
               add.connect("activate", self._run, ADD, paths)
 
-              rm = Nautilus.MenuItem(
+              rm = Nemo.MenuItem(
                   name="AppImage::remove",
                   label="Убрать из меню приложений",
                   tip="Удалить ярлык и иконку. Сам образ останется на месте",
@@ -363,33 +359,41 @@
     '';
   };
 
-  extensionDir = pkgs.symlinkJoin {
-    name = "nautilus-extensions-4";
-    paths = [
-      pkgs.nautilus-python
-      pkgs.file-roller
+  # Nemo со стандартным набором расширений Linux Mint (nemo-python,
+  # сжатие/распаковка через File Roller, эмблемы, цвет папок) плюс наше
+  # расширение и быстрый просмотр по пробелу.
+  nemo = pkgs.nemo-with-extensions.override {
+    extensions = [
+      extension
+      pkgs.nemo-preview
     ];
   };
 in {
-  environment.systemPackages = [
-    pkgs.nautilus-python
-    extension
+  environment.systemPackages = [nemo];
+
+  # Файловый менеджер по умолчанию на уровне системы. Это именно умолчание:
+  # если выбрать другое в DMS → Приложения по умолчанию, пользовательский
+  # mimeapps.list его перекроет.
+  xdg.mime.defaultApplications = {
+    "inode/directory" = "nemo.desktop";
+    "application/x-gnome-saved-search" = "nemo.desktop";
+  };
+
+  # Системные умолчания dconf (пользователь может их менять — это не
+  # жёсткая запись, а значения по умолчанию).
+  programs.dconf.profiles.user.databases = [
+    {
+      settings = {
+        # «Открыть в терминале» — kitty, а не gnome-terminal
+        "org/cinnamon/desktop/default-applications/terminal" = {
+          exec = "kitty";
+          exec-arg = "";
+        };
+        # Nemo не должен рисовать свой рабочий стол поверх обоев DMS
+        "org/nemo/desktop" = {
+          show-desktop-icons = false;
+        };
+      };
+    }
   ];
-
-  # Без этого share/nautilus-python/extensions не попадёт в системный
-  # профиль, и мост его не найдёт.
-  environment.pathsToLink = ["/share/nautilus-python/extensions"];
-
-  environment.sessionVariables.NAUTILUS_4_EXTENSION_DIR =
-    "${extensionDir}/lib/nautilus/extensions-4";
-
-  # То же самое, но для systemd --user.
-  #
-  # environment.sessionVariables попадает в /etc/set-environment, который
-  # читают логин-шеллы. А Nautilus обычно стартует не из шелла, а по
-  # D-Bus-активации (org.gnome.Nautilus) — такие процессы наследуют
-  # окружение пользовательского systemd и переменной оттуда не видят.
-  environment.etc."environment.d/90-nautilus-extensions.conf".text = ''
-    NAUTILUS_4_EXTENSION_DIR=${extensionDir}/lib/nautilus/extensions-4
-  '';
 }

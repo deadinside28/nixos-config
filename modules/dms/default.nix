@@ -1,4 +1,9 @@
-{appearance, ...}: {
+{
+  pkgs,
+  lib,
+  appearance,
+  ...
+}: {
   xdg.configFile = {
     # Главный конфиг Hyprland
     "hypr/hyprland.lua".source = ./hyprland.lua;
@@ -16,7 +21,35 @@
           allow_token_by_default = true
       }
     '';
+
+    # Плагин DMS: перетаскивание файлов между воркспейсами
+    # (полоска сверху + прокрутка ленты у краёв). См. plugins/dndSpring.
+    "DankMaterialShell/plugins/dndSpring".source = ./plugins/dndSpring;
   };
+
+  # Плагины DMS включаются галкой в Настройки → Плагины, а галка хранится
+  # в plugin_settings.json вместе с настройками остальных плагинов. Файл
+  # целиком из Nix не отдаём (DMS пишет в него сам), поэтому здесь только
+  # ставим enabled = true, если такого ключа ещё нет. Выключишь плагин
+  # в DMS — выбор сохранится и при следующей пересборке не перетрётся.
+  home.activation.dmsEnableDndSpring = lib.hm.dag.entryAfter ["writeBoundary"] ''
+    dmsPlugins="$HOME/.config/DankMaterialShell/plugin_settings.json"
+    if [[ -v DRY_RUN ]]; then
+      echo "dms: включил бы плагин dndSpring в $dmsPlugins"
+    elif [ -e "$dmsPlugins" ] && [ ! -w "$dmsPlugins" ]; then
+      echo "dms: $dmsPlugins только для чтения, включи dndSpring в Настройки → Плагины" >&2
+    else
+      ${pkgs.coreutils}/bin/mkdir -p "$(${pkgs.coreutils}/bin/dirname "$dmsPlugins")"
+      [ -s "$dmsPlugins" ] || echo '{}' > "$dmsPlugins"
+      dmsTmp=$(${pkgs.coreutils}/bin/mktemp)
+      if ${pkgs.jq}/bin/jq '.dndSpring = ({enabled: true} + (.dndSpring // {}))' "$dmsPlugins" > "$dmsTmp"; then
+        ${pkgs.coreutils}/bin/cat "$dmsTmp" > "$dmsPlugins"
+      else
+        echo "dms: $dmsPlugins не читается как JSON, плагин не включаю" >&2
+      fi
+      ${pkgs.coreutils}/bin/rm -f "$dmsTmp"
+    fi
+  '';
 
   # ==========================================
   # ОВЕРРАЙДЫ FLATPAK

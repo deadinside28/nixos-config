@@ -42,11 +42,13 @@
     # Flatpak, чтобы шрифт с курсором совпадали везде, а не в трёх местах
     # по отдельности.
     appearance = {
-      uiFont = "Inter";
-      uiFontSize = 11;
+      uiFont = "Google Sans";
+      uiFontStyle = "Medium"; # начертание: Regular / Medium / Bold
+      uiFontSize = 12;
       monoFont = "JetBrainsMono Nerd Font";
-      monoFontSize = 11;
-      termFontSize = 14; # у терминала свой кегль
+      monoFontSize = 12;
+      monoFontStyle = "Medium"; # Regular / Medium / SemiBold / Bold
+      termFontSize = 16; # у терминала свой кегль
       cursorTheme = "Adwaita";
       cursorSize = 24;
     };

@@ -72,7 +72,7 @@ hl.window_rule({
 
 hl.window_rule({
     match = {
-        class = "^(com\\.google\\.Chrome|google-chrome|mpv|io\\.mpv\\.Mpv)$"
+        class = "^(com\\.google\\.Chrome|google-chrome|mpv|io\\.mpv\\.Mpv|io\\.github\\.celluloid_player\\.Celluloid)$"
     },
     monitor = PRIMARY_MONITOR,
     no_vrr = true
@@ -105,6 +105,12 @@ require("dms.cursor")
 hl.curve("m3FastSpatial",    { type = "spring", mass = 1, stiffness = 800,  dampening = 33.94 }) -- ζ 0.6: заметный отскок ~9%
 hl.curve("m3DefaultSpatial", { type = "spring", mass = 1, stiffness = 380,  dampening = 31.19 }) -- ζ 0.8: лёгкий, ~1.5%
 hl.curve("m3SlowSpatial",    { type = "spring", mass = 1, stiffness = 200,  dampening = 22.63 }) -- ζ 0.8: для полноэкранного
+-- Та же скорость, что у m3DefaultSpatial, но ζ = 1: доходит до места и
+-- останавливается, без перелёта и возврата. Для окон это важно: отскок
+-- в полтора процента на окне в 2000 px — это 30 px туда-обратно, а в
+-- самом конце окно ещё и дрожит на пиксель, пока пружина успокаивается,
+-- и текст на нём мерцает.
+hl.curve("m3DefaultSpatialCalm", { type = "spring", mass = 1, stiffness = 380, dampening = 38.99 }) -- ζ 1.0
 -- «Эффектные» пружины — для прозрачности и цвета (без отскока).
 hl.curve("m3DefaultEffects", { type = "spring", mass = 1, stiffness = 1600, dampening = 80 })
 hl.curve("m3FastEffects",    { type = "spring", mass = 1, stiffness = 3800, dampening = 123.29 })
@@ -112,16 +118,19 @@ hl.curve("m3FastEffects",    { type = "spring", mass = 1, stiffness = 3800, damp
 -- элемент «уезжает», а не «успокаивается».
 hl.curve("m3EmphasizedAccel", { type = "bezier", points = { {0.3, 0},  {0.8, 0.15} } })
 hl.curve("m3Standard",        { type = "bezier", points = { {0.2, 0},  {0, 1}     } })
+-- Появление в M3: быстрый старт и долгое мягкое торможение.
+-- Кривая с фиксированной длительностью заканчивается чётко, без «доводки».
+hl.curve("m3EmphasizedDecel", { type = "bezier", points = { {0.05, 0.7}, {0.1, 1} } })
 
 hl.animation({ leaf = "global",      enabled = true, speed = 3,   bezier = "m3Standard" })
 
 -- Открытие окна — как запуск приложения на Pixel: вырастает с 85%
 -- и мягко доходит до места.
-hl.animation({ leaf = "windowsIn",   enabled = true, speed = 3,   spring = "m3DefaultSpatial", style = "popin 85%" })
+hl.animation({ leaf = "windowsIn",   enabled = true, speed = 4,   bezier = "m3EmphasizedDecel", style = "popin 85%" })
 -- Закрытие — быстро «проваливается» внутрь.
 hl.animation({ leaf = "windowsOut",  enabled = true, speed = 2,   bezier = "m3EmphasizedAccel", style = "popin 85%" })
 -- Движение и ресайз, в том числе прокрутка ленты scrolling-layout.
-hl.animation({ leaf = "windowsMove", enabled = true, speed = 3,   spring = "m3DefaultSpatial" })
+hl.animation({ leaf = "windowsMove", enabled = true, speed = 3,   spring = "m3DefaultSpatialCalm" })
 
 hl.animation({ leaf = "fadeIn",      enabled = true, speed = 2,   spring = "m3DefaultEffects" })
 hl.animation({ leaf = "fadeOut",     enabled = true, speed = 1.5, bezier = "m3EmphasizedAccel" })

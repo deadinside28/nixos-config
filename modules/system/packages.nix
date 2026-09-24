@@ -10,9 +10,9 @@
     # --- Базовые утилиты и разработка ---
     btop
     git
-    vscode
     gnome-text-editor
-    gnome-calculator
+    nemo
+    qalculate-gtk # калькулятор с единицами, константами, комплексными числами
     gnome-calendar
     psmisc # killall и компания
     fastfetch
@@ -25,7 +25,6 @@
     xhost # проброс графики XWayland в контейнер
 
     # --- Файловый менеджер и превью ---
-    nautilus
     ffmpegthumbnailer
     webp-pixbuf-loader
     poppler_gi
@@ -63,6 +62,11 @@
     qbittorrent
     loupe
     mpv
+    celluloid # GTK4-оболочка для mpv
+    papers # просмотр PDF с аннотациями (GNOME 50)
+    mission-center # диспетчер задач с графиками GPU
+    baobab # что занимает место на диске
+    zed-editor # лёгкий редактор кода, DMS красит его через matugen
     ffmpeg
 
     # --- Кодеки GStreamer ---
