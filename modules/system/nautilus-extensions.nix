@@ -3,8 +3,10 @@
 #
 # Ярлык генерируется САМ, без Gear Lever. Что важно:
 #   • образ остаётся там, где лежит — никаких копий и переносов;
-#   • Exec указывает прямо на него (он исполняемый сам по себе,
-#     см. modules/system/appimage.nix);
+#   • Exec идёт через шим appimage-run (см. modules/system/appimage.nix).
+#     Образ исполняется сам и шим его не распаковывает — он только
+#     выставляет переменные, чтобы диалоги выбора файлов шли через
+#     портал, как у всех остальных приложений;
 #   • имя, описание, категории и StartupWMClass берутся из .desktop
 #     внутри образа, иконка — оттуда же;
 #   • ничего не распаковывается: образ монтируется своим рантаймом
@@ -150,7 +152,7 @@
 
       if [ -n "$src" ]; then
         awk \
-          -v exec_line="Exec=\"$img\" %U" \
+          -v exec_line="Exec=appimage-run \"$img\" %U" \
           -v icon_line="''${icon:+Icon=$icon}" \
           -v origin_line="X-AppImage-Origin=$img" '
           /^\[/ {
@@ -180,7 +182,7 @@
         echo "Comment=AppImage в $(dirname -- "$img")"
         echo "Categories=Utility;"
         echo "Terminal=false"
-        echo "Exec=\"$img\" %U"
+        echo "Exec=appimage-run \"$img\" %U"
         [ -n "$icon" ] && echo "Icon=$icon"
         echo "X-AppImage-Origin=$img"
       } > "$out"

@@ -2,15 +2,13 @@
 {pkgs, ...}: {
   nixpkgs.config.allowUnfree = true;
 
-  # ВНИМАНИЕ: разрешение действует на всю систему, а не только на WinBoat —
-  # уязвимый Electron получит любое приложение, которое его запросит.
-  # Добавлено ради winboat; периодически проверяй, нужно ли ещё.
   nixpkgs.config.permittedInsecurePackages = [
     "electron-40.10.5"
   ];
 
   environment.systemPackages = with pkgs; [
     # --- Базовые утилиты и разработка ---
+    btop
     git
     vscode
     gnome-text-editor
@@ -25,9 +23,6 @@
     alejandra # автоформатер
     distrobox
     xhost # проброс графики XWayland в контейнер
-
-    # appimage-run здесь намеренно НЕТ и не нужен: образы запускаются
-    # напрямую через nix-ld + FUSE, см. modules/system/appimage.nix.
 
     # --- Файловый менеджер и превью ---
     nautilus

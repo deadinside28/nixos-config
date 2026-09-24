@@ -36,9 +36,23 @@
     # "deadinside" по всему конфигу.
     username = "deadinside";
     hostname = "nixos";
+
+    # Вторая точка правды — внешний вид. Один и тот же набор значений
+    # уезжает и в системные модули, и в home-manager, и в оверрайды
+    # Flatpak, чтобы шрифт с курсором совпадали везде, а не в трёх местах
+    # по отдельности.
+    appearance = {
+      uiFont = "Inter";
+      uiFontSize = 11;
+      monoFont = "JetBrainsMono Nerd Font";
+      monoFontSize = 11;
+      termFontSize = 14; # у терминала свой кегль
+      cursorTheme = "Adwaita";
+      cursorSize = 24;
+    };
   in {
     nixosConfigurations.${hostname} = nixpkgs.lib.nixosSystem {
-      specialArgs = {inherit username hostname;};
+      specialArgs = {inherit username hostname appearance;};
       modules = [
         chaotic.nixosModules.default
         ({pkgs, ...}: {
@@ -56,7 +70,7 @@
           home-manager.useGlobalPkgs = true;
           home-manager.useUserPackages = true;
           home-manager.backupFileExtension = "backup";
-          home-manager.extraSpecialArgs = {inherit username;};
+          home-manager.extraSpecialArgs = {inherit username appearance;};
           home-manager.users.${username} = import ./home.nix;
         }
       ];

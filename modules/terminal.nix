@@ -1,10 +1,14 @@
-{...}: {
+{appearance, ...}: {
   # --- Терминал Kitty ---
   programs.kitty = {
     enable = true;
+    # Был "Noto Sans Mono CJK SC" — это китайский шрифт: латиница и кириллица
+    # в нём нарисованы под иероглифы (шире, другие вертикальные метрики,
+    # плохой хинтинг на мелких кеглях). Отсюда ощущение «что-то не так».
+    # Теперь берём тот же моноширинный, что и весь остальной интерфейс.
     font = {
-      name = "Noto Sans Mono CJK SC";
-      size = 14;
+      name = appearance.monoFont;
+      size = appearance.termFontSize;
     };
     settings = {
       confirm_os_window_close = 0;

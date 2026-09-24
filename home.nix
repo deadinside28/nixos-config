@@ -2,6 +2,8 @@
   imports = [
     ./modules/dms/default.nix
     ./modules/terminal.nix
+    ./modules/appearance.nix
+    ./modules/cpak-policy.nix
   ];
 
   home.username = username;

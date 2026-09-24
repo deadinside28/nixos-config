@@ -50,7 +50,6 @@ hl.window_rule({
 -- Убрано fullscreen_state = 0, чтобы остальные .exe файлы также могли открываться на весь экран
 hl.window_rule({ match = { class = "^(.*\\.exe)$" }, float = true, monitor = PRIMARY_MONITOR, center = true })
 hl.window_rule({ match = { class = "^(.*[Ll]auncher.*)$" }, float = true, monitor = PRIMARY_MONITOR })
---hl.window_rule({ match = { class = "^(vesktop|discord)$" }, monitor = PRIMARY_MONITOR })
 hl.window_rule({ match = { class = "^(.*[Cc]alc.*)$" }, float = true, size = { "max(monitor_w, monitor_h)*0.17", "min(monitor_w, monitor_h)*0.43" } })
 hl.window_rule({ match = { class = "^(org\\.kde\\.keditfiletype)$" }, float = true })
 hl.window_rule({ match = { class = "^(org\\.kde\\.ark)$" }, size = { "max(monitor_w, monitor_h)*0.40", "min(monitor_w, monitor_h)*0.40" } })
@@ -149,11 +148,21 @@ hl.window_rule({
 
 hl.window_rule({ match = { class = "^(winboat)$" }, tile = true })
 
+hl.window_rule({
+    match = { class = "^winboat-.*$" },
+    opacity = "1.0 override 1.0 override 1.0 override",
+})
+
+hl.window_rule({
+    match = { class = "^winboat-.*$", title = "^RemoteApp Marker Window$" },
+    opacity = "0.0 override 0.0 override 0.0 override",
+})
+
 -- Делаем окна оболочки DMS плавающими, используя правильный класс
 hl.window_rule({ match = { class = "^(com\\.danklinux\\.dms)$" }, float = true, center = true })
 
 -- Autostart Apps to Monitor 2
 hl.window_rule({ match = { class = "^(discord)$" }, workspace = "6" })
 hl.window_rule({ match = { class = "^(org\\.telegram\\.desktop)$" }, workspace = "7" })
-hl.window_rule({ match = { class = "^(youtube-music-desktop-app)$" }, workspace = "8" })
+hl.window_rule({ match = { class = "^(com.pocoguy.Muse|youtube-music-desktop-app)$"  }, workspace = "8" })
 hl.window_rule({ match = { class = "^(steam)$" }, workspace = "9" })

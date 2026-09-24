@@ -18,15 +18,6 @@
     ];
   };
 
-  # Мост для передачи статуса из нативной системы в Flatpak-Discord
-  systemd.user.services.discord-flatpak-rpc = {
-    description = "Bridge Discord Flatpak RPC to host";
-    wantedBy = ["default.target"];
-    script = ''
-      ln -sf $XDG_RUNTIME_DIR/app/com.discordapp.Discord/discord-ipc-0 $XDG_RUNTIME_DIR/discord-ipc-0
-    '';
-  };
-
   services.flatpak = {
     enable = true;
     update.auto = {
@@ -34,9 +25,10 @@
       onCalendar = "weekly";
     };
     packages = [
-      "com.discordapp.Discord"
       "io.github.kolunmi.Bazaar"
       "com.github.tchx84.Flatseal"
+      "io.github.radiolamp.mangojuice"
+      "org.freedesktop.Platform.VulkanLayer.MangoHud//26.08"
     ];
   };
 

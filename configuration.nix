@@ -9,6 +9,7 @@
     ./modules/system/network.nix
     ./modules/system/services.nix
     ./modules/system/desktop.nix
+    ./modules/system/fhs-compat.nix
     ./modules/system/gaming.nix
     ./modules/system/packages.nix
     ./modules/system/nix-ld.nix
