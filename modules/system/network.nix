@@ -1,7 +1,7 @@
 # Сеть, брандмауэр, время и локаль.
-{...}: {
+{hostname, ...}: {
   networking = {
-    hostName = "nixos";
+    hostName = hostname; # из flake.nix
     networkmanager.enable = true;
     firewall = {
       allowedTCPPorts = [59999]; # MoonDeck Buddy (Sunshine — через openFirewall)
