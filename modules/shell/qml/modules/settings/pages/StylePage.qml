@@ -569,6 +569,146 @@ SettingsPage {
         }
     }
 
+    // --- Параметры выбранной сцены -------------------------------------
+    // linux-wallpaperengine поддерживает не все эффекты Wallpaper Engine:
+    // кривой эффект часто выключается параметром из project.json.
+    readonly property var engineItem: Wallpapers.current.type === "engine" ? WallpaperEngine.items.find(i => i.dir === Wallpapers.current.engine) ?? null : null
+    property var sceneProps: []
+
+    FileView {
+        path: page.engineItem && page.engineItem.type !== "video" ? page.engineItem.dir + "/project.json" : ""
+        printErrors: false
+        onLoaded: {
+            try {
+                const props = JSON.parse(text()).general?.properties ?? {};
+                page.sceneProps = Object.keys(props).map(k => Object.assign({
+                        name: k
+                    }, props[k])).filter(p => ["bool", "slider", "combo"].includes(p.type)).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+            } catch (e) {
+                page.sceneProps = [];
+            }
+        }
+        onPathChanged: if (path === "")
+            page.sceneProps = []
+    }
+
+    function propLabel(p) {
+        const known = {
+            ui_browse_properties_scheme_color: "Цвет схемы",
+            ui_browse_properties_alignment: "Выравнивание",
+            ui_browse_properties_color: "Цвет"
+        };
+        const t = String(p.text ?? "").replace(/<[^>]*>/g, "").trim();
+        if (known[t])
+            return known[t];
+        if (t.startsWith("ui_"))
+            return t.replace(/^ui_(browse_properties_)?/, "").replace(/_/g, " ");
+        return t || p.name;
+    }
+    function propValue(p) {
+        const own = (Settings.data.engineProps[page.engineItem?.dir] ?? {})[p.name];
+        return own !== undefined ? own : String(p.value);
+    }
+
+    Group {
+        title: "Эффекты живых обоев"
+        SwitchItem {
+            icon: "auto_awesome"
+            title: "Частицы"
+            subtitle: "Искры, снег, пыль. Если в сцене вместо них мусор — выключи"
+            checked: Settings.data.engineParticles
+            onToggled: v => Settings.data.engineParticles = v
+        }
+        SwitchItem {
+            icon: "3d_rotation"
+            title: "Параллакс"
+            subtitle: "Сцена слегка сдвигается вслед за курсором"
+            checked: Settings.data.engineParallax
+            onToggled: v => Settings.data.engineParallax = v
+        }
+        SwitchItem {
+            icon: "mouse"
+            title: "Реакция на мышь"
+            checked: Settings.data.engineMouse
+            onToggled: v => Settings.data.engineMouse = v
+        }
+    }
+
+    Group {
+        title: "Параметры обоев «" + (page.engineItem?.title ?? "") + "»"
+        visible: page.engineItem !== null && page.engineItem.type !== "video" && page.sceneProps.length > 0
+
+        Repeater {
+            model: page.sceneProps
+            Loader {
+                id: pl
+                required property var modelData
+                readonly property bool groupItem: true
+                property bool first: false
+                property bool last: false
+                Layout.fillWidth: true
+                onFirstChanged: if (item)
+                    item.first = first
+                onLastChanged: if (item)
+                    item.last = last
+                onLoaded: {
+                    item.first = first;
+                    item.last = last;
+                }
+                sourceComponent: modelData.type === "bool" ? boolProp : modelData.type === "slider" ? sliderProp : comboProp
+
+                Component {
+                    id: boolProp
+                    SwitchItem {
+                        title: page.propLabel(pl.modelData)
+                        checked: ["1", "true"].includes(page.propValue(pl.modelData))
+                        onToggled: v => WallpaperEngine.setProp(page.engineItem.dir, pl.modelData.name, v ? "1" : "0")
+                    }
+                }
+                Component {
+                    id: sliderProp
+                    SliderItem {
+                        readonly property real v: Number(page.propValue(pl.modelData))
+                        title: page.propLabel(pl.modelData)
+                        valueText: Math.round(v * 100) / 100
+                        from: Number(pl.modelData.min ?? 0)
+                        to: Number(pl.modelData.max ?? 1)
+                        stepSize: Number(pl.modelData.step ?? 0)
+                        value: pending !== null ? pending : v
+                        // пишем только по отпусканию, чтобы не перезапускать обои на каждом шаге
+                        onMoved: val => pending = val
+                        property var pending: null
+                        Timer {
+                            interval: 600
+                            running: parent.pending !== null
+                            onTriggered: {
+                                WallpaperEngine.setProp(page.engineItem.dir, pl.modelData.name, parent.pending);
+                                parent.pending = null;
+                            }
+                        }
+                    }
+                }
+                Component {
+                    id: comboProp
+                    ChoiceItem {
+                        title: page.propLabel(pl.modelData)
+                        options: (pl.modelData.options ?? []).map(o => ({
+                                    value: String(o.value),
+                                    label: String(o.label ?? o.value).replace(/<[^>]*>/g, "")
+                                }))
+                        current: page.propValue(pl.modelData)
+                        onSelected: v => WallpaperEngine.setProp(page.engineItem.dir, pl.modelData.name, v)
+                    }
+                }
+            }
+        }
+        ListItem {
+            icon: "restart_alt"
+            title: "Сбросить параметры этих обоев"
+            onClicked: WallpaperEngine.resetProps(page.engineItem.dir)
+        }
+    }
+
     FolderDialog {
         id: folderDialog
         title: "Папка с обоями"

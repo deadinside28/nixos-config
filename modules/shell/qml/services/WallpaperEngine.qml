@@ -119,6 +119,12 @@ $(sed -n 's/^[[:space:]]*"path"[[:space:]]*"\\(.*\\)"/\\1/p' "$vdf")"
             a.push("--fullscreen-pause-only-active");
         if (assetsDir)
             a.push("--assets-dir", assetsDir);
+        if (!d.engineParticles)
+            a.push("--disable-particles");
+        if (!d.engineParallax)
+            a.push("--disable-parallax");
+        if (!d.engineMouse)
+            a.push("--disable-mouse");
         return a;
     }
 
@@ -142,7 +148,25 @@ $(sed -n 's/^[[:space:]]*"path"[[:space:]]*"\\(.*\\)"/\\1/p' "$vdf")"
             cmd.push("-o", opts.join(" "), screen, item.file);
             return cmd;
         }
-        return ["linux-wallpaperengine", ...baseArgs, "--scaling", d.engineScaling, "--screen-root", screen, "--bg", dir];
+        // Параметры сцены (если меняли в настройках)
+        const props = (d.engineProps ?? {})[dir] ?? {};
+        const set = [];
+        for (const k of Object.keys(props))
+            set.push("--set-property", k + "=" + props[k]);
+        return ["linux-wallpaperengine", ...baseArgs, ...set, "--scaling", d.engineScaling, "--screen-root", screen, "--bg", dir];
+    }
+
+    function setProp(dir, name, value) {
+        const all = Object.assign({}, Settings.data.engineProps);
+        all[dir] = Object.assign({}, all[dir] ?? {}, {
+            [name]: String(value)
+        });
+        Settings.data.engineProps = all;
+    }
+    function resetProps(dir) {
+        const all = Object.assign({}, Settings.data.engineProps);
+        delete all[dir];
+        Settings.data.engineProps = all;
     }
 
     // Отдельный процесс на каждый монитор: смена обоев на одном экране не

@@ -54,6 +54,11 @@ Singleton {
             property bool engineSilent: true
             property bool enginePauseFullscreen: true
             property string engineScaling: "fill"
+            property bool engineParticles: true
+            property bool engineParallax: true
+            property bool engineMouse: true
+            // Свои значения параметров сцен: { "<папка обоев>": { имя: "значение" } }
+            property var engineProps: ({})
             // Свои обои для отдельных мониторов:
             // { "HDMI-A-2": { type, image, engine, preview } }; нет записи — общие
             property var screenWallpapers: ({})
