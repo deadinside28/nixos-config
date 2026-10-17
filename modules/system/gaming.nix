@@ -6,11 +6,11 @@
   ...
 }: {
   hardware.steam-hardware.enable = true; # Поддержка Steam Controller
-  programs.gamemode.enable = true;
   programs.gpu-screen-recorder.enable = true;
 
+  # Steam, Gamescope, GameMode и Sunshine включаются в system.json
+  # («Настройки → Система → Игры»); здесь — как именно они настроены.
   programs.steam = {
-    enable = true;
     gamescopeSession.enable = true;
 
     # Remote Play на Wayland. Без -pipewire Steam не умеет захватывать
@@ -38,11 +38,7 @@
     remotePlay.openFirewall = true;
   };
 
-  # Gamescope (Chaotic-Nyx подтянет свежую версию с патчами)
-  programs.gamescope.enable = true;
-
   services.sunshine = {
-    enable = true;
     autoStart = true;
     capSysAdmin = true; # Симуляция нажатий геймпада
     openFirewall = true; # Порты для Moonlight

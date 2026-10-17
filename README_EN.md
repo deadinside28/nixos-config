@@ -2,7 +2,7 @@
 
 # ❄️ NixOS Gaming Config
 
-My personal **NixOS** configuration: a gaming desktop built on **Hyprland** and the **DankMaterialShell (DMS)** shell that feels like one coherent desktop environment rather than a tiling WM with some panels bolted on. Fonts, colors, cursor, file pickers and animations are the same everywhere — in native apps, Flatpak, cpak and AppImage.
+My personal **NixOS** configuration: a gaming desktop built on **Hyprland** and a custom shell, **Pixel Shell** (Quickshell, Material 3 in the style of Pixel desktop mode and Aluminium OS), that feels like one coherent desktop environment rather than a tiling WM with some panels bolted on. Fonts, colors, cursor, file pickers and animations are the same everywhere — in native apps, Flatpak, cpak and AppImage.
 
 Everything is declarative: **Flakes** + **Home Manager**, with the Hyprland config written in **Lua**. The look is defined in one place (`flake.nix`) and propagates across the whole system on its own.
 
@@ -35,7 +35,7 @@ appearance = {
 };
 ```
 
-Change one line, rebuild, and the font or cursor changes in GTK, Qt, Flatpak, cpak, AppImage, the terminal and the login screen at once. Colors, icons and light/dark mode are DMS's job: you change them in its settings and they reach everything too.
+Change one line, rebuild, and the font or cursor changes in GTK, Qt, Flatpak, cpak, AppImage, and the terminal at once. Colors, icons and light/dark mode are the shell's job: you change them in its Settings app and they reach everything too.
 
 ## 🚀 Features
 
@@ -47,9 +47,9 @@ Change one line, rebuild, and the font or cursor changes in GTK, Qt, Flatpak, cp
 
 ### 🪟 Desktop
 * **[Hyprland](https://hyprland.org/) 0.56** with a Lua config and the `scrolling` layout: windows line up on a horizontal tape that you scroll through.
-* **[DankMaterialShell](https://github.com/AvengeMedia/DankMaterialShell):** bar, launcher, notifications, clipboard, window overview, lock screen and login screen (`dms-greeter`). Through matugen, DMS themes GTK, Qt, Kitty and Zed with colors taken from the wallpaper.
+* **Pixel Shell** (`modules/shell`), a custom [Quickshell](https://quickshell.org) shell: taskbar, launcher, quick settings, notifications, overview, clipboard, lock screen, polkit agent and a Settings app (see below). Login is greetd with autologin.
 * **Material 3 Expressive animations, like on a Pixel:** the springs are converted from Android's own tokens (`ExpressiveMotionTokens`). Windows open without any jitter at the end, and workspaces slide vertically.
-* **Drag files between workspaces** (a custom DMS plugin, `dndSpring`; see below).
+* **Drag files between workspaces** (the shell's `dndSpring` module; see below).
 * **Transparency and blur** on windows; fullscreen windows stay opaque.
 
 ### 🎨 A Uniform Look for Every App
@@ -74,11 +74,11 @@ The same host GTK file chooser opens everywhere, through xdg-desktop-portal:
 
 ### 🗂 Applications
 * **Nemo file manager** with previews (`nemo-preview`); "Open in Terminal" opens Kitty. An AppImage extension adds "Add to application menu" / "Remove from application menu" to the context menu. The desktop entry, its icon and description come from the image itself, and the image stays where it is.
-* **Zed** as the code editor; DMS generates its `DankShell Dark/Light` theme.
-* **btop as an overlay** (`SUPER + M` or `SUPER + SHIFT + Esc`): CPU, AMD GPU, memory, network and processes in a drop-in window on the focused monitor. It takes its colors from the terminal, i.e. from DMS.
+* **Zed** as the code editor.
+* **btop as an overlay** (`SUPER + M` or `SUPER + SHIFT + Esc`): CPU, AMD GPU, memory, network and processes in a drop-in window on the focused monitor. It takes its colors from the terminal, i.e. from the wallpaper.
 * Qalculate!, Celluloid, Papers, Baobab, Loupe, GNOME Text Editor, GNOME Calendar, OnlyOffice, qBittorrent, Google Chrome, Telegram, YouTube Music.
 * **Terminal:** Kitty + Fish + Fastfetch (Fastfetch is skipped inside VS Code and Zed terminals).
-* **Live wallpapers** from the Steam Workshop via `linux-wallpaperengine`.
+* **Live wallpapers** from the Steam Workshop via `linux-wallpaperengine`, picked right in Settings → Wallpaper & style.
 
 ### 🎮 Gaming & Streaming
 * Steam (with a Gamescope session), Gamemode, MangoHud, Lutris, Heroic, ProtonPlus, Protontricks.
@@ -86,9 +86,28 @@ The same host GTK file chooser opens everywhere, through xdg-desktop-portal:
 * **Steam Remote Play** on Wayland: Steam runs with `-pipewire` and captures the screen through the portal.
 * **Screen recording** with GPU Screen Recorder in AV1 at 60 FPS.
 
+## 📱 Pixel Shell
+
+Written from scratch on Quickshell to replace DMS, styled after Pixel desktop mode / Aluminium OS: Material 3 Expressive, Google Sans, Material Symbols icons, wallpaper colors via matugen.
+
+* **Taskbar** at the bottom: ring launcher button, workspace dots, pinned and running apps in the center (pill indicator under the focused one), tray, notification counter and a status pill with network, Bluetooth, volume and the clock. Right-click an icon for app actions, new window, pin, close.
+* **Launcher** (`SUPER + Space`): search field, frequent apps, grid of all apps. Fuzzy search, arrow keys, calculator (`=2+2`), terminal command (`>htop`), web search.
+* **Quick settings** (click the clock, `SUPER + N`): Android 16 style tiles, thick volume/brightness sliders, an MPRIS player and the notification center above.
+* **Notifications** with actions, inline reply and swipe to dismiss; **overview** (`SUPER + TAB`), **clipboard** (`SUPER + V`, cliphist), **power menu**, Pixel-style **lock screen**, volume **OSD**, **polkit agent**, **idle** lock/screen-off/suspend timers.
+
+### ⚙️ Settings — the whole system from a GUI
+
+A regular window (`SUPER + S`, or "Настройки" in the launcher) with sections on the left, like on a Pixel: network & Wi-Fi, Bluetooth, displays (drag-to-arrange layout, resolution, refresh rate, scale, VRR, 15 s auto-revert, night light), sound (devices, per-app volume), wallpaper & style (wallpapers, **Wallpaper Engine**, wallpaper or custom colors, 8 palette styles, dark theme, icons), desktop & windows (taskbar, pinned apps, clock, Hyprland rounding/gaps/border/opacity/blur), notifications, apps (defaults, autostart), keyboard & mouse (layouts, repeat, sensitivity, acceleration, shortcut list), power & lock, **System** and About.
+
+Everything except **System** applies instantly. The **System** section edits **`system.json`** at the repo root (read by `modules/system/gui-settings.nix`): time zone and language, services (Bluetooth, printing, Docker, Sunshine, sched-ext, zram…), gaming, **nixpkgs and Flatpak packages with search**, firewall ports, garbage collection. "Apply" builds the system as your user and switches via `pkexec` (the shell's polkit dialog asks for the password) — `nixos-rebuild switch` with progress and a log right in the window. Also: update (flake update + rebuild), test build, roll back to the previous generation.
+
+### 🌌 Wallpaper Engine
+
+Settings → Wallpaper & style → Live wallpapers: the shell finds Steam Workshop wallpapers in every Steam library (native, Flatpak, extra drives from `libraryfolders.vdf`), shows previews and types, and runs `linux-wallpaperengine` on all monitors, with sound, volume, FPS, scaling and pause-in-fullscreen options. The palette is taken from the wallpaper preview. Scene wallpapers need Wallpaper Engine itself installed in Steam (its assets).
+
 ## 🖥️ Monitors & Workspaces
 
-Workspaces are strictly assigned to the two monitors, so you always know where each app lives and nothing gets lost while gaming. The layout lives in `hosts/nixos/host.nix`: it generates the monitors and workspace rules for Hyprland (`hypr/host.lua`) and the login screen's monitors.
+Workspaces are strictly assigned to the two monitors, so you always know where each app lives and nothing gets lost while gaming. The layout lives in `hosts/nixos/host.nix`: it generates the default monitor modes and workspace rules for Hyprland (`hypr/host.lua`). Resolution, refresh rate and layout are then changed in Settings → Display.
 
 **Primary monitor (LG Ultrawide, HDMI-A-1):**
 * Workspaces **1–4** plus the **5 (Gaming)** workspace. Switch with `SUPER + [1, 2, 3, 4, G]`.
@@ -104,16 +123,14 @@ Workspaces are strictly assigned to the two monitors, so you always know where e
 
 ## 🖱️ Dragging Files Between Workspaces (`dndSpring`)
 
-A custom DMS plugin (`modules/dms/plugins/dndSpring`) that adds macOS-style spring-loaded workspaces:
+A shell module (`modules/shell/qml/modules/dnd`) that adds macOS-style spring-loaded workspaces:
 
 * **Top edge of the screen.** Drag a file to the top and a row with this monitor's workspaces appears. Hold the file over one and that workspace opens while the file stays in your hand, ready to drop into any window there. Just sliding along the row doesn't trigger anything.
 * **Left and right edges.** Hold a file at an edge and the window tape scrolls that way, speeding up the longer you hold.
-* It works on the DMS frame too, and plays nicely with the bar: on the bar's edge the strip sits next to it and doesn't block its buttons.
 * If you release the file right over a strip, the plugin refuses the drop, so the source app neither copies nor deletes anything.
 
-The plugin is enabled automatically on rebuild. You can turn it off in DMS Settings → Plugins, and that choice is kept. The speed can be tuned with the numbers at the top of `DndSpring.qml`.
+The speed can be tuned with the numbers at the top of `DndSpring.qml`.
 
-To move a **window** to another workspace, use the overview (`SUPER + TAB`): window thumbnails can be dragged between workspaces with the mouse.
 
 ---
 
@@ -128,16 +145,16 @@ The main modifier key is **SUPER (Windows)**.
 | `SUPER + T` | Terminal (Kitty) |
 | `SUPER + E` | File manager (Nemo) |
 | `SUPER + C` | Code editor (Zed) |
-| `SUPER + Space` | 🔍 Global search (DMS) |
+| `SUPER + Space` | 🔍 Launcher |
 
-### 🛠 Utilities & Menus (DMS)
+### 🛠 Utilities & Menus
 | Hotkey | Action |
 | :--- | :--- |
 | `SUPER + V` | Clipboard |
 | `SUPER + M` / `SUPER + SHIFT + Esc` | System monitor (btop overlay) |
-| `SUPER + S` | DMS settings |
-| `SUPER + N` | Notification center |
-| `SUPER + Y` | Wallpaper picker |
+| `SUPER + S` | Settings |
+| `SUPER + N` | Quick settings & notifications |
+| `SUPER + Y` | Wallpaper & style |
 | `SUPER + TAB` | Window overview |
 | `SUPER + SHIFT + Q` | ⚡ Power menu |
 | `SUPER + ALT + L` | 🔒 Lock screen |
@@ -176,7 +193,8 @@ The main modifier key is **SUPER (Windows)**.
 ## 🗃 Repository Layout
 
 ```
-flake.nix                 inputs, username, appearance; one host per folder in hosts/
+flake.nix                 inputs, username, appearance, system.json; one host per folder in hosts/
+system.json               system settings from the GUI (Settings → System)
 configuration.nix         list of system modules
 home.nix                  list of Home Manager modules
 
@@ -192,7 +210,8 @@ scripts/
 
 modules/system/
   boot.nix                bootloader, kernel, Plymouth, undervolt
-  desktop.nix             Hyprland, DMS, login screen, portals, fonts
+  desktop.nix             Hyprland, greetd, portals, fonts
+  gui-settings.nix        system.json → NixOS options
   google-sans.nix         Google Sans font from google/fonts
   fhs-compat.nix          /usr/share/{fonts,icons,themes} for foreign software
   nemo.nix                Nemo, previews and the AppImage menu
@@ -208,13 +227,16 @@ modules/
   appearance.nix          GTK/fontconfig fonts, font weight, cursor
   cpak-policy.nix         shared file-picker policy for cpak apps
   terminal.nix            Kitty, Fish, Fastfetch
-  dms/
+  hyprland/
     hyprland.lua          main Hyprland config and animations
     binds.lua             keybindings
     windowrules.lua       window and workspace rules
-    default.nix           config placement, xdph, plugin enabling
+    default.nix           config placement, xdph, Flatpak overrides
     host.nix              generates hypr/host.lua from host.nix
-    plugins/dndSpring/    file drag-and-drop plugin
+  shell/
+    default.nix           shell service, pixel-* scripts, matugen
+    matugen/              color templates: shell, GTK, kitty, Hyprland
+    qml/                  the shell itself: common/, widgets/, services/, modules/
 ```
 
 ## 📦 How to Apply

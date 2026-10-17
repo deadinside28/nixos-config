@@ -15,7 +15,6 @@
     gnome-calendar
     psmisc # killall и компания
     fastfetch
-    dsearch # мгновенный поиск файлов для DMS
     seahorse # работа с ключами
     onlyoffice-desktopeditors
     nixd # языковой сервер для Nix
@@ -64,7 +63,7 @@
     celluloid # GTK4-оболочка для mpv
     papers # просмотр PDF с аннотациями (GNOME 50)
     baobab # что занимает место на диске
-    zed-editor # лёгкий редактор кода, DMS красит его через matugen
+    zed-editor # лёгкий редактор кода
     ffmpeg
 
     # --- Кодеки GStreamer ---

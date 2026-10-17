@@ -1,19 +1,14 @@
-# Hyprland, оболочка DMS, дисплейный менеджер, порталы, шрифты.
+# Hyprland, дисплейный менеджер, порталы, шрифты. Сама оболочка — modules/shell.
 {
   pkgs,
   lib,
   username,
   host,
   appearance,
+  config,
   ...
 }: let
-  # Мониторы экрана входа из hosts/<хост>/host.nix: greeter = null —
-  # монитор выключен, иначе «режим, позиция, масштаб».
-  greeterMonitors = lib.concatMapStringsSep "\n" (m:
-    if m.greeter == null
-    then "monitor = ${m.name}, disable"
-    else "monitor = ${m.name}, ${m.greeter}")
-  host.monitors;
+  startHyprland = "${config.programs.hyprland.package}/bin/start-hyprland";
 in {
   programs.hyprland.enable = true;
   programs.dconf.enable = true;
@@ -27,7 +22,7 @@ in {
     # Путь к кодекам, чтобы Nautilus и другие программы их видели
     GST_PLUGIN_SYSTEM_PATH_1_0 = "/run/current-system/sw/lib/gstreamer-1.0";
 
-    # Qt-приложения (включая сам DMS на Quickshell) ходят за шрифтом,
+    # Qt-приложения (включая саму оболочку на Quickshell) ходят за шрифтом,
     # иконками, палитрой и файловыми диалогами в GTK. Плагин qgtk3 в
     # nixpkgs собирается всегда, ставить qt6ct не нужно.
     QT_QPA_PLATFORMTHEME = "gtk3";
@@ -41,47 +36,37 @@ in {
     GDK_DEBUG = "portals";
   };
 
-  programs.dms-shell = {
+  # Вход: greetd. При загрузке сразу автологин в Hyprland (initial_session),
+  # а после выхода из сессии — текстовый экран входа tuigreet. Блокировку
+  # экрана, уведомления и всё остальное даёт своя оболочка (modules/shell).
+  services.greetd = {
     enable = true;
-    systemd = {
-      enable = true;
-      restartIfChanged = true;
-    };
-  };
-
-  services.displayManager = {
-    dms-greeter = {
-      enable = true;
-      compositor = {
-        name = "hyprland";
-        customConfig = ''
-          misc {
-            disable_hyprland_logo = true
-            force_default_wallpaper = 0
-          }
-
-          ${greeterMonitors}
-
-          env = XCURSOR_THEME,${appearance.cursorTheme}
-          env = XCURSOR_SIZE,${toString appearance.cursorSize}
-          env = HYPRCURSOR_THEME,${appearance.cursorTheme}
-          env = HYPRCURSOR_SIZE,${toString appearance.cursorSize}
-          exec-once = hyprctl setcursor ${appearance.cursorTheme} ${toString appearance.cursorSize}
-        '';
+    useTextGreeter = true;
+    settings = {
+      initial_session = {
+        command = startHyprland;
+        user = username;
       };
-      configHome = "/home/${username}";
+      default_session = {
+        command = "${lib.getExe pkgs.tuigreet} --time --remember --asterisks --greeting 'NixOS' --cmd ${startHyprland}";
+        user = "greeter";
+      };
     };
-
-    autoLogin = {
-      enable = true;
-      user = username;
-    };
-    defaultSession = "hyprland";
   };
+
+  # Оболочке нужны: шрифт значков Material Symbols, ночной режим,
+  # яркость, редактор соединений и микшер для «Настроек».
+  environment.systemPackages = with pkgs; [
+    hyprsunset
+    brightnessctl
+    networkmanagerapplet # nm-connection-editor
+    pavucontrol
+    xdg-utils
+  ];
 
   # ЕДИНЫЙ ДИАЛОГ ВЫБОРА ФАЙЛОВ.
   # Цель — чтобы любое приложение, как бы оно ни было установлено, показывало
-  # одно и то же окно: GTK-диалог хоста, крашеный DMS. Туда ведут три дороги:
+  # одно и то же окно: GTK-диалог хоста в цветах обоев. Туда ведут три дороги:
   #   - нативные GTK3 и Qt (через qgtk3) рисуют его сами, у себя в процессе;
   #   - всё остальное (Flatpak, cpak, AppImage, GTK4, Chrome/Electron)
   #     приходит в портал FileChooser, и портал отдаёт его бэкенду gtk.
@@ -131,6 +116,7 @@ in {
       noto-fonts-color-emoji
       nerd-fonts.symbols-only
       nerd-fonts.jetbrains-mono
+      material-symbols # значки оболочки (Material Symbols Rounded)
     ];
 
     # Без этого блока generic-семейства (sans-serif / monospace / serif)

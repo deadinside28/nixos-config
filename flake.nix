@@ -53,6 +53,11 @@
       cursorSize = 24;
     };
 
+    # Третья точка правды — системные настройки из GUI. Файл правит
+    # оболочка («Настройки → Система»), руками его тоже можно править.
+    # Ключи и значения по умолчанию — в modules/system/gui-settings.nix.
+    sys = lib.importJSON ./system.json;
+
     # Машины. Каждая папка в hosts/ — отдельный хост, имя папки становится
     # именем хоста (networking.hostName) и именем конфигурации:
     #   sudo nixos-rebuild switch --flake .#<имя>
@@ -69,7 +74,7 @@
       host = import ./hosts/${hostname}/host.nix;
     in
       lib.nixosSystem {
-        specialArgs = {inherit username hostname host appearance;};
+        specialArgs = {inherit username hostname host appearance sys;};
         modules = [
           chaotic.nixosModules.default
           ({pkgs, ...}: {
@@ -88,7 +93,7 @@
             home-manager.useGlobalPkgs = true;
             home-manager.useUserPackages = true;
             home-manager.backupFileExtension = "backup";
-            home-manager.extraSpecialArgs = {inherit username host appearance;};
+            home-manager.extraSpecialArgs = {inherit username hostname host appearance sys;};
             home-manager.users.${username} = import ./home.nix;
           }
         ];

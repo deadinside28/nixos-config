@@ -1,35 +1,27 @@
 # Фоновые сервисы: звук, печать, ключи, Flatpak, контейнеры.
+# Что включено, а что нет (печать, Docker, Bluetooth…), решает system.json —
+# см. gui-settings.nix. Здесь только то, без чего система не живёт.
 {...}: {
   services.gvfs.enable = true; # Корзина, сетевые диски и MTP для Nemo
-  services.printing.enable = true;
 
-  # Хранилище ключей
+  # Хранилище ключей: разблокируется паролем при входе через greetd
   services.gnome.gnome-keyring.enable = true;
-  security.pam.services.dms-greeter.enableGnomeKeyring = true;
+  security.pam.services.greetd.enableGnomeKeyring = true;
 
+  # Цель сессии Hyprland. Её запускает hyprland.lua при старте, а за ней
+  # поднимаются оболочка (pixel-shell.service из home-manager), история
+  # буфера обмена и стандартный автозапуск приложений.
   systemd.user.targets.hyprland-session = {
     description = "Hyprland Session Target";
     requires = ["graphical-session.target"];
     after = ["graphical-session.target"];
-    # Подключаем стандартный автозапуск приложений вместе с DMS
-    wants = [
-      "dms.service"
-      "xdg-desktop-autostart.target"
-    ];
+    wants = ["xdg-desktop-autostart.target"];
   };
 
+  # Список приложений и автообновление — в system.json
   services.flatpak = {
     enable = true;
-    update.auto = {
-      enable = true;
-      onCalendar = "weekly";
-    };
-    packages = [
-      "io.github.kolunmi.Bazaar"
-      "com.github.tchx84.Flatseal"
-      "io.github.radiolamp.mangojuice"
-      "org.freedesktop.Platform.VulkanLayer.MangoHud//26.08"
-    ];
+    update.auto.onCalendar = "weekly";
   };
 
   services.cpak.enable = true;
@@ -43,7 +35,4 @@
     alsa.support32Bit = true;
     pulse.enable = true;
   };
-
-  # Контейнеры (WinBoat, distrobox)
-  virtualisation.docker.enable = true;
 }

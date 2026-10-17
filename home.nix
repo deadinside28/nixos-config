@@ -1,7 +1,8 @@
 {username, ...}: {
   imports = [
-    ./modules/dms/default.nix
-    ./modules/dms/host.nix
+    ./modules/hyprland/default.nix
+    ./modules/hyprland/host.nix
+    ./modules/shell/default.nix
     ./modules/terminal.nix
     ./modules/btop.nix
     ./modules/appearance.nix

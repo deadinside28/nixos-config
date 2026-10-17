@@ -16,11 +16,9 @@
   boot.consoleLogLevel = 0;
   boot.initrd.verbose = false;
 
-  # Экран загрузки с логотипом материнки (как в Fedora)
-  boot.plymouth = {
-    enable = true;
-    theme = "bgrt";
-  };
+  # Экран загрузки с логотипом материнки (как в Fedora).
+  # Включается в system.json («Настройки → Система»).
+  boot.plymouth.theme = "bgrt";
 
   boot.kernelParams =
     lib.optionals host.amdGpu ["amdgpu.ppfeaturemask=0xffffffff"]
@@ -36,7 +34,7 @@
     ];
 
   # Планировщик sched-ext (по умолчанию scx_rustland)
-  services.scx.enable = true;
+  # (включается в system.json)
   # services.scx.scheduler = "scx_rusty"; # если захочешь сменить вручную
 
   # Чтение потребляемой мощности и управление Curve Optimizer

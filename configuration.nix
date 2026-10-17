@@ -15,5 +15,6 @@
     ./modules/system/appimage.nix
     ./modules/system/nemo.nix
     ./modules/system/users.nix
+    ./modules/system/gui-settings.nix
   ];
 }

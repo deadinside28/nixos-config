@@ -14,8 +14,9 @@
       confirm_os_window_close = 0;
     };
     extraConfig = ''
-      include ~/.config/kitty/dank-theme.conf
-      include ~/.config/kitty/dank-tabs.conf
+      # Цвета из обоев: файл пишет matugen оболочки. globinclude не
+      # ругается, пока файла ещё нет (до первой смены обоев).
+      globinclude pixel-theme.conf
       allow_remote_control yes
       listen_on unix:/tmp/kitty
     '';

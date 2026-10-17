@@ -1,0 +1,36 @@
+{
+  "timeZone": "Europe/Moscow",
+  "locale": "ru_RU.UTF-8",
+  "extraPackages": [],
+  "flatpaks": [
+    "com.github.tchx84.Flatseal",
+    "io.github.kolunmi.Bazaar",
+    "io.github.radiolamp.mangojuice",
+    "org.freedesktop.Platform.VulkanLayer.MangoHud//26.08"
+  ],
+  "flatpakAutoUpdate": true,
+  "services": {
+    "bluetooth": true,
+    "printing": true,
+    "avahi": true,
+    "docker": true,
+    "sunshine": true,
+    "scx": true,
+    "plymouth": true,
+    "zram": false
+  },
+  "gaming": {
+    "steam": true,
+    "gamescope": true,
+    "gamemode": true
+  },
+  "firewall": {
+    "tcp": [59999],
+    "udp": [59999]
+  },
+  "nix": {
+    "autoGc": true,
+    "gcDays": 14,
+    "autoOptimise": true
+  }
+}

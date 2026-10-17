@@ -1,0 +1,15 @@
+import QtQuick
+import qs.common
+
+Text {
+    property int size: Theme.type.bodyM
+    property int weight: Font.Normal
+
+    color: Theme.onSurface
+    font.family: Theme.font
+    font.pixelSize: size
+    font.weight: weight
+    elide: Text.ElideRight
+    renderType: Text.NativeRendering
+    verticalAlignment: Text.AlignVCenter
+}

@@ -1,0 +1,118 @@
+// IPC для биндов Hyprland:  pixel-shell <цель> <функция>
+// (обёртка над `qs -c pixel ipc call`). Список: pixel-shell show
+import QtQuick
+import Quickshell
+import Quickshell.Io
+import qs.common
+import qs.services
+
+Scope {
+    IpcHandler {
+        target: "launcher"
+        function toggle(): void {
+            Ui.toggle("launcher");
+        }
+    }
+    IpcHandler {
+        target: "quicksettings"
+        function toggle(): void {
+            Ui.toggle("quicksettings");
+        }
+    }
+    IpcHandler {
+        target: "notifications"
+        function toggle(): void {
+            Ui.toggle("quicksettings");
+        }
+        function clear(): void {
+            Notifs.clearAll();
+        }
+        function dnd(): void {
+            Settings.data.dnd = !Settings.data.dnd;
+        }
+    }
+    IpcHandler {
+        target: "clipboard"
+        function toggle(): void {
+            Ui.toggle("clipboard");
+        }
+    }
+    IpcHandler {
+        target: "overview"
+        function toggle(): void {
+            Ui.toggle("overview");
+        }
+    }
+    IpcHandler {
+        target: "power"
+        function toggle(): void {
+            Ui.toggle("power");
+        }
+    }
+    IpcHandler {
+        target: "lock"
+        function lock(): void {
+            Power.lock();
+        }
+    }
+    IpcHandler {
+        target: "settings"
+        function toggle(): void {
+            Ui.settingsOpen = !Ui.settingsOpen;
+        }
+        function open(page: string): void {
+            Ui.openSettings(page);
+        }
+    }
+    IpcHandler {
+        target: "wallpaper"
+        function set(path: string): void {
+            Wallpapers.set(path);
+        }
+        function random(): void {
+            Wallpapers.random();
+        }
+    }
+    IpcHandler {
+        target: "theme"
+        function toggle(): void {
+            Settings.data.darkMode = !Settings.data.darkMode;
+        }
+    }
+    IpcHandler {
+        target: "audio"
+        function up(): void {
+            Audio.setVolume(Audio.volume + 0.02);
+        }
+        function down(): void {
+            Audio.setVolume(Audio.volume - 0.02);
+        }
+        function mute(): void {
+            Audio.toggleMute();
+        }
+        function micMute(): void {
+            Audio.toggleMicMute();
+        }
+    }
+    IpcHandler {
+        target: "brightness"
+        function up(): void {
+            Brightness.set(Brightness.value + 0.05);
+        }
+        function down(): void {
+            Brightness.set(Brightness.value - 0.05);
+        }
+    }
+    IpcHandler {
+        target: "media"
+        function toggle(): void {
+            Media.active?.togglePlaying();
+        }
+        function next(): void {
+            Media.active?.next();
+        }
+        function previous(): void {
+            Media.active?.previous();
+        }
+    }
+}
