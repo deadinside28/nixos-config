@@ -67,6 +67,10 @@ Singleton {
             property string schemeType: "scheme-tonal-spot"
             property bool themeApps: true // красить GTK, kitty, рамки окон
             property string iconTheme: ""
+            // Значки приложений в оболочке: original | shaped | themed (как на Pixel)
+            property string iconStyle: "themed"
+            property string iconShape: "circle"
+            property string iconColor: "primary" // primary | secondary | tertiary | neutral
             property real animationScale: 1.0
 
             // Шрифты всей системы (по умолчанию — из appearance во flake.nix)
@@ -85,6 +89,13 @@ Singleton {
             property int trayVisible: 3 // сколько значков трея видно, остальные — под стрелкой
             property bool showUpdates: true // значок «что обновилось» и прогресс обновления
             property int updatesSeen: 0 // поколение системы, изменения которого уже просмотрены
+
+            // Рамка экрана со скруглёнными углами
+            property bool screenFrame: false
+            property int frameWidth: 8 // 0 — только скруглённые углы
+            property int frameRadius: 24
+            property string frameColor: "panel" // panel — как панель задач | black
+            property list<string> frameScreens: [] // пусто — на всех экранах
 
             // Быстрые настройки (шторка)
             property list<string> qsTiles: ["internet", "bluetooth", "dnd", "night", "dark", "mic", "caffeine", "record", "screenshot", "clipboard"]

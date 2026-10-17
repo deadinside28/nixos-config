@@ -262,14 +262,79 @@ SettingsPage {
     }
 
     Group {
-        title: "Плавность и производительность"
+        title: "Рамка экрана"
         SwitchItem {
-            icon: "animation"
-            title: "Анимации окон"
-            subtitle: "Пружины Material 3 при открытии, перемещении и смене рабочих столов"
-            checked: Settings.data.hyprAnimations
-            onToggled: v => Settings.data.hyprAnimations = v
+            icon: "rounded_corner"
+            title: "Скруглённые углы экрана"
+            subtitle: "Рамка вокруг рабочего стола со скруглёнными углами, как у экрана телефона"
+            checked: Settings.data.screenFrame
+            onToggled: v => Settings.data.screenFrame = v
         }
+        SliderItem {
+            visible: Settings.data.screenFrame
+            icon: "rounded_corner"
+            title: "Скругление"
+            valueText: Settings.data.frameRadius + " px"
+            from: 4
+            to: 48
+            stepSize: 1
+            value: Settings.data.frameRadius
+            onMoved: v => Settings.data.frameRadius = Math.round(v)
+        }
+        SliderItem {
+            visible: Settings.data.screenFrame
+            icon: "border_outer"
+            title: "Толщина рамки"
+            valueText: Settings.data.frameWidth === 0 ? "только углы" : Settings.data.frameWidth + " px"
+            from: 0
+            to: 24
+            stepSize: 1
+            value: Settings.data.frameWidth
+            onMoved: v => Settings.data.frameWidth = Math.round(v)
+        }
+        ListItem {
+            visible: Settings.data.screenFrame
+            icon: "palette"
+            title: "Цвет"
+            clickable: false
+            SegmentedButtons {
+                options: [
+                    {
+                        value: "panel",
+                        label: "Как панель"
+                    },
+                    {
+                        value: "black",
+                        label: "Чёрный"
+                    }
+                ]
+                current: Settings.data.frameColor
+                onSelected: v => Settings.data.frameColor = v
+            }
+        }
+        Repeater {
+            model: Settings.data.screenFrame && Quickshell.screens.length > 1 ? Quickshell.screens : []
+            SwitchItem {
+                required property var modelData
+                readonly property var list: Settings.data.frameScreens
+                readonly property bool on: list.length === 0 || list.includes(modelData.name)
+                icon: "desktop_windows"
+                title: "На " + modelData.name
+                subtitle: modelData.model || ""
+                checked: on
+                onToggled: v => {
+                    let names = list.length === 0 ? Quickshell.screens.map(s => s.name) : [...list];
+                    names = v ? [...new Set([...names, modelData.name])] : names.filter(n => n !== modelData.name);
+                    if (names.length === 0)
+                        Settings.data.screenFrame = false;
+                    Settings.data.frameScreens = names.length === Quickshell.screens.length || names.length === 0 ? [] : names;
+                }
+            }
+        }
+    }
+
+    Group {
+        title: "Плавность и производительность"
         SliderItem {
             icon: "blur_on"
             title: "Проходы размытия"
@@ -309,10 +374,10 @@ SettingsPage {
     }
 
     Group {
-        title: "Анимации оболочки"
+        title: "Анимации"
         ChoiceItem {
             icon: "animation"
-            title: "Скорость анимаций оболочки"
+            title: "Скорость анимаций — окон и оболочки"
             options: [
                 {
                     value: 0.5,

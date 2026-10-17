@@ -22,6 +22,7 @@ Scope {
         dim: true
         open: agent.isActive && root.flow !== null
         onDismissed: root.flow?.cancelAuthenticationRequest()
+        clickOutsideCloses: false
         onOpenChanged: if (open) {
             pass.text = "";
             pass.forceFocus();

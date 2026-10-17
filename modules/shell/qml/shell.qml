@@ -23,6 +23,7 @@ import qs.modules.overview
 import qs.modules.polkit
 import qs.modules.settings
 import qs.modules.dnd
+import qs.modules.frame
 
 ShellRoot {
     id: root
@@ -39,6 +40,11 @@ ShellRoot {
     Variants {
         model: Quickshell.screens.filter(s => Bar.shownOn(s.name))
         Taskbar {}
+    }
+
+    Variants {
+        model: Quickshell.screens.filter(s => Bar.frameOn(s.name))
+        ScreenFrame {}
     }
 
     Launcher {}

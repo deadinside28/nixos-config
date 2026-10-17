@@ -76,6 +76,14 @@
     }
   '';
 
+  # Шейдеры QML компилируются заранее (qsb): тематические значки.
+  shaders = pkgs.runCommand "pixel-shell-shaders" {nativeBuildInputs = [pkgs.qt6.qtshadertools];} ''
+    mkdir -p $out
+    for f in ${./shaders}/*.frag; do
+      qsb --qt6 -o "$out/$(basename "$f").qsb" "$f"
+    done
+  '';
+
   # pixel-shell <цель> <функция> [аргументы] — IPC для биндов.
   pixel-shell = pkgs.writeShellScriptBin "pixel-shell" ''
     if [ $# -eq 0 ] || [ "$1" = show ]; then
@@ -222,13 +230,14 @@ in {
     recursive = true;
   };
   xdg.configFile."quickshell/pixel/common/Nix.qml".text = nixQml;
+  xdg.configFile."quickshell/pixel/shaders".source = shaders;
 
   systemd.user.services.pixel-shell = {
     Unit = {
       Description = "Pixel Shell (Quickshell)";
       PartOf = ["graphical-session.target"];
       After = ["graphical-session.target"];
-      X-Restart-Triggers = ["${./qml}" "${matugenFull}"];
+      X-Restart-Triggers = ["${./qml}" "${matugenFull}" "${shaders}"];
     };
     Service = {
       ExecStart = "${lib.getExe quickshell} -c pixel";

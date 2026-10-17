@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Shapes
 import QtQuick.Layouts
 import QtQuick.Dialogs
 import Quickshell
@@ -1040,7 +1041,7 @@ SettingsPage {
         }
         ChoiceItem {
             icon: "interests"
-            title: "Значки"
+            title: "Тема значков"
             options: page.iconThemes
             current: Settings.data.iconTheme || "Adwaita"
             onSelected: v => Theming.setIconTheme(v)
@@ -1050,6 +1051,188 @@ SettingsPage {
             icon: "autorenew"
             title: "Обновляю палитру…"
             clickable: false
+        }
+    }
+
+    // --- Значки как на Pixel ------------------------------------------------
+    Group {
+        title: "Значки приложений"
+
+        Rectangle {
+            readonly property bool groupItem: true
+            property bool first: true
+            property bool last: true
+            Layout.fillWidth: true
+            implicitHeight: iconsCol.implicitHeight + 40
+            radius: 24
+            color: Theme.dark ? Theme.surfaceContainerHigh : Theme.surfaceContainerLowest
+
+            ColumnLayout {
+                id: iconsCol
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                anchors.margins: 20
+                spacing: 16
+
+                // Живой предпросмотр на закреплённых приложениях
+                Rectangle {
+                    Layout.fillWidth: true
+                    implicitHeight: 112
+                    radius: Theme.radius.xl
+                    color: Theme.surfaceContainerLow
+                    Row {
+                        anchors.centerIn: parent
+                        spacing: 20
+                        Repeater {
+                            model: Settings.data.pinnedApps.slice(0, 6).map(id => Apps.byId(id)).filter(a => a)
+                            Column {
+                                required property var modelData
+                                spacing: 6
+                                AppIcon {
+                                    anchors.horizontalCenter: parent.horizontalCenter
+                                    size: 56
+                                    icon: modelData.icon
+                                }
+                                MText {
+                                    anchors.horizontalCenter: parent.horizontalCenter
+                                    width: 72
+                                    horizontalAlignment: Text.AlignHCenter
+                                    elide: Text.ElideRight
+                                    text: modelData.name
+                                    size: Theme.type.bodyS
+                                }
+                            }
+                        }
+                    }
+                }
+
+                SegmentedButtons {
+                    Layout.fillWidth: true
+                    options: [
+                        {
+                            value: "original",
+                            label: "Как в теме",
+                            icon: "apps"
+                        },
+                        {
+                            value: "shaped",
+                            label: "В форме",
+                            icon: "category"
+                        },
+                        {
+                            value: "themed",
+                            label: "Тематические",
+                            icon: "palette"
+                        }
+                    ]
+                    current: Settings.data.iconStyle
+                    onSelected: v => Settings.data.iconStyle = v
+                }
+                MText {
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    color: Theme.fgSurfaceVariant
+                    text: Settings.data.iconStyle === "themed" ? "Как на Pixel: значки одного цвета на подложке, цвета берутся из обоев." : Settings.data.iconStyle === "shaped" ? "Цветные значки на подложке одной формы — все одинакового размера." : "Значки как есть, из выбранной темы."
+                }
+
+                MText {
+                    visible: Settings.data.iconStyle !== "original"
+                    text: "Форма"
+                    weight: Theme.strongWeight
+                }
+                Flow {
+                    Layout.fillWidth: true
+                    visible: Settings.data.iconStyle !== "original"
+                    spacing: 8
+                    Repeater {
+                        model: IconStyle.shapes
+                        Rectangle {
+                            id: sh
+                            required property var modelData
+                            readonly property bool sel: Settings.data.iconShape === modelData.value
+                            width: 84
+                            height: 92
+                            radius: Theme.radius.l
+                            color: sel ? Theme.secondaryContainer : "transparent"
+                            border.width: sel ? 0 : 1
+                            border.color: Theme.outlineVariant
+                            Shape {
+                                x: (parent.width - 44) / 2
+                                y: 12
+                                width: 100
+                                height: 100
+                                scale: 0.44
+                                transformOrigin: Item.TopLeft
+                                preferredRendererType: Shape.CurveRenderer
+                                ShapePath {
+                                    fillColor: sh.sel ? Theme.primary : Theme.fgSurfaceVariant
+                                    strokeWidth: -1
+                                    PathPolyline {
+                                        path: IconStyle.points(sh.modelData.value)
+                                    }
+                                }
+                            }
+                            MText {
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                anchors.bottom: parent.bottom
+                                anchors.bottomMargin: 10
+                                text: sh.modelData.label
+                                size: Theme.type.labelM
+                                color: sh.sel ? Theme.fgSecondaryContainer : Theme.fgSurfaceVariant
+                            }
+                            StateLayer {
+                                radius: sh.radius
+                                onClicked: Settings.data.iconShape = sh.modelData.value
+                            }
+                        }
+                    }
+                }
+
+                MText {
+                    visible: Settings.data.iconStyle !== "original"
+                    text: "Цвет"
+                    weight: Theme.strongWeight
+                }
+                Flow {
+                    Layout.fillWidth: true
+                    visible: Settings.data.iconStyle !== "original"
+                    spacing: 12
+                    Repeater {
+                        model: IconStyle.roles
+                        Column {
+                            id: rc
+                            required property var modelData
+                            readonly property bool sel: Settings.data.iconColor === modelData.value
+                            spacing: 6
+                            Rectangle {
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                width: 52
+                                height: 52
+                                radius: 26
+                                color: IconStyle.bgFor(rc.modelData.value)
+                                border.width: rc.sel ? 3 : 1
+                                border.color: rc.sel ? Theme.primary : Theme.outlineVariant
+                                MIcon {
+                                    anchors.centerIn: parent
+                                    icon: rc.sel ? "check" : "apps"
+                                    color: IconStyle.fgFor(rc.modelData.value)
+                                }
+                                StateLayer {
+                                    radius: 26
+                                    onClicked: Settings.data.iconColor = rc.modelData.value
+                                }
+                            }
+                            MText {
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                text: rc.modelData.label
+                                size: Theme.type.labelM
+                                color: rc.sel ? Theme.primary : Theme.fgSurfaceVariant
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }

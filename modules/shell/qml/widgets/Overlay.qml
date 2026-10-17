@@ -5,6 +5,7 @@
 import QtQuick
 import Quickshell
 import Quickshell.Wayland
+import Quickshell.Hyprland
 import qs.common
 
 PanelWindow {
@@ -13,6 +14,8 @@ PanelWindow {
     property bool open: false
     property bool dim: false
     property bool grabKeyboard: true
+    // закрываться от клика вне панели, в том числе на другом мониторе
+    property bool clickOutsideCloses: true
     property string name: "panel"
     property int duration: Theme.anim.normal
     property real progress: open ? 1 : 0
@@ -52,7 +55,8 @@ PanelWindow {
 
     Behavior on progress {
         NumberAnimation {
-            duration: root.duration
+            // закрытие короче открытия — как windowsOut у Hyprland
+            duration: root.open ? root.duration : Math.round(root.duration * 2 / 3)
             easing.type: Easing.BezierSpline
             easing.bezierCurve: root.open ? Theme.anim.emphasizedDecel : Theme.anim.emphasizedAccel
         }
@@ -62,6 +66,14 @@ PanelWindow {
         anchors.fill: parent
         color: Theme.scrim
         opacity: root.dim ? 0.32 * root.progress : 0
+    }
+
+    // Клик на другом мониторе (или в любом окне вне панели) тоже закрывает
+    HyprlandFocusGrab {
+        active: root.open && root.clickOutsideCloses
+        windows: [root]
+        onCleared: if (root.open)
+            root.dismissed()
     }
 
     MouseArea {

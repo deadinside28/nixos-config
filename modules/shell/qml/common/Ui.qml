@@ -34,19 +34,30 @@ Singleton {
     readonly property string focusedScreen: Hyprland.focusedMonitor?.name ?? (Quickshell.screens[0]?.name ?? "")
     readonly property string activeScreen: panelScreen || focusedScreen
 
+    // Экран запоминается в момент открытия: панель не должна уезжать за
+    // фокусом, пока открыта.
     function toggle(name, screen) {
         if (panel === name) {
             close();
             return;
         }
-        panelScreen = screen ?? "";
-        panel = name;
+        // Клик по кнопке на панели задач сперва снимает захват фокуса
+        // (панель закрывается), а потом доходит до кнопки — не открываем снова.
+        if (panel === "" && lastClosed === name && Date.now() - lastClosedAt < 350)
+            return;
+        open(name, screen);
     }
     function open(name, screen) {
-        panelScreen = screen ?? "";
+        panelScreen = screen || (panel !== "" && panelScreen ? panelScreen : focusedScreen);
         panel = name;
     }
+    property string lastClosed: ""
+    property real lastClosedAt: 0
     function close() {
+        if (panel !== "") {
+            lastClosed = panel;
+            lastClosedAt = Date.now();
+        }
         panel = "";
     }
 }
