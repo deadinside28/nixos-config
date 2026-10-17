@@ -10,6 +10,7 @@ import QtQuick
 import Quickshell
 import qs.common
 import qs.services
+import qs.widgets
 import qs.modules.taskbar
 import qs.modules.wallpaper
 import qs.modules.launcher
@@ -45,6 +46,12 @@ ShellRoot {
     Variants {
         model: Quickshell.screens.filter(s => Bar.frameOn(s.name))
         ScreenFrame {}
+    }
+
+    // Клик на другом мониторе закрывает открытую панель
+    Variants {
+        model: Ui.panel !== "" ? Quickshell.screens.filter(s => s.name !== Ui.activeScreen) : []
+        ClickCatcher {}
     }
 
     Launcher {}

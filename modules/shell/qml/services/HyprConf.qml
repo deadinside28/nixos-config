@@ -39,12 +39,12 @@ hl.config({
             new_optimizations = true,
         },
         shadow = { enabled = ${lua(d.shadows)} },
+        -- прозрачность окон — параметрами, а не правилом: правило при каждом
+        -- изменении заново применялось ко всем окнам и двигало плавающие
+        active_opacity = ${d.windowOpacity},
+        inactive_opacity = ${d.windowOpacity},
+        fullscreen_opacity = 1.0,
     },
-})
-hl.window_rule({
-    name = "shell-opacity",
-    match = { class = ".*" },
-    opacity = "${d.windowOpacity} override ${d.windowOpacity} override 1.0 override",
 })
 `;
     }
