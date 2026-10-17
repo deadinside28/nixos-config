@@ -40,12 +40,23 @@ Scope {
                 fillColor: root.color
                 strokeWidth: -1
                 fillRule: ShapePath.OddEvenFill
-                // снаружи — весь экран без панели задач
+                // снаружи — весь экран, включая место под панелью задач: полоски
+                // рамки сдвигают панель на свою толщину, и у её концов иначе
+                // просвечивали бы обои. Цвет у панели тот же, стыка не видно.
                 PathRectangle {
-                    x: Bar.edge === "left" && Bar.shownOn(root.modelData.name) ? Bar.size : 0
-                    y: Bar.edge === "top" && Bar.shownOn(root.modelData.name) ? Bar.size : 0
-                    width: win.width - x - (Bar.edge === "right" && Bar.shownOn(root.modelData.name) ? Bar.size : 0)
-                    height: win.height - y - (Bar.edge === "bottom" && Bar.shownOn(root.modelData.name) ? Bar.size : 0)
+                    x: 0
+                    y: 0
+                    width: win.width
+                    height: win.height
+                }
+                // сама панель задач (сдвинута полосками рамки на их толщину)
+                PathRectangle {
+                    readonly property bool has: Bar.shownOn(root.modelData.name)
+                    readonly property int t: root.w
+                    x: !has ? 0 : Bar.edge === "right" ? win.width - Bar.size : Bar.vertical ? 0 : t
+                    y: !has ? 0 : Bar.edge === "bottom" ? win.height - Bar.size : Bar.vertical ? t : 0
+                    width: !has ? 0 : Bar.vertical ? Bar.size : win.width - 2 * t
+                    height: !has ? 0 : Bar.vertical ? win.height - 2 * t : Bar.size
                 }
                 // внутри — скруглённое «окно» рабочего стола
                 PathRectangle {
