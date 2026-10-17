@@ -2,7 +2,7 @@ pragma Singleton
 
 // «Обвести и найти» и перевод экрана, как на Pixel. Снимок экрана с фокусом
 // замирает, поверх рисуется интерфейс; распознавание, перевод и поиск делает
-// pixel-lens (tesseract, translate-shell, Google Lens).
+// pixel-lens (PaddleOCR + tesseract, перевод Google, Google Lens).
 //   mode: search — обвести и найти; translate — перевести снимок целиком;
 //         live — перевод в реальном времени поверх живого экрана.
 import QtQuick
@@ -185,9 +185,8 @@ Singleton {
                 const ox = root.crop ? root.area.x : 0;
                 const oy = root.crop ? root.area.y : 0;
                 root.boxes = text.split("\n").filter(l => l).map(l => {
-                    const [x, y, w, h, lh, bg, ...rest] = l.split("\t");
-                    const c = Qt.color("#" + bg);
-                    const lum = 0.299 * c.r + 0.587 * c.g + 0.114 * c.b;
+                    // цвета фона и текста — с оригинала (их считает pixel-lens)
+                    const [x, y, w, h, lh, bg, fg, ...rest] = l.split("\t");
                     return {
                         x: parseInt(x) + ox,
                         y: parseInt(y) + oy,
@@ -195,7 +194,7 @@ Singleton {
                         h: parseInt(h),
                         lh: parseInt(lh),
                         bg: "#" + bg,
-                        fg: lum > 0.55 ? "#1b1b1f" : "#f2f0f4",
+                        fg: "#" + fg,
                         text: rest.join(" ").trim()
                     };
                 }).filter(b => b.text);

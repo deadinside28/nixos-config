@@ -217,20 +217,30 @@
     }
   );
 
-  # «Обвести и найти» и перевод экрана, как на Pixel. Оболочка рисует
-  # интерфейс, а тяжёлое делает этот скрипт:
+  # «Обвести и найти» и перевод экрана, как на Pixel. Строки текста ищет
+  # нейросеть PaddleOCR (RapidOCR, ONNX), каждую строку распознаёт tesseract,
+  # переводит Google — см. lens/lens_ocr.py.
+  lensPython = pkgs.python3.withPackages (ps: [ps.rapidocr-onnxruntime]);
+  pixel-lens-ocr = pkgs.writeShellApplication {
+    name = "pixel-lens-ocr";
+    runtimeInputs = [tesseract];
+    text = ''
+      export PIXEL_LENS_TESSDATA=${tessdata}
+      exec ${lensPython}/bin/python ${./lens/lens_ocr.py} "$@"
+    '';
+  };
+
+  # Оболочка рисует интерфейс, а тяжёлое делает этот скрипт:
   #   pixel-lens shot <монитор> <файл>         — снимок экрана
   #   pixel-lens crop <файл> <ШxВ+X+Y> <файл>  — вырезать область
   #   pixel-lens ocr <файл> <языки>            — текст картинки
-  #   pixel-lens translate <файл> <языки> <в>  — абзацы с координатами, цветом
-  #                                              фона и переводом (TSV)
+  #   pixel-lens translate <файл> <языки> <в>  — абзацы с координатами,
+  #                                              цветами и переводом (TSV)
   #   pixel-lens text <в> <текст>              — перевести строку
   #   pixel-lens search <файл>                 — найти картинку в Google Lens
   pixel-lens = pkgs.writeShellApplication {
     name = "pixel-lens";
-    # строки для sh -c в одинарных кавычках намеренно
-    excludeShellChecks = ["SC2016"];
-    runtimeInputs = with pkgs; [grim imagemagick tesseract translate-shell curl wl-clipboard xdg-utils coreutils gawk findutils];
+    runtimeInputs = with pkgs; [grim imagemagick curl wl-clipboard xdg-utils coreutils pixel-lens-ocr];
     text = ''
       cmd=''${1:?команда}; shift
       case "$cmd" in
@@ -239,115 +249,11 @@
         crop)
           magick "$1" -crop "$2" +repage "$3" ;;
         ocr)
-          tesseract --tessdata-dir ${tessdata} "$1" stdout -l "''${2:-eng+rus}" --psm 3 2>/dev/null ;;
-        text)
-          trans -b -no-autocorrect ":$1" "$2" ;;
+          pixel-lens-ocr text "$1" "''${2:-eng+rus}" ;;
         translate)
-          img=$1; langs=''${2:-eng+rus}; to=''${3:-ru}
-          tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
-          td=(--tessdata-dir ${tessdata})
-          # tesseract 5 сам переворачивает светлый текст на тёмном фоне,
-          # так что достаточно одного прохода
-          tesseract "''${td[@]}" "$img" "$tmp/pos" -l "$langs" --psm 3 tsv 2>/dev/null
-          # Слова → строки → абзацы. Строку рвём там, где между словами большой
-          # промежуток (это другая колонка), а в абзац склеиваем только соседние
-          # строки с тем же левым краем и кеглем — иначе tesseract сливает в
-          # одну кашу текст из разных колонок.
-          { cat "$tmp/pos.tsv"
-          } | LC_ALL=C awk -F'\t' -v dir="$tmp" '
-            # слова без букв и цифр — обычно значки интерфейса. Проверка по
-            # байтам UTF-8 (без локали): латиница, цифры, латиница с
-            # диакритикой (C3–C5), кириллица (D0, D1), CJK (E3–ED)
-            $1 == 5 && $11 > 50 && $12 ~ /[A-Za-z0-9]|[\303-\305\320\321\343-\355]/ {
-              k = $3 "-" $4 "-" $5
-              if (k == lk && $7 - ex < 1.8 * sh[n] / sc[n]) {
-                if ($7 + $9 > sx2[n]) sx2[n] = $7 + $9
-                if ($8 < sy1[n]) sy1[n] = $8
-                if ($8 + $10 > sy2[n]) sy2[n] = $8 + $10
-                st[n] = st[n] " " $12; sh[n] += $10; sc[n]++
-              } else {
-                n++; sx1[n] = $7; sy1[n] = $8; sx2[n] = $7 + $9; sy2[n] = $8 + $10
-                st[n] = $12; sh[n] = $10; sc[n] = 1
-              }
-              lk = k; ex = $7 + $9
-            }
-            function abs(v) { return v < 0 ? -v : v }
-            END {
-              m = 0
-              for (i = 1; i <= n; i++) {
-                h = sh[i] / sc[i]
-                # тот же текст уже нашёлся (проход по негативу) — пропустить
-                dup = 0
-                for (j = 1; j <= m; j++)
-                  if (sx1[i] < px2[j] && sx2[i] > px1[j] && sy1[i] < py2[j] && sy2[i] > py1[j]) { dup = j; break }
-                if (dup) continue
-                merged = 0
-                for (j = m; j >= 1 && j > m - 6; j--) {
-                  gap = sy1[i] - py2[j]
-                  if (abs(sx1[i] - px1[j]) < 0.8 * h && gap >= -0.2 * h && gap < 0.9 * h && abs(h - ph[j]) < 0.35 * h) {
-                    if (sx2[i] > px2[j]) px2[j] = sx2[i]
-                    py2[j] = sy2[i]; pt[j] = pt[j] " " st[i]; pn[j]++
-                    merged = 1; break
-                  }
-                }
-                if (!merged) {
-                  m++; px1[m] = sx1[i]; py1[m] = sy1[i]; px2[m] = sx2[i]; py2[m] = sy2[i]
-                  ph[m] = h; pt[m] = st[i]; pn[m] = 1
-                }
-              }
-              for (j = 1; j <= m; j++) {
-                # одна-две буквы — обычно аватарка или значок, принятые за «о»
-                if (pt[j] ~ /^[^ ]{1,2}$/) continue
-                printf "%d\t%d\t%d\t%d\t%d\n", px1[j], py1[j], px2[j] - px1[j], py2[j] - py1[j], ph[j] > dir "/boxes"
-                print pt[j] > dir "/text"
-              }
-            }'
-          [ -s "$tmp/boxes" ] || exit 0
-          # Перевод: что уже переводилось — из кеша (живой режим каждые
-          # пару секунд видит почти тот же текст), остальное — одним запросом
-          # (по строке на абзац); если строки разъехались — по одному, параллельно.
-          cache="''${XDG_RUNTIME_DIR:-/tmp}/pixel-lens/tr-$to.tsv"
-          mkdir -p "$(dirname "$cache")"; touch "$cache"
-          # (по имени файла, а не NR == FNR: на пустом кеше то условие верно
-          # и для текста, и весь текст пропадал «в кеш»)
-          awk -F'\t' -v miss="$tmp/miss" -v cache="$cache" 'FILENAME == cache { c[$1] = $2; next }
-            { if ($0 in c) print c[$0]; else { print "\001"; print > miss } }' "$cache" "$tmp/text" > "$tmp/known"
-          if [ -s "$tmp/miss" ]; then
-            n=$(wc -l < "$tmp/miss")
-            trans -b -no-autocorrect -no-warn ":$to" "$(cat "$tmp/miss")" > "$tmp/mtr" 2>/dev/null || true
-            sed -i '/^[[:space:]]*$/d' "$tmp/mtr"
-            if [ "$(wc -l < "$tmp/mtr")" -ne "$n" ]; then
-              mkdir -p "$tmp/p"
-              split -l 1 -d -a 4 "$tmp/miss" "$tmp/p/"
-              find "$tmp/p" -type f -print0 | xargs -0 -P 8 -I{} sh -c 'trans -b -no-autocorrect -no-warn ":$1" "$(cat "$2")" 2>/dev/null | tr "\n" " " > "$2.tr"' sh "$to" {}
-              : > "$tmp/mtr"
-              for f in $(find "$tmp/p" -name '*.tr' | sort); do { tr -d '\n' < "$f"; echo; } >> "$tmp/mtr"; done
-            fi
-            # удачные переводы — в кеш
-            paste "$tmp/miss" "$tmp/mtr" | awk -F'\t' '$2 ~ /[^[:space:]]/' >> "$cache"
-          fi
-          awk -v mtr="$tmp/mtr" '$0 == "\001" { t = ""; getline t < mtr; print t; next } { print }' "$tmp/known" > "$tmp/tr"
-          # фон — цвет у углов рамки (снаружи текста), какой встречается чаще;
-          # все точки — одним вызовом magick
-          fmt=""
-          while read -r x y w h _; do
-            l=$((x > 3 ? x - 3 : 0)); t=$((y > 3 ? y - 3 : 0)); r=$((x + w + 3)); b=$((y + h + 3))
-            fmt="$fmt%[hex:p{$l,$t}] %[hex:p{$r,$t}] %[hex:p{$l,$b}] %[hex:p{$r,$b}]\n"
-          done < "$tmp/boxes"
-          magick "$img" -format "$fmt" info: > "$tmp/bg" 2>/dev/null || true
-          # сборка: рамка, фон (самый частый цвет из четырёх углов), перевод
-          LC_ALL=C awk -F'\t' -v bgf="$tmp/bg" -v trf="$tmp/tr" -v txf="$tmp/text" '{
-            # сброс перед чтением: getline на конце файла не трогает
-            # переменную, и прошлый перевод размножался по всем рамкам
-            bgl = ""; trl = ""; txl = ""
-            getline bgl < bgf; getline trl < trf; getline txl < txf
-            split(bgl, c, " "); best = ""; bc = 0
-            for (i in c) { v = substr(c[i], 1, 6); if (v == "") continue; cnt[v]++; if (cnt[v] > bc) { bc = cnt[v]; best = v } }
-            delete cnt
-            if (best == "") best = "202020"
-            gsub(/\t/, " ", trl); if (trl !~ /[^[:space:]]/) trl = txl
-            printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\n", $1, $2, $3, $4, $5, best, trl
-          }' "$tmp/boxes" ;;
+          pixel-lens-ocr translate "$1" "''${2:-eng+rus}" "''${3:-ru}" ;;
+        text)
+          pixel-lens-ocr string "$1" "$2" ;;
         search)
           # Google Lens принимает картинку и отвечает адресом страницы с результатами
           url=$(curl -s -o /dev/null -w '%{redirect_url}' \

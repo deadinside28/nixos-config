@@ -181,7 +181,7 @@ Scope {
                             wrapMode: Text.WordWrap
                             fontSizeMode: Text.Fit
                             minimumPixelSize: 7
-                            font.pixelSize: Math.max(8, tb.modelData.lh / win.k * 0.92)
+                            font.pixelSize: Math.max(8, tb.modelData.lh / win.k * 0.72)
                             font.family: Theme.font
                             verticalAlignment: Text.AlignVCenter
                         }
@@ -583,7 +583,7 @@ Scope {
                             wrapMode: Text.WordWrap
                             fontSizeMode: Text.Fit
                             minimumPixelSize: 7
-                            font.pixelSize: Math.max(8, lb.modelData.lh / live.k * 0.92)
+                            font.pixelSize: Math.max(8, lb.modelData.lh / live.k * 0.72)
                             font.family: Theme.font
                             verticalAlignment: Text.AlignVCenter
                         }

@@ -212,11 +212,21 @@ FloatingWindow {
                         radius: 26
                         color: sel ? Theme.primaryContainer : rma.containsMouse ? Theme.surfaceContainerHigh : "transparent"
 
-                        Drag.dragType: Drag.Automatic
-                        Drag.supportedActions: Qt.CopyAction
-                        Drag.mimeData: ({
-                                "text/uri-list": (row.sel ? win.selectedPaths : [row.modelData.path]).map(p => "file://" + encodeURI(p)).join("\r\n")
-                            })
+                        // перетаскивание наружу через невидимого «посредника»
+                        Item {
+                            id: proxy
+                            readonly property bool isFileItem: true
+                            readonly property bool fromArchive: true
+                            width: 1
+                            height: 1
+                            Drag.active: rma.drag.active
+                            Drag.dragType: Drag.Automatic
+                            Drag.supportedActions: Qt.CopyAction
+                            Drag.proposedAction: Qt.CopyAction
+                            Drag.mimeData: ({
+                                    "text/uri-list": (row.sel ? win.selectedPaths : [row.modelData.path]).map(p => "file://" + encodeURI(p)).join("\r\n")
+                                })
+                        }
 
                         RowLayout {
                             anchors.fill: parent
@@ -251,21 +261,16 @@ FloatingWindow {
                             hoverEnabled: true
                             preventStealing: true
                             cursorShape: Qt.PointingHandCursor
-                            property point start
-                            property bool dragged: false
+                            drag.target: proxy
+                            drag.threshold: 10
                             onPressed: event => {
-                                start = Qt.point(event.x, event.y);
-                                dragged = false;
+                                proxy.x = event.x;
+                                proxy.y = event.y;
+                                row.grabToImage(r => proxy.Drag.imageSource = r.url, Qt.size(Math.min(row.width, 320), row.height));
                                 if (!row.sel || (event.modifiers & Qt.ControlModifier)) {
                                     const s = (event.modifiers & Qt.ControlModifier) ? Object.assign({}, win.selected) : {};
                                     s[row.modelData.path] = !s[row.modelData.path];
                                     win.selected = s;
-                                }
-                            }
-                            onPositionChanged: event => {
-                                if (pressed && !dragged && Math.hypot(event.x - start.x, event.y - start.y) > 12) {
-                                    dragged = true;
-                                    row.Drag.startDrag();
                                 }
                             }
                             onDoubleClicked: {
@@ -293,7 +298,7 @@ FloatingWindow {
                 enabled: win.writable && win.root !== ""
                 keys: ["text/uri-list"]
                 onDropped: d => {
-                    if (d.source && d.source.isFileItem && d.source.parent === list.contentItem)
+                    if (d.source && d.source.fromArchive)
                         return;
                     const paths = d.urls.map(u => decodeURIComponent(String(u).replace(/^file:\/\//, "")));
                     if (!paths.length)

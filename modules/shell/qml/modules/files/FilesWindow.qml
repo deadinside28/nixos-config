@@ -1075,7 +1075,8 @@ FloatingWindow {
                         enabled: win.here !== ""
                         keys: ["text/uri-list"]
                         onDropped: drop => {
-                            if (drop.source && drop.source.isFileItem)
+                            // своё же из этого окна — не копировать (из архиватора — можно)
+                            if (drop.source && drop.source.isFileItem && !drop.source.fromArchive)
                                 return;
                             const paths = drop.urls.map(u => decodeURIComponent(String(u).replace(/^file:\/\//, "")));
                             if (paths.length) {
@@ -1185,7 +1186,7 @@ FloatingWindow {
         if (!paths.length)
             return;
         // внутри «Файлов» — переместить (из архива — скопировать), извне — скопировать
-        const internal = drop.source && drop.source.isFileItem && !win.inArchive;
+        const internal = drop.source && drop.source.isFileItem && !drop.source.fromArchive && !win.inArchive;
         Files.transfer(paths, dir, internal);
         drop.accept(internal ? Qt.MoveAction : Qt.CopyAction);
         win.selected = {};
@@ -1277,11 +1278,22 @@ FloatingWindow {
         readonly property bool cut: Files.clipboard.mode === "cut" && Files.clipboard.paths.includes(item?.path)
         opacity: cut ? 0.5 : 1
 
-        Drag.dragType: Drag.Automatic
-        Drag.supportedActions: Qt.CopyAction | Qt.MoveAction
-        Drag.mimeData: ({
-                "text/uri-list": (fi.sel ? win.selectedPaths : [item?.path ?? ""]).map(p => "file://" + encodeURI(p)).join("\r\n")
-            })
+        // Перетаскивание наружу — стандартный для Qt Quick способ: MouseArea
+        // тянет невидимого «посредника» (drag.target), и пока он едет,
+        // Drag.active у него включает системное перетаскивание (Drag.Automatic).
+        Item {
+            id: dragProxy
+            readonly property bool isFileItem: true
+            width: 1
+            height: 1
+            Drag.active: fma.drag.active
+            Drag.dragType: Drag.Automatic
+            Drag.supportedActions: Qt.CopyAction | Qt.MoveAction
+            Drag.proposedAction: Qt.CopyAction
+            Drag.mimeData: ({
+                    "text/uri-list": (fi.sel ? win.selectedPaths : [fi.item?.path ?? ""]).map(p => "file://" + encodeURI(p)).join("\r\n")
+                })
+        }
 
         MouseArea {
             id: fma
@@ -1292,11 +1304,15 @@ FloatingWindow {
             // иначе GridView/ListView забирает движение мыши себе как прокрутку,
             // и перетаскивание файла даже не начинается
             preventStealing: true
-            property point start
+            drag.target: dragProxy
+            drag.threshold: 10
             property bool dragged: false
             onPressed: event => {
-                start = Qt.point(event.x, event.y);
                 dragged = false;
+                dragProxy.x = event.x;
+                dragProxy.y = event.y;
+                // картинка под курсором при перетаскивании
+                fi.grabToImage(r => dragProxy.Drag.imageSource = r.url, Qt.size(Math.min(fi.width, 220), Math.min(fi.height, 220)));
                 if (event.button === Qt.RightButton) {
                     if (!fi.sel)
                         win.select(fi.idx, 0);
@@ -1309,12 +1325,8 @@ FloatingWindow {
                 if (!dragged && event.button === Qt.LeftButton && fi.sel && !(event.modifiers & (Qt.ControlModifier | Qt.ShiftModifier)) && win.selCount > 1)
                     win.select(fi.idx, 0);
             }
-            onPositionChanged: event => {
-                if (pressed && !dragged && (pressedButtons & Qt.LeftButton) && Math.hypot(event.x - start.x, event.y - start.y) > 12) {
-                    dragged = true;
-                    fi.Drag.startDrag();
-                }
-            }
+            onPositionChanged: if (drag.active)
+                dragged = true
             onDoubleClicked: event => {
                 if (event.button === Qt.LeftButton)
                     win.activate(fi.item);
