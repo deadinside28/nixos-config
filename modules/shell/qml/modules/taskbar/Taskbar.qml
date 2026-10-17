@@ -73,7 +73,9 @@ PanelWindow {
         bar: bar
         readonly property real startEnd: bar.vertical ? start.y + start.height + 16 : start.x + start.width + 16
         readonly property real centered: bar.vertical ? (bar.height - height) / 2 : (bar.width - width) / 2
-        readonly property real pos: Settings.data.taskbarCentered ? Math.max(startEnd, centered) : startEnd
+        // не заезжать на трей и часы в конце панели
+        readonly property real endStart: (bar.vertical ? end.y : end.x) - 16 - (bar.vertical ? height : width)
+        readonly property real pos: Math.max(startEnd, Math.min(Settings.data.taskbarCentered ? centered : startEnd, endStart))
         x: bar.vertical ? (bar.width - width) / 2 : pos
         y: bar.vertical ? pos : (bar.height - height) / 2
         Behavior on x {
@@ -94,6 +96,7 @@ PanelWindow {
 
     // Конец: трей, уведомления, статус
     GridLayout {
+        id: end
         flow: bar.vertical ? GridLayout.TopToBottom : GridLayout.LeftToRight
         rowSpacing: 8
         columnSpacing: 8

@@ -175,6 +175,46 @@ SettingsPage {
         }
     }
 
+    // --- Для какого монитора ----------------------------------------------
+    ColumnLayout {
+        Layout.fillWidth: true
+        visible: Quickshell.screens.length > 1
+        spacing: 8
+        SegmentedButtons {
+            Layout.fillWidth: true
+            options: [
+                {
+                    value: "",
+                    label: "Все мониторы",
+                    icon: "select_all"
+                },
+                ...Quickshell.screens.map(s => ({
+                            value: s.name,
+                            label: s.name,
+                            icon: "desktop_windows"
+                        }))
+            ]
+            current: Wallpapers.target
+            onSelected: v => Wallpapers.target = v
+        }
+        RowLayout {
+            Layout.fillWidth: true
+            Layout.leftMargin: 8
+            MText {
+                Layout.fillWidth: true
+                text: Wallpapers.target === "" ? "Обои ниже встанут на все мониторы и сбросят отдельные" : (Settings.data.screenWallpapers[Wallpapers.target] ? "У " + Wallpapers.target + " свои обои" : Wallpapers.target + " сейчас с общими обоями")
+                color: Theme.fgSurfaceVariant
+                wrapMode: Text.WordWrap
+            }
+            Button {
+                visible: Wallpapers.target !== "" && !!Settings.data.screenWallpapers[Wallpapers.target]
+                variant: "text"
+                text: "Вернуть общие"
+                onClicked: Wallpapers.resetScreen(Wallpapers.target)
+            }
+        }
+    }
+
     // --- Обои -------------------------------------------------------------
     Group {
         title: "Обои"
@@ -241,7 +281,7 @@ SettingsPage {
                         required property string modelData
                         width: grid.cellWidth
                         height: grid.cellHeight
-                        readonly property bool sel: Settings.data.wallpaperType === "image" && Settings.data.wallpaper === modelData
+                        readonly property bool sel: Wallpapers.current.type === "image" && Wallpapers.current.image === modelData
                         ClippingRectangle {
                             anchors.fill: parent
                             anchors.margins: 4
@@ -297,10 +337,18 @@ SettingsPage {
         SwitchItem {
             icon: "animated_images"
             title: "Живые обои"
-            subtitle: WallpaperEngine.active ? "Сейчас: " + (WallpaperEngine.current?.title ?? Settings.data.engineWallpaper.split("/").pop()) : "Выбери обои ниже — они встанут на все мониторы"
-            checked: WallpaperEngine.active
-            disabled: Settings.data.engineWallpaper === ""
-            onToggled: v => Settings.data.wallpaperType = v ? "engine" : "image"
+            readonly property var cur: Wallpapers.current
+            subtitle: cur.type === "engine" ? "Сейчас: " + (WallpaperEngine.current?.title ?? (cur.engine ?? "").split("/").pop()) : (Wallpapers.target ? "Выбери обои ниже — они встанут на " + Wallpapers.target : "Выбери обои ниже — они встанут на все мониторы")
+            checked: cur.type === "engine"
+            disabled: !(cur.engine || Settings.data.engineWallpaper)
+            onToggled: v => Wallpapers.apply(v ? {
+                    type: "engine",
+                    engine: cur.engine || Settings.data.engineWallpaper,
+                    preview: cur.preview || Settings.data.enginePreview
+                } : {
+                    type: "image",
+                    image: cur.image || Settings.data.wallpaper
+                })
         }
 
         Rectangle {
@@ -359,7 +407,7 @@ SettingsPage {
                         required property var modelData
                         width: engGrid.cellWidth
                         height: engGrid.cellHeight
-                        readonly property bool sel: WallpaperEngine.active && Settings.data.engineWallpaper === modelData.dir
+                        readonly property bool sel: Wallpapers.current.type === "engine" && Wallpapers.current.engine === modelData.dir
 
                         ClippingRectangle {
                             id: thumb

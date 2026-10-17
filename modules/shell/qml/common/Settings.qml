@@ -54,6 +54,9 @@ Singleton {
             property bool engineSilent: true
             property bool enginePauseFullscreen: true
             property string engineScaling: "fill"
+            // Свои обои для отдельных мониторов:
+            // { "HDMI-A-2": { type, image, engine, preview } }; нет записи — общие
+            property var screenWallpapers: ({})
             property string colorSource: "wallpaper" // wallpaper | preset
             property string presetColor: "#4285f4"
             property string schemeType: "scheme-tonal-spot"
@@ -74,6 +77,12 @@ Singleton {
             property string taskbarPosition: "bottom" // bottom | top | left | right
             property list<string> taskbarScreens: [] // пусто — на всех экранах
             property bool showKeyboardLayout: true
+            property int trayVisible: 3 // сколько значков трея видно, остальные — под стрелкой
+
+            // Быстрые настройки (шторка)
+            property list<string> qsTiles: ["internet", "bluetooth", "dnd", "night", "dark", "mic", "caffeine", "record", "screenshot", "clipboard"]
+            property bool qsShowMedia: true
+            property bool qsShowBrightness: true
             property bool showWorkspaces: true
             property bool showTray: true
             property list<string> pinnedApps: ["google-chrome", "nemo", "kitty", "org.telegram.desktop", "steam"]
@@ -87,6 +96,9 @@ Singleton {
             property bool dnd: false
             property bool notifPopups: true
             property int notifTimeout: 6000
+            property string notifPosition: "auto" // auto | top-right | top-left | bottom-right | bottom-left | top
+            property string notifScreen: "focused" // focused | primary | имя монитора
+            property bool notifyScreenshots: true // уведомления о скриншотах и записи экрана
 
             // Ночной режим (hyprsunset)
             property bool nightLight: false
@@ -104,6 +116,11 @@ Singleton {
             property int borderSize: 2
             property int rounding: 16
             property bool blur: true
+            property int blurPasses: 2
+            property int blurSize: 5
+            property bool blurXray: false // размывать только обои — заметно дешевле
+            property bool shadows: true
+            property bool hyprAnimations: true
             property real windowOpacity: 0.93
 
             // Ввод (Hyprland)

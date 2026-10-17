@@ -95,19 +95,19 @@
           hyprpicker -r -z & pid=$!
           sleep 0.1
           geom=$(slurp -b 00000099 -c ffffff -w 2 -s 00000000) || { kill "$pid"; exit 0; }
-          grim -g "$geom" "$f"; kill "$pid"; what="Область" ;;
+          grim -g "$geom" "$f"; kill "$pid"; what="Скриншот области" ;;
         full)
-          grim "$f"; what="Весь экран" ;;
+          grim "$f"; what="Скриншот экрана" ;;
         window)
           geom=$(hyprctl activewindow -j | jq -r '"\(.at[0]),\(.at[1]) \(.size[0])x\(.size[1])"')
-          grim -g "$geom" "$f"; what="Окно" ;;
+          grim -g "$geom" "$f"; what="Скриншот окна" ;;
         *) echo "pixel-screenshot area|full|window" >&2; exit 1 ;;
       esac
       wl-copy < "$f"
       mkdir -p "$HOME/Pictures/Screenshots"
       saved="$HOME/Pictures/Screenshots/$(date +%F_%H-%M-%S).png"
       cp "$f" "$saved"
-      notify-send -a "Скриншот" -i "$saved" "Скриншот" "$what скопирован(о) в буфер обмена"
+      notify-send -a "Скриншот" -i "$saved" "$what" "Скопирован в буфер обмена и сохранён в Pictures/Screenshots"
     '';
   };
 

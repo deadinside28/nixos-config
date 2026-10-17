@@ -32,6 +32,11 @@ Singleton {
         onNotification: n => {
             n.tracked = true;
             const critical = n.urgency === NotificationUrgency.Critical;
+            // Скриншоты и запись экрана можно не показывать вовсе
+            if (!Settings.data.notifyScreenshots && ["Скриншот", "Запись экрана"].includes(n.appName)) {
+                n.dismiss();
+                return;
+            }
             if (critical || (!Settings.data.dnd && Settings.data.notifPopups)) {
                 root.popups = [n, ...root.popups].slice(0, 5);
             }

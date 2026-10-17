@@ -64,6 +64,9 @@ Singleton {
         function onWallpaperTypeChanged() {
             root.regenerate();
         }
+        function onScreenWallpapersChanged() {
+            root.regenerate();
+        }
         function onEnginePreviewChanged() {
             root.regenerate();
         }

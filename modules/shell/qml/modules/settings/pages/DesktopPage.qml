@@ -105,6 +105,16 @@ SettingsPage {
             checked: Settings.data.showWorkspaces
             onToggled: v => Settings.data.showWorkspaces = v
         }
+        ChoiceItem {
+            icon: "more_up"
+            title: "Значков трея на панели"
+            options: [0, 1, 2, 3, 4, 5, 6, 99].map(n => ({
+                        value: n,
+                        label: n === 0 ? "Все под стрелкой" : n === 99 ? "Все на панели" : String(n)
+                    }))
+            current: Settings.data.trayVisible
+            onSelected: v => Settings.data.trayVisible = v
+        }
         SwitchItem {
             icon: "widgets"
             title: "Системный трей"
@@ -234,7 +244,54 @@ SettingsPage {
     }
 
     Group {
-        title: "Анимации"
+        title: "Плавность и производительность"
+        SwitchItem {
+            icon: "animation"
+            title: "Анимации окон"
+            subtitle: "Пружины Material 3 при открытии, перемещении и смене рабочих столов"
+            checked: Settings.data.hyprAnimations
+            onToggled: v => Settings.data.hyprAnimations = v
+        }
+        SliderItem {
+            icon: "blur_on"
+            title: "Проходы размытия"
+            valueText: Settings.data.blurPasses
+            from: 1
+            to: 4
+            stepSize: 1
+            value: Settings.data.blurPasses
+            disabled: !Settings.data.blur
+            onMoved: v => Settings.data.blurPasses = Math.round(v)
+        }
+        SliderItem {
+            icon: "lens_blur"
+            title: "Сила размытия"
+            valueText: Settings.data.blurSize
+            from: 2
+            to: 12
+            stepSize: 1
+            value: Settings.data.blurSize
+            disabled: !Settings.data.blur
+            onMoved: v => Settings.data.blurSize = Math.round(v)
+        }
+        SwitchItem {
+            icon: "layers"
+            title: "Размывать только обои"
+            subtitle: "Под окнами видно обои, а не другие окна. Намного легче для видеокарты — особенно с живыми обоями"
+            checked: Settings.data.blurXray
+            disabled: !Settings.data.blur
+            onToggled: v => Settings.data.blurXray = v
+        }
+        SwitchItem {
+            icon: "shadow"
+            title: "Тени окон"
+            checked: Settings.data.shadows
+            onToggled: v => Settings.data.shadows = v
+        }
+    }
+
+    Group {
+        title: "Анимации оболочки"
         ChoiceItem {
             icon: "animation"
             title: "Скорость анимаций оболочки"

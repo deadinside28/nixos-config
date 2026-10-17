@@ -19,8 +19,20 @@ Singleton {
     property var items: []
     property string assetsDir: ""
     property bool scanning: scan.running
-    readonly property bool active: Settings.data.wallpaperType === "engine" && Settings.data.engineWallpaper !== ""
-    readonly property var current: items.find(i => i.dir === Settings.data.engineWallpaper) ?? null
+    // Экраны с живыми обоями: [{ screen, dir }]
+    readonly property var targets: {
+        const _ = Settings.data.screenWallpapers;
+        const __ = Settings.data.wallpaperType + Settings.data.engineWallpaper;
+        return Quickshell.screens.map(s => ({
+                    screen: s.name,
+                    w: Wallpapers.forScreen(s.name)
+                })).filter(t => t.w.type === "engine" && t.w.engine).map(t => ({
+                    screen: t.screen,
+                    dir: t.w.engine
+                }));
+    }
+    readonly property bool active: targets.length > 0
+    readonly property var current: items.find(i => i.dir === Wallpapers.current.engine) ?? null
     property string lastError: ""
 
     function refresh() {
@@ -59,9 +71,14 @@ $(sed -n 's/^[[:space:]]*"path"[[:space:]]*"\\(.*\\)"/\\1/p' "$vdf")"
                     const f = line.split("\t");
                     if (f[0] === "assets" && !root.assetsDir)
                         root.assetsDir = f[1];
-                    if (f[0] !== "item" || seen[f[1]])
+                    // Одна и та же папка находится и через ~/.steam/steam, и через
+                    // ~/.local/share/Steam — сравниваем по ID из мастерской.
+                    if (f[0] !== "item")
                         continue;
-                    seen[f[1]] = true;
+                    const id = f[1].split("/").pop();
+                    if (seen[id])
+                        continue;
+                    seen[id] = true;
                     list.push({
                         dir: f[1],
                         id: f[1].split("/").pop(),
@@ -76,12 +93,11 @@ $(sed -n 's/^[[:space:]]*"path"[[:space:]]*"\\(.*\\)"/\\1/p' "$vdf")"
     }
 
     function apply(item) {
-        Settings.data.enginePreview = item.preview;
-        Settings.data.engineWallpaper = item.dir;
-        Settings.data.wallpaperType = "engine";
-    }
-    function stop() {
-        Settings.data.wallpaperType = "image";
+        Wallpapers.apply({
+            type: "engine",
+            engine: item.dir,
+            preview: item.preview
+        });
     }
 
     readonly property var command: {
@@ -97,8 +113,8 @@ $(sed -n 's/^[[:space:]]*"path"[[:space:]]*"\\(.*\\)"/\\1/p' "$vdf")"
             cmd.push("--fullscreen-pause-only-active");
         if (assetsDir)
             cmd.push("--assets-dir", assetsDir);
-        for (const s of Quickshell.screens)
-            cmd.push("--screen-root", s.name, "--bg", d.engineWallpaper, "--scaling", d.engineScaling);
+        for (const t of targets)
+            cmd.push("--screen-root", t.screen, "--bg", t.dir, "--scaling", d.engineScaling);
         return cmd;
     }
 

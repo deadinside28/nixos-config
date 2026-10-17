@@ -23,7 +23,11 @@ PanelWindow {
 
     // Под живыми обоями Wallpaper Engine (они на слое bottom, выше) лежит
     // их превью — его видно, пока linux-wallpaperengine запускается.
-    readonly property string source: Wallpapers.image
+    readonly property string source: {
+        const _ = Settings.data.screenWallpapers;
+        const __ = Settings.data.wallpaper + Settings.data.wallpaperType + Settings.data.enginePreview;
+        return Wallpapers.imageFor(modelData.name);
+    }
 
     property Image current: a
     onSourceChanged: {

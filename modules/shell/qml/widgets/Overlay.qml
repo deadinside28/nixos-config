@@ -28,8 +28,12 @@ PanelWindow {
     function slideX(amount) {
         return Bar.edge === "left" ? -amount : Bar.edge === "right" ? amount : 0;
     }
+    // Сбоку панели всё выезжает снизу, как в Aluminium OS
     function slideY(amount) {
-        return Bar.edge === "top" ? -amount : Bar.vertical ? 0 : amount;
+        return Bar.edge === "top" ? -amount : amount;
+    }
+    function slideXv(amount) {
+        return 0;
     }
 
     screen: Quickshell.screens.find(s => s.name === Ui.activeScreen) ?? Quickshell.screens[0]

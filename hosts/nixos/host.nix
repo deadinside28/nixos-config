@@ -27,7 +27,12 @@
     {
       name = "HDMI-A-2"; # Acer
       workspaces = [6 7 8 9];
-      mode = null;
+      # «preferred» у многих мониторов — 60 Гц, поэтому частота явно
+      mode = {
+        mode = "1920x1080@100";
+        position = "auto-right";
+        scale = 1;
+      };
     }
   ];
 

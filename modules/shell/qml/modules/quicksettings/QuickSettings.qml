@@ -1,5 +1,5 @@
 // Быстрые настройки и центр уведомлений — выезжают справа снизу при клике
-// по часам. Сверху уведомления, ниже плитки и слайдеры, как на Pixel.
+// по часам. Сверху плитки и слайдеры, под ними уведомления.
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
@@ -33,67 +33,16 @@ Overlay {
 
     ColumnLayout {
         id: stack
-        width: 420
+        width: 460
         // У «таблетки» статуса: она в конце панели
-        x: (Bar.edge === "left" ? root.insetLeft + 12 : root.width - root.insetRight - 12 - width) + root.slideX((1 - root.progress) * 40)
+        x: Bar.edge === "left" ? root.insetLeft + 12 : root.width - root.insetRight - 12 - width
         y: (Bar.edge === "top" ? root.insetTop + 12 : root.height - root.insetBottom - 12 - height) + root.slideY((1 - root.progress) * 40)
         opacity: root.progress
         spacing: 12
 
-        // --- Уведомления --------------------------------------------------
-        Card {
-            id: notifCard
-            Layout.fillWidth: true
-            visible: Notifs.count > 0
-            implicitHeight: Math.min(440, notifCol.implicitHeight + 32)
-            color: Theme.surfaceContainer
-
-            ColumnLayout {
-                id: notifCol
-                anchors.fill: parent
-                anchors.margins: 16
-                spacing: 12
-
-                RowLayout {
-                    Layout.fillWidth: true
-                    Layout.leftMargin: 8
-                    MText {
-                        Layout.fillWidth: true
-                        text: "Уведомления"
-                        size: Theme.type.titleM
-                        weight: Theme.strongWeight
-                    }
-                    Button {
-                        variant: "tonal"
-                        implicitHeight: 32
-                        text: "Очистить все"
-                        onClicked: Notifs.clearAll()
-                    }
-                }
-
-                ListView {
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
-                    implicitHeight: contentHeight
-                    clip: true
-                    spacing: 6
-                    boundsBehavior: Flickable.StopAtBounds
-                    model: ScriptModel {
-                        values: Notifs.list
-                    }
-                    delegate: NotificationCard {
-                        required property var modelData
-                        width: ListView.view.width
-                        notification: modelData
-                        cardColor: Theme.surfaceContainerHigh
-                        onClosed: Notifs.dismiss(modelData)
-                    }
-                }
-            }
-        }
-
         // --- Быстрые настройки --------------------------------------------
         Card {
+            id: qsCard
             Layout.fillWidth: true
             implicitHeight: qsCol.implicitHeight + 32
             color: Theme.surfaceContainer
@@ -220,104 +169,94 @@ Overlay {
                 }
                 PillSlider {
                     Layout.fillWidth: true
-                    visible: Brightness.available
+                    visible: Brightness.available && Settings.data.qsShowBrightness
                     icon: "brightness_6"
                     value: Brightness.value
                     onMoved: v => Brightness.set(v)
                 }
 
-                // Плитки
+                // Плитки — состав и порядок из «Настройки → Быстрые настройки»
                 GridLayout {
                     Layout.fillWidth: true
                     columns: 2
                     columnSpacing: 8
                     rowSpacing: 8
 
-                    Tile {
-                        icon: Net.icon
-                        label: Net.wiredConnected ? "Ethernet" : "Интернет"
-                        sublabel: Net.label
-                        active: Net.online || Net.wifiEnabled
-                        hasDetails: true
-                        onToggled: if (Net.hasWifi)
-                            Net.setWifi(!Net.wifiEnabled)
-                        onDetails: Ui.openSettings("network")
-                    }
-                    Tile {
-                        icon: Bt.icon
-                        label: "Bluetooth"
-                        sublabel: Bt.label
-                        active: Bt.enabled
-                        hasDetails: true
-                        onToggled: Bt.setEnabled(!Bt.enabled)
-                        onDetails: Ui.openSettings("bluetooth")
-                    }
-                    Tile {
-                        icon: Settings.data.dnd ? "do_not_disturb_on" : "do_not_disturb_off"
-                        label: "Не беспокоить"
-                        sublabel: Settings.data.dnd ? "Включено" : "Выключено"
-                        active: Settings.data.dnd
-                        onToggled: Settings.data.dnd = !Settings.data.dnd
-                    }
-                    Tile {
-                        icon: "nightlight"
-                        label: "Ночной режим"
-                        sublabel: Settings.data.nightLight ? Settings.data.nightTemp + " K" : "Выключен"
-                        active: Settings.data.nightLight
-                        onToggled: NightLight.toggle()
-                    }
-                    Tile {
-                        icon: "contrast"
-                        label: "Тёмная тема"
-                        sublabel: Settings.data.darkMode ? "Включена" : "Выключена"
-                        active: Settings.data.darkMode
-                        onToggled: Settings.data.darkMode = !Settings.data.darkMode
-                    }
-                    Tile {
-                        icon: Audio.micMuted ? "mic_off" : "mic"
-                        label: "Микрофон"
-                        sublabel: Audio.micMuted ? "Выключен" : Math.round(Audio.micVolume * 100) + "%"
-                        active: !Audio.micMuted && Audio.source !== null
-                        onToggled: Audio.toggleMicMute()
-                    }
-                    Tile {
-                        icon: "coffee"
-                        label: "Без сна"
-                        sublabel: Ui.caffeine ? "Экран не гаснет" : "Выключено"
-                        active: Ui.caffeine
-                        onToggled: Ui.caffeine = !Ui.caffeine
-                    }
-                    Tile {
-                        icon: Ui.recording ? "stop_circle" : "screen_record"
-                        label: "Запись экрана"
-                        sublabel: Ui.recording ? "Идёт запись" : "Без микрофона"
-                        active: Ui.recording
-                        onToggled: {
-                            Quickshell.execDetached(["pixel-record", Ui.activeScreen]);
-                            Ui.close();
+                    Repeater {
+                        model: Settings.data.qsTiles.filter(id => QsTiles.byId(id))
+                        Tile {
+                            id: tile
+                            required property string modelData
+                            readonly property var t: QsTiles.byId(modelData)
+                            icon: t.icon()
+                            label: t.label
+                            sublabel: t.sub()
+                            active: t.active()
+                            hasDetails: !!t.details
+                            onToggled: t.toggle()
+                            onDetails: t.details()
                         }
-                    }
-                    Tile {
-                        icon: "screenshot_region"
-                        label: "Скриншот"
-                        sublabel: "Область"
-                        onToggled: {
-                            Ui.close();
-                            Quickshell.execDetached(["sh", "-c", "sleep 0.4; pixel-screenshot area"]);
-                        }
-                    }
-                    Tile {
-                        icon: "content_paste"
-                        label: "Буфер обмена"
-                        sublabel: "История"
-                        onToggled: Ui.open("clipboard")
                     }
                 }
 
                 MediaCard {
-                    visible: Media.hasPlayer
+                    visible: Media.hasPlayer && Settings.data.qsShowMedia
                 }
             }
         }
+
+        // --- Уведомления (под шторкой) --------------------------------------------------
+        Card {
+            id: notifCard
+            Layout.fillWidth: true
+            visible: Notifs.count > 0
+            // сколько влезет под шторкой
+            implicitHeight: Math.min(notifCol.implicitHeight + 32, Math.max(180, root.height - root.insetTop - root.insetBottom - 48 - qsCard.height))
+            color: Theme.surfaceContainer
+
+            ColumnLayout {
+                id: notifCol
+                anchors.fill: parent
+                anchors.margins: 16
+                spacing: 12
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    Layout.leftMargin: 8
+                    MText {
+                        Layout.fillWidth: true
+                        text: "Уведомления"
+                        size: Theme.type.titleM
+                        weight: Theme.strongWeight
+                    }
+                    Button {
+                        variant: "tonal"
+                        implicitHeight: 32
+                        text: "Очистить все"
+                        onClicked: Notifs.clearAll()
+                    }
+                }
+
+                ListView {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    implicitHeight: contentHeight
+                    clip: true
+                    spacing: 6
+                    boundsBehavior: Flickable.StopAtBounds
+                    model: ScriptModel {
+                        values: Notifs.list
+                    }
+                    delegate: NotificationCard {
+                        required property var modelData
+                        width: ListView.view.width
+                        notification: modelData
+                        cardColor: Theme.surfaceContainerHigh
+                        onClosed: Notifs.dismiss(modelData)
+                    }
+                }
+            }
+        }
+
     }
 }

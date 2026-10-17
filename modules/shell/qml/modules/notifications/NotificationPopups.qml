@@ -10,15 +10,19 @@ import qs.services
 PanelWindow {
     id: root
 
-    screen: Quickshell.screens.find(s => s.name === Ui.focusedScreen) ?? Quickshell.screens[0]
+    // Монитор и угол — «Настройки → Уведомления»
+    readonly property string screenName: Settings.data.notifScreen === "focused" ? Ui.focusedScreen : Settings.data.notifScreen === "primary" ? (Quickshell.screens[0]?.name ?? "") : Settings.data.notifScreen
+    screen: Quickshell.screens.find(s => s.name === screenName) ?? Quickshell.screens[0]
+    readonly property string pos: Settings.data.notifPosition !== "auto" ? Settings.data.notifPosition : (Bar.edge === "top" ? "top-" : "bottom-") + (Bar.edge === "left" ? "left" : "right")
+    readonly property bool atTop: pos.startsWith("top")
     visible: Notifs.popups.length > 0 && !Ui.locked && Ui.panel === ""
     // Угол со стороны «таблетки» статуса; место под панелью задач
     // слой отступит сам (ExclusionMode.Normal).
     anchors {
-        bottom: Bar.edge !== "top"
-        top: Bar.edge === "top"
-        right: Bar.edge !== "left"
-        left: Bar.edge === "left"
+        bottom: !atTop
+        top: atTop
+        right: pos.endsWith("right")
+        left: pos.endsWith("left")
     }
     margins {
         bottom: 12
@@ -40,7 +44,8 @@ PanelWindow {
 
         Repeater {
             model: ScriptModel {
-                values: Notifs.popups.slice().reverse()
+                // новые — ближе к краю экрана
+                values: root.atTop ? Notifs.popups : Notifs.popups.slice().reverse()
             }
 
             NotificationCard {

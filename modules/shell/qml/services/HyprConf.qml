@@ -31,8 +31,16 @@ hl.config({
     decoration = {
         rounding = ${d.rounding},
         rounding_power = 2.4,
-        blur = { enabled = ${lua(d.blur)} },
+        blur = {
+            enabled = ${lua(d.blur)},
+            passes = ${d.blurPasses},
+            size = ${d.blurSize},
+            xray = ${lua(d.blurXray)},
+            new_optimizations = true,
+        },
+        shadow = { enabled = ${lua(d.shadows)} },
     },
+    animations = { enabled = ${lua(d.hyprAnimations)} },
 })
 hl.window_rule({
     name = "shell-opacity",
