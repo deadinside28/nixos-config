@@ -378,16 +378,16 @@ in {
     # папки открывает «Файлы» оболочки; Nemo остаётся — в нём есть
     # то, чего у «Файлов» нет (сеть, расширения, архивы через File Roller)
     "inode/directory" = "pixel-shell-files.desktop";
-    # архивы — тоже в «Файлах»: открываются как папка, из них можно тянуть
-    # файлы мышью; File Roller остаётся в «Открыть с помощью»
-    "application/zip" = "pixel-shell-files.desktop";
-    "application/x-7z-compressed" = "pixel-shell-files.desktop";
-    "application/vnd.rar" = "pixel-shell-files.desktop";
-    "application/x-rar" = "pixel-shell-files.desktop";
-    "application/x-tar" = "pixel-shell-files.desktop";
-    "application/x-compressed-tar" = "pixel-shell-files.desktop";
-    "application/x-xz-compressed-tar" = "pixel-shell-files.desktop";
-    "application/x-zstd-compressed-tar" = "pixel-shell-files.desktop";
+    # архивы — в архиваторе оболочки (отдельное окно, файлы оттуда можно
+    # тянуть мышью); File Roller остаётся в «Открыть с помощью»
+    "application/zip" = "pixel-shell-archive.desktop";
+    "application/x-7z-compressed" = "pixel-shell-archive.desktop";
+    "application/vnd.rar" = "pixel-shell-archive.desktop";
+    "application/x-rar" = "pixel-shell-archive.desktop";
+    "application/x-tar" = "pixel-shell-archive.desktop";
+    "application/x-compressed-tar" = "pixel-shell-archive.desktop";
+    "application/x-xz-compressed-tar" = "pixel-shell-archive.desktop";
+    "application/x-zstd-compressed-tar" = "pixel-shell-archive.desktop";
     "application/x-gnome-saved-search" = "nemo.desktop";
   };
 

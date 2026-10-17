@@ -24,14 +24,32 @@ Singleton {
             p = home + p.slice(1);
         if (p.length > 1 && p.endsWith("/"))
             p = p.slice(0, -1);
-        // архив, открытый «Файлами» снаружи (из браузера, по умолчанию для
-        // zip и т.п.), — окно с его содержимым
+        // архив — в отдельном окне архиватора
+        if (isArchive(p.split("/").pop())) {
+            openArchiveWindow(p);
+            return;
+        }
         windows = [...windows, {
                 id: nextId,
                 path: p,
-                archive: isArchive(p.split("/").pop()) ? p : ""
+                archive: ""
             }];
         nextId++;
+    }
+    // Окна архиватора: [{ id, path }]
+    property var archiveWindows: []
+    function openArchiveWindow(path) {
+        let p = String(path);
+        if (p.startsWith("file://"))
+            p = decodeURIComponent(p.slice(7));
+        archiveWindows = [...archiveWindows, {
+                id: nextId,
+                path: p
+            }];
+        nextId++;
+    }
+    function closeArchiveWindow(id) {
+        archiveWindows = archiveWindows.filter(w => w.id !== id);
     }
     function closeWindow(id) {
         windows = windows.filter(w => w.id !== id);
@@ -429,6 +447,20 @@ Singleton {
             }
         }
     }
+    // Добавить файлы в архив: кладём их в распакованную копию и собираем
+    // архив заново в том же формате (bsdtar выбирает его по расширению)
+    function addToArchive(archive, rootDir, dir, paths) {
+        const suffix = archive.split("/").pop().slice(archiveBase(archive.split("/").pop()).length);
+        run(["sh", "-c", `
+            archive="$1"; root="$2"; dir="$3"; suffix="$4"; shift 4
+            cp -a -- "$@" "$dir"/ || exit 1
+            tmp="$(dirname -- "$archive")/.pixel-repack-$$$suffix"
+            (cd "$root" && find . -mindepth 1 -maxdepth 1 ! -name .pixel-done -printf '%P\\0' | xargs -0 bsdtar -a -cf "$tmp") || { rm -f "$tmp"; exit 1; }
+            mv -f -- "$tmp" "$archive"
+            touch "$root/.pixel-done"
+        `, "sh", archive, rootDir, dir, suffix, ...paths], dir);
+    }
+
     // Распаковать рядом: в папку с именем архива (если внутри один каталог —
     // просто его), как на ChromeOS
     function extract(path, destDir) {
@@ -631,7 +663,8 @@ Singleton {
             id: ap
             property string path
             signal done(var apps, string current)
-            command: ["sh", "-c", 'm=$(xdg-mime query filetype "$1" 2>/dev/null); echo "#$m"; gio mime "$m" 2>/dev/null', "sh", path]
+            // LC_ALL=C: заголовки gio mime иначе приходят по-русски, и разбор их не находит
+            command: ["sh", "-c", 'export LC_ALL=C; m=$(xdg-mime query filetype "$1" 2>/dev/null); echo "#$m"; gio mime "$m" 2>/dev/null', "sh", path]
             stdout: StdioCollector {
                 onStreamFinished: {
                     let def = "";

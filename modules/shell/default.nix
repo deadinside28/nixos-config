@@ -296,6 +296,8 @@
                 }
               }
               for (j = 1; j <= m; j++) {
+                # одна-две буквы — обычно аватарка или значок, принятые за «о»
+                if (pt[j] ~ /^[^ ]{1,2}$/) continue
                 printf "%d\t%d\t%d\t%d\t%d\n", px1[j], py1[j], px2[j] - px1[j], py2[j] - py1[j], ph[j] > dir "/boxes"
                 print pt[j] > dir "/text"
               }
@@ -306,7 +308,9 @@
           # (по строке на абзац); если строки разъехались — по одному, параллельно.
           cache="''${XDG_RUNTIME_DIR:-/tmp}/pixel-lens/tr-$to.tsv"
           mkdir -p "$(dirname "$cache")"; touch "$cache"
-          awk -F'\t' -v miss="$tmp/miss" 'NR == FNR { c[$1] = $2; next }
+          # (по имени файла, а не NR == FNR: на пустом кеше то условие верно
+          # и для текста, и весь текст пропадал «в кеш»)
+          awk -F'\t' -v miss="$tmp/miss" -v cache="$cache" 'FILENAME == cache { c[$1] = $2; next }
             { if ($0 in c) print c[$0]; else { print "\001"; print > miss } }' "$cache" "$tmp/text" > "$tmp/known"
           if [ -s "$tmp/miss" ]; then
             n=$(wc -l < "$tmp/miss")
@@ -322,7 +326,7 @@
             # удачные переводы — в кеш
             paste "$tmp/miss" "$tmp/mtr" | awk -F'\t' '$2 ~ /[^[:space:]]/' >> "$cache"
           fi
-          awk -v mtr="$tmp/mtr" '$0 == "\001" { getline t < mtr; print t; next } { print }' "$tmp/known" > "$tmp/tr"
+          awk -v mtr="$tmp/mtr" '$0 == "\001" { t = ""; getline t < mtr; print t; next } { print }' "$tmp/known" > "$tmp/tr"
           # фон — цвет у углов рамки (снаружи текста), какой встречается чаще;
           # все точки — одним вызовом magick
           fmt=""
@@ -333,6 +337,9 @@
           magick "$img" -format "$fmt" info: > "$tmp/bg" 2>/dev/null || true
           # сборка: рамка, фон (самый частый цвет из четырёх углов), перевод
           LC_ALL=C awk -F'\t' -v bgf="$tmp/bg" -v trf="$tmp/tr" -v txf="$tmp/text" '{
+            # сброс перед чтением: getline на конце файла не трогает
+            # переменную, и прошлый перевод размножался по всем рамкам
+            bgl = ""; trl = ""; txl = ""
             getline bgl < bgf; getline trl < trf; getline txl < txf
             split(bgl, c, " "); best = ""; bc = 0
             for (i in c) { v = substr(c[i], 1, 6); if (v == "") continue; cnt[v]++; if (cnt[v] > bc) { bc = cnt[v]; best = v } }
@@ -512,9 +519,19 @@ in {
     icon = "system-file-manager";
     exec = "pixel-shell files open %U";
     categories = ["System" "FileManager" "Utility"];
+    mimeType = ["inode/directory"];
+    settings.StartupWMClass = "pixel-shell";
+  };
+
+  # Архиватор оболочки: zip, 7z, rar, tar — отдельным окном
+  xdg.desktopEntries.pixel-shell-archive = {
+    name = "Архиватор";
+    genericName = "Архивы";
+    comment = "Открыть, распаковать и дополнить zip, 7z, rar, tar";
+    icon = "package-x-generic";
+    exec = "pixel-shell archive open %f";
+    categories = ["Utility" "Archiving" "Compression"];
     mimeType = [
-      "inode/directory"
-      # архивы открываются как папки
       "application/zip"
       "application/x-7z-compressed"
       "application/vnd.rar"
@@ -526,6 +543,7 @@ in {
       "application/x-bzip2-compressed-tar"
       "application/gzip"
     ];
+    noDisplay = true;
     settings.StartupWMClass = "pixel-shell";
   };
 

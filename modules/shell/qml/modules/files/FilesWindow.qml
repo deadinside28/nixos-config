@@ -267,7 +267,7 @@ FloatingWindow {
         else if (place === "trash")
             return;
         else if (Files.isArchive(item.name))
-            enterArchive(item.path);
+            Files.openArchiveWindow(item.path);
         else if (Files.isAppImage(item.name) || Files.isScript(item.name))
             Files.launch(item.path);
         else
@@ -1289,6 +1289,9 @@ FloatingWindow {
             acceptedButtons: Qt.LeftButton | Qt.RightButton
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
+            // иначе GridView/ListView забирает движение мыши себе как прокрутку,
+            // и перетаскивание файла даже не начинается
+            preventStealing: true
             property point start
             property bool dragged: false
             onPressed: event => {
@@ -1506,6 +1509,8 @@ FloatingWindow {
         property real mx: 0
         property real my: 0
         property var apps: []
+        property bool appsLoaded: false
+        property bool allApps: false
 
         function show(src, x, y, list) {
             const p = src.mapToItem(menu, x, y);
@@ -1882,9 +1887,13 @@ FloatingWindow {
                 nameField.input.select(0, dot > 0 ? dot : one.name.length);
             } else if (k === "openwith" && one) {
                 apps = [];
+                appsLoaded = false;
                 Files.appsFor(one.path, (list, def) => {
-                    dialog.apps = list;
+                    // для типа никто не зарегистрирован — предложить все приложения
+                    dialog.allApps = list.length === 0;
+                    dialog.apps = list.length ? list : Apps.all;
                     dialog.defApp = def;
+                    dialog.appsLoaded = true;
                 });
             } else if (k === "info" && one) {
                 info = "";
@@ -2086,11 +2095,21 @@ FloatingWindow {
                     visible: dialog.kind === "openwith"
                     spacing: 2
                     MText {
-                        visible: dialog.apps.length === 0
+                        visible: !dialog.appsLoaded || dialog.allApps
                         Layout.alignment: Qt.AlignHCenter
-                        text: "Ищу подходящие приложения…"
+                        text: dialog.appsLoaded ? "Подходящих не нашлось — все приложения:" : "Ищу подходящие приложения…"
                         color: Theme.fgSurfaceVariant
                     }
+                    Flickable {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: Math.min(380, appsCol.implicitHeight)
+                        contentHeight: appsCol.implicitHeight
+                        clip: true
+                        boundsBehavior: Flickable.StopAtBounds
+                        ColumnLayout {
+                            id: appsCol
+                            width: parent.width
+                            spacing: 2
                     Repeater {
                         model: dialog.apps
                         Rectangle {
@@ -2136,6 +2155,8 @@ FloatingWindow {
                                     dialog.visible = false;
                                 }
                             }
+                        }
+                    }
                         }
                     }
                 }

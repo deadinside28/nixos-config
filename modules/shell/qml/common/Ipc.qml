@@ -95,6 +95,13 @@ Scope {
         }
     }
     IpcHandler {
+        target: "archive"
+        // pixel-shell archive open <архив> — окно архиватора
+        function open(path: string): void {
+            Files.openArchiveWindow(path);
+        }
+    }
+    IpcHandler {
         target: "update"
         // окно с прогрессом и логом последнего обновления
         function open(): void {
