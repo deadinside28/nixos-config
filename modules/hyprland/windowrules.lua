@@ -161,7 +161,9 @@ hl.window_rule({
 -- «Настройки» оболочки — плавающее окно по центру, как приложение
 -- настроек в режиме рабочего стола Pixel. Диалоги выбора файлов и цвета
 -- из него — тоже плавающие (у них тот же класс).
-hl.window_rule({ match = { class = "^(pixel-shell)$" }, float = true, center = true })
+-- Плавают только служебные окна оболочки; «Файлы» встают в раскладку,
+-- как обычное приложение.
+hl.window_rule({ match = { class = "^(pixel-shell)$", title = "^(Настройки|Обновление системы)$" }, float = true, center = true })
 hl.window_rule({ match = { class = "^(pixel-shell)$", title = "^(Настройки)$" }, size = { "1180", "800" } })
 hl.window_rule({ match = { class = "^(pixel-shell)$", title = "^(Обновление системы)$" }, size = { "760", "640" } })
 

@@ -103,7 +103,7 @@ Singleton {
             property bool qsShowBrightness: true
             property bool showWorkspaces: true
             property bool showTray: true
-            property list<string> pinnedApps: ["google-chrome", "nemo", "kitty", "org.telegram.desktop", "steam"]
+            property list<string> pinnedApps: ["google-chrome", "pixel-shell-files", "kitty", "org.telegram.desktop", "steam"]
 
             // Часы
             property bool use24h: true
@@ -184,6 +184,12 @@ Singleton {
 
             // Мониторы: { "HDMI-A-1": { mode, position, scale, vrr } }
             property var monitors: ({})
+
+            // Файлы
+            property string filesView: "grid" // grid | list
+            property bool filesHidden: false
+            property string filesSort: "name" // name | time | size | type
+            property bool filesSortDesc: false
 
             // Лаунчер
             property var appUsage: ({})

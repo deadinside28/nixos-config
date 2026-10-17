@@ -65,6 +65,13 @@ Scope {
         }
     }
     IpcHandler {
+        target: "files"
+        // pixel-shell files open [путь или file://-адрес]
+        function open(path: string): void {
+            Files.open(path);
+        }
+    }
+    IpcHandler {
         target: "update"
         // окно с прогрессом и логом последнего обновления
         function open(): void {

@@ -375,7 +375,9 @@ in {
   # если выбрать другое в «Настройки → Приложения», пользовательский
   # mimeapps.list его перекроет.
   xdg.mime.defaultApplications = {
-    "inode/directory" = "nemo.desktop";
+    # папки открывает «Файлы» оболочки; Nemo остаётся — в нём есть
+    # то, чего у «Файлов» нет (сеть, расширения, архивы через File Roller)
+    "inode/directory" = "pixel-shell-files.desktop";
     "application/x-gnome-saved-search" = "nemo.desktop";
   };
 

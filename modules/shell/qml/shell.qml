@@ -25,6 +25,7 @@ import qs.modules.polkit
 import qs.modules.settings
 import qs.modules.dnd
 import qs.modules.frame
+import qs.modules.files
 
 ShellRoot {
     id: root
@@ -66,6 +67,7 @@ ShellRoot {
     PolkitDialog {}
     SettingsWindow {}
     UpdateWindow {}
+    FilesWindows {}
     DndSpring {}
 
     Ipc {}

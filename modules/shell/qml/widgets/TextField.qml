@@ -52,6 +52,11 @@ Rectangle {
                 selectedTextColor: Theme.fgSurface
                 font.family: Theme.font
                 font.pixelSize: Theme.type.bodyL
+                font.weight: Theme.fontWeight
+                font.variableAxes: ({
+                        "wght": Theme.fontWeight,
+                        "opsz": Math.round(Theme.type.bodyL * 0.75 * 10) / 10
+                    })
                 echoMode: root.password ? TextInput.Password : TextInput.Normal
                 clip: true
                 onAccepted: root.accepted()

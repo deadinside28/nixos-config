@@ -104,7 +104,7 @@ hl.bind("XF86MonBrightnessDown", hl.dsp.exec_cmd("pixel-shell brightness down"),
 
 -- Запуск приложений
 hl.bind(mainMod .. " + W", hl.dsp.exec_cmd("google-chrome-stable"))
-hl.bind(mainMod .. " + E", hl.dsp.exec_cmd("nemo"))
+hl.bind(mainMod .. " + E", hl.dsp.exec_cmd("pixel-shell files open"))
 hl.bind(mainMod .. " + T", hl.dsp.exec_cmd("kitty"))
 hl.bind(mainMod .. " + C", hl.dsp.exec_cmd("zeditor"))
 

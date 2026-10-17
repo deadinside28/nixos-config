@@ -89,6 +89,10 @@
     if [ $# -eq 0 ] || [ "$1" = show ]; then
       exec ${lib.getExe quickshell} -c pixel ipc show
     fi
+    # «Файлы» без пути (из лаунчера или по биндy) — домашняя папка
+    if [ "$1" = files ] && [ "''${2:-}" = open ] && [ -z "''${3:-}" ]; then
+      set -- files open "$HOME"
+    fi
     exec ${lib.getExe quickshell} -c pixel ipc call "$@"
   '';
 
@@ -294,6 +298,19 @@ in {
     icon = "preferences-system";
     exec = "pixel-shell settings toggle";
     categories = ["Settings" "System"];
+    settings.StartupWMClass = "pixel-shell";
+  };
+
+  # «Файлы» — свой проводник оболочки; он же открывает папки по умолчанию
+  # (inode/directory в modules/system/nemo.nix).
+  xdg.desktopEntries.pixel-shell-files = {
+    name = "Файлы";
+    genericName = "Файловый менеджер";
+    comment = "Папки, загрузки, диски и корзина";
+    icon = "system-file-manager";
+    exec = "pixel-shell files open %U";
+    categories = ["System" "FileManager" "Utility"];
+    mimeType = ["inode/directory"];
     settings.StartupWMClass = "pixel-shell";
   };
 
