@@ -48,7 +48,12 @@ PanelWindow {
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.namespace: "pixel-shell:" + name
-    WlrLayershell.keyboardFocus: open && grabKeyboard ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+    // Монопольный фокус Hyprland превращает в захват ввода: клики на других
+    // мониторах не доходят ни до кого, даже до перехватчика (ClickCatcher).
+    // Поэтому по умолчанию — «по требованию»: фокус слой всё равно получает,
+    // когда появляется. Монопольный — только для запроса пароля.
+    property bool exclusiveFocus: false
+    WlrLayershell.keyboardFocus: !(open && grabKeyboard) ? WlrKeyboardFocus.None : exclusiveFocus ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.OnDemand
 
     Behavior on progress {
         NumberAnimation {

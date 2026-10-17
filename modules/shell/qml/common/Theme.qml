@@ -200,6 +200,9 @@ Singleton {
     // Фон выезжающих панелей: полупрозрачный, чтобы под ним было видно
     // размытие Hyprland (матовое стекло). Прозрачность — в «Рабочий стол и окна».
     readonly property color panel: alpha(surfaceContainer, Settings.data.blur ? Settings.data.panelOpacity : 1)
+    // Рамка экрана лежит поверх краёв окон, поэтому она непрозрачная; панель
+    // задач на экране с рамкой красится так же — получается одна деталь.
+    readonly property color frame: Settings.data.frameColor === "black" ? "#000000" : surfaceContainer
 
     function alpha(c, a) {
         return Qt.rgba(c.r, c.g, c.b, a);

@@ -12,7 +12,7 @@ Scope {
     required property ShellScreen modelData
     readonly property int w: Settings.data.frameWidth
     readonly property int r: Settings.data.frameRadius
-    readonly property color color: Settings.data.frameColor === "black" ? "black" : Theme.panel
+    readonly property color color: Theme.frame
     // Сколько места у каждой стороны занято: панелью или рамкой
     function inset(side) {
         return Bar.inset(modelData.name, side);

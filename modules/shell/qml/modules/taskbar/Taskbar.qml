@@ -32,12 +32,15 @@ PanelWindow {
     WlrLayershell.namespace: "pixel-shell:taskbar"
     WlrLayershell.layer: WlrLayer.Top
 
+    readonly property bool framed: Bar.frameOn(bar.modelData.name)
+
     Rectangle {
         anchors.fill: parent
-        color: Theme.panel
+        color: bar.framed ? Theme.frame : Theme.panel
 
-        // тонкая линия со стороны рабочего стола
+        // тонкая линия со стороны рабочего стола (с рамкой не нужна)
         Rectangle {
+            visible: !bar.framed
             color: Theme.alpha(Theme.outlineVariant, 0.5)
             width: bar.vertical ? 1 : parent.width
             height: bar.vertical ? parent.height : 1
