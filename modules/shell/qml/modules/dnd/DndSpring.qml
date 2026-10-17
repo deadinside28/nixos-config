@@ -229,7 +229,7 @@ Item {
                                         const n = chip.modelData.name;
                                         return (n && n !== String(chip.modelData.id)) ? n : chip.modelData.id;
                                     }
-                                    color: progress.width > chip.width / 2 ? Theme.onPrimary : Theme.onSurface
+                                    color: progress.width > chip.width / 2 ? Theme.fgPrimary : Theme.fgSurface
                                     font.pixelSize: 16
                                     font.weight: Font.Medium
                                 }

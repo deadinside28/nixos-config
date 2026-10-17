@@ -44,7 +44,7 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             icon: root.icon
             size: 14
-            color: Theme.onPrimary
+            color: Theme.fgPrimary
         }
     }
     // неактивная часть

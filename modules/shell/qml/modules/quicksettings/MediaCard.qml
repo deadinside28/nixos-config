@@ -36,7 +36,7 @@ ClippingRectangle {
         saturation: 0.2
     }
 
-    readonly property color fg: art.status === Image.Ready ? "white" : Theme.onSurface
+    readonly property color fg: art.status === Image.Ready ? "white" : Theme.fgSurface
 
     // позиция обновляется только пока карточка видна
     Timer {
@@ -67,7 +67,7 @@ ClippingRectangle {
                 anchors.centerIn: parent
                 visible: art.status !== Image.Ready
                 icon: "music_note"
-                color: Theme.onPrimaryContainer
+                color: Theme.fgPrimaryContainer
             }
         }
 
@@ -132,10 +132,10 @@ ClippingRectangle {
                         anchors.centerIn: parent
                         icon: root.player?.isPlaying ? "pause" : "play_arrow"
                         fill: 1
-                        color: Theme.onPrimary
+                        color: Theme.fgPrimary
                     }
                     StateLayer {
-                        color: Theme.onPrimary
+                        color: Theme.fgPrimary
                         onClicked: root.player.togglePlaying()
                     }
                 }

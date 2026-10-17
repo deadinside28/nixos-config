@@ -21,14 +21,14 @@ Rectangle {
         icon: "do_not_disturb_on"
         size: 20
         fill: 1
-        color: Theme.onSurfaceVariant
+        color: Theme.fgSurfaceVariant
     }
     MText {
         id: label
         anchors.centerIn: parent
         visible: !Settings.data.dnd
         text: root.count > 99 ? "99+" : root.count
-        color: Theme.onPrimaryContainer
+        color: Theme.fgPrimaryContainer
         size: Theme.type.labelL
         weight: Font.DemiBold
     }

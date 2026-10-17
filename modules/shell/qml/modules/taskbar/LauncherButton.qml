@@ -32,7 +32,7 @@ Rectangle {
         radius: 11
         color: "transparent"
         border.width: 2.5
-        border.color: root.active ? Theme.onPrimaryContainer : Theme.onSurface
+        border.color: root.active ? Theme.fgPrimaryContainer : Theme.fgSurface
     }
 
     StateLayer {

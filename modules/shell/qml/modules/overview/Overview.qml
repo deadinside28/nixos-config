@@ -102,7 +102,7 @@ Overlay {
                         anchors.margins: 10
                         text: "Стол " + desk.modelData.name
                         size: Theme.type.labelM
-                        color: desk.sel ? Theme.onPrimaryContainer : Theme.onSurfaceVariant
+                        color: desk.sel ? Theme.fgPrimaryContainer : Theme.fgSurfaceVariant
                     }
                 }
             }

@@ -125,7 +125,7 @@ PopupWindow {
             MIcon {
                 icon: mrow.icon
                 size: 20
-                color: Theme.onSurfaceVariant
+                color: Theme.fgSurfaceVariant
             }
             MText {
                 Layout.fillWidth: true

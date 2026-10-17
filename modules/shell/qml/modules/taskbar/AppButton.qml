@@ -27,7 +27,7 @@ Item {
         width: 44
         height: 44
         radius: Theme.radius.m
-        color: root.focused ? Theme.alpha(Theme.onSurface, 0.08) : "transparent"
+        color: root.focused ? Theme.alpha(Theme.fgSurface, 0.08) : "transparent"
 
         StateLayer {
             id: state
@@ -67,7 +67,7 @@ Item {
         radius: 2
         width: root.focused ? 16 : (root.running ? 6 : 0)
         opacity: root.running ? 1 : 0
-        color: root.focused ? Theme.primary : Theme.onSurfaceVariant
+        color: root.focused ? Theme.primary : Theme.fgSurfaceVariant
         Behavior on width {
             NumberAnimation {
                 duration: Theme.anim.normal

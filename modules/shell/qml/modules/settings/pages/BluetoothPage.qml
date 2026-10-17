@@ -54,7 +54,7 @@ SettingsPage {
         icon: Bt.deviceIcon(modelData)
         iconTinted: true
         iconBg: modelData.connected ? Theme.primaryContainer : Theme.surfaceContainerHighest
-        iconFg: modelData.connected ? Theme.onPrimaryContainer : Theme.onSurfaceVariant
+        iconFg: modelData.connected ? Theme.fgPrimaryContainer : Theme.fgSurfaceVariant
         title: modelData.name || modelData.address
         subtitle: {
             const d = modelData;

@@ -134,7 +134,7 @@ Overlay {
                 icon: "calculate"
                 iconTinted: true
                 iconBg: Theme.tertiaryContainer
-                iconFg: Theme.onTertiaryContainer
+                iconFg: Theme.fgTertiaryContainer
                 title: "= " + root.calc
                 subtitle: "Enter — скопировать результат"
                 onClicked: root.runQuery()
@@ -155,7 +155,7 @@ Overlay {
                 spacing: 8
                 MText {
                     text: "Часто используемые"
-                    color: Theme.onSurfaceVariant
+                    color: Theme.fgSurfaceVariant
                     size: Theme.type.labelL
                     weight: Font.Medium
                     Layout.leftMargin: 8
@@ -243,21 +243,21 @@ Overlay {
                                     Layout.fillWidth: true
                                     text: row.modelData.name
                                     size: Theme.type.bodyL
-                                    color: row.index === root.current ? Theme.onSecondaryContainer : Theme.onSurface
+                                    color: row.index === root.current ? Theme.fgSecondaryContainer : Theme.fgSurface
                                 }
                                 MText {
                                     Layout.fillWidth: true
                                     visible: text !== ""
                                     text: row.modelData.comment || row.modelData.genericName || ""
                                     size: Theme.type.bodyS
-                                    color: Theme.onSurfaceVariant
+                                    color: Theme.fgSurfaceVariant
                                 }
                             }
                             MIcon {
                                 visible: row.index === root.current
                                 icon: "keyboard_return"
                                 size: 20
-                                color: Theme.onSecondaryContainer
+                                color: Theme.fgSecondaryContainer
                             }
                         }
                         StateLayer {
@@ -281,7 +281,7 @@ Overlay {
                     visible: root.searching && root.results.length === 0 && root.calc === ""
                     anchors.verticalCenterOffset: -40
                     text: "Ничего не нашлось"
-                    color: Theme.onSurfaceVariant
+                    color: Theme.fgSurfaceVariant
                     size: Theme.type.bodyL
                 }
             }

@@ -127,13 +127,13 @@ Scope {
                                         Layout.fillWidth: true
                                         text: item.modelData.title
                                         size: Theme.type.titleM
-                                        color: item.sel ? Theme.onSecondaryContainer : Theme.onSurface
+                                        color: item.sel ? Theme.fgSecondaryContainer : Theme.fgSurface
                                     }
                                     MText {
                                         Layout.fillWidth: true
                                         text: item.modelData.subtitle
                                         size: Theme.type.bodyM
-                                        color: item.sel ? Theme.onSecondaryContainer : Theme.onSurfaceVariant
+                                        color: item.sel ? Theme.fgSecondaryContainer : Theme.fgSurfaceVariant
                                     }
                                 }
                             }
@@ -151,7 +151,7 @@ Scope {
                             anchors.centerIn: parent
                             visible: nav.count === 0
                             text: "Ничего не найдено"
-                            color: Theme.onSurfaceVariant
+                            color: Theme.fgSurfaceVariant
                         }
                     }
                 }

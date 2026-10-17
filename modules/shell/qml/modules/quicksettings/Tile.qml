@@ -17,8 +17,8 @@ Rectangle {
     signal toggled
     signal details
 
-    readonly property color fg: active ? Theme.onPrimary : Theme.onSurface
-    readonly property color fgVariant: active ? Theme.alpha(Theme.onPrimary, 0.8) : Theme.onSurfaceVariant
+    readonly property color fg: active ? Theme.fgPrimary : Theme.fgSurface
+    readonly property color fgVariant: active ? Theme.alpha(Theme.fgPrimary, 0.8) : Theme.fgSurfaceVariant
 
     Layout.fillWidth: true
     implicitHeight: 72
@@ -53,7 +53,7 @@ Rectangle {
             Layout.preferredWidth: 48
             Layout.preferredHeight: 48
             radius: root.active ? 24 : Theme.radius.l
-            color: root.hasDetails ? (root.active ? Theme.alpha(Theme.onPrimary, 0.16) : Theme.alpha(Theme.onSurface, 0.08)) : "transparent"
+            color: root.hasDetails ? (root.active ? Theme.alpha(Theme.fgPrimary, 0.16) : Theme.alpha(Theme.fgSurface, 0.08)) : "transparent"
             Behavior on radius {
                 NumberAnimation {
                     duration: Theme.anim.normal

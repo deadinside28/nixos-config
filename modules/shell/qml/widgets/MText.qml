@@ -5,7 +5,7 @@ Text {
     property int size: Theme.type.bodyM
     property int weight: Font.Normal
 
-    color: Theme.onSurface
+    color: Theme.fgSurface
     font.family: Theme.font
     font.pixelSize: size
     font.weight: weight

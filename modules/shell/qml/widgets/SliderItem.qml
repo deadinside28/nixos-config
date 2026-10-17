@@ -43,7 +43,7 @@ Rectangle {
             MIcon {
                 visible: root.icon !== ""
                 icon: root.icon
-                color: Theme.onSurfaceVariant
+                color: Theme.fgSurfaceVariant
             }
             MText {
                 Layout.fillWidth: true
@@ -52,7 +52,7 @@ Rectangle {
             }
             MText {
                 text: root.valueText
-                color: Theme.onSurfaceVariant
+                color: Theme.fgSurfaceVariant
             }
         }
         MSlider {

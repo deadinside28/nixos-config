@@ -116,12 +116,12 @@ SettingsPage {
             spacing: 12
             MIcon {
                 icon: "timer"
-                color: Theme.onTertiaryContainer
+                color: Theme.fgTertiaryContainer
             }
             MText {
                 Layout.fillWidth: true
                 text: "Оставить эти параметры экрана? Возврат через " + page.countdown + " с"
-                color: Theme.onTertiaryContainer
+                color: Theme.fgTertiaryContainer
                 wrapMode: Text.WordWrap
             }
             Button {
@@ -188,13 +188,13 @@ SettingsPage {
                         Layout.alignment: Qt.AlignHCenter
                         text: box.modelData.m.model || box.modelData.m.name
                         weight: Font.Medium
-                        color: box.isSel ? Theme.onPrimaryContainer : Theme.onSurface
+                        color: box.isSel ? Theme.fgPrimaryContainer : Theme.fgSurface
                     }
                     MText {
                         Layout.alignment: Qt.AlignHCenter
                         text: box.modelData.m.name
                         size: Theme.type.bodyS
-                        color: box.isSel ? Theme.onPrimaryContainer : Theme.onSurfaceVariant
+                        color: box.isSel ? Theme.fgPrimaryContainer : Theme.fgSurfaceVariant
                     }
                 }
 
@@ -241,7 +241,7 @@ SettingsPage {
             anchors.margins: 14
             text: "Перетащи монитор, чтобы изменить расположение"
             size: Theme.type.bodyS
-            color: Theme.onSurfaceVariant
+            color: Theme.fgSurfaceVariant
         }
     }
 

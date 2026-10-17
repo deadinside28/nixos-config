@@ -66,6 +66,6 @@ Rectangle {
         icon: root.icon
         size: 24
         fill: 1
-        color: root.muted ? Theme.surface : Theme.onPrimary
+        color: root.muted ? Theme.surface : Theme.fgPrimary
     }
 }

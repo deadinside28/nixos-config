@@ -39,7 +39,7 @@ Flickable {
                 Layout.fillWidth: true
                 visible: root.description !== ""
                 text: root.description
-                color: Theme.onSurfaceVariant
+                color: Theme.fgSurfaceVariant
                 size: Theme.type.bodyL
                 wrapMode: Text.WordWrap
             }

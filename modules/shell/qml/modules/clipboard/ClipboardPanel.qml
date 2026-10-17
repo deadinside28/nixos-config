@@ -95,12 +95,12 @@ Overlay {
                         spacing: 12
                         MIcon {
                             icon: entry.modelData.image ? "image" : "notes"
-                            color: Theme.onSurfaceVariant
+                            color: Theme.fgSurfaceVariant
                         }
                         MText {
                             Layout.fillWidth: true
                             text: entry.modelData.text.replace(/\s+/g, " ")
-                            color: entry.index === root.current ? Theme.onSecondaryContainer : Theme.onSurface
+                            color: entry.index === root.current ? Theme.fgSecondaryContainer : Theme.fgSurface
                         }
                         IconButton {
                             icon: "close"
@@ -121,7 +121,7 @@ Overlay {
                 visible: root.items.length === 0
                 Layout.alignment: Qt.AlignHCenter
                 text: "Пусто"
-                color: Theme.onSurfaceVariant
+                color: Theme.fgSurfaceVariant
             }
         }
     }

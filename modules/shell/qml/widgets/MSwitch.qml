@@ -35,7 +35,7 @@ Item {
             radius: size / 2
             anchors.verticalCenter: parent.verticalCenter
             x: root.checked ? track.width - width - 4 : (mouse.pressed ? 2 : 8)
-            color: root.checked ? Theme.onPrimary : Theme.outline
+            color: root.checked ? Theme.fgPrimary : Theme.outline
 
             Behavior on x {
                 NumberAnimation {
@@ -55,7 +55,7 @@ Item {
                 icon: "check"
                 size: 16
                 weight: 600
-                color: Theme.onPrimaryContainer
+                color: Theme.fgPrimaryContainer
                 opacity: root.checked ? 1 : 0
                 Behavior on opacity {
                     NumberAnimation {

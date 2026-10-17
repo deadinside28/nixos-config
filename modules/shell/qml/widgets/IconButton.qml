@@ -12,11 +12,11 @@ Rectangle {
     property color iconColor: {
         switch (variant) {
         case "filled":
-            return toggled || !checkable ? Theme.onPrimary : Theme.primary;
+            return toggled || !checkable ? Theme.fgPrimary : Theme.primary;
         case "tonal":
-            return toggled || !checkable ? Theme.onSecondaryContainer : Theme.onSurfaceVariant;
+            return toggled || !checkable ? Theme.fgSecondaryContainer : Theme.fgSurfaceVariant;
         default:
-            return toggled ? Theme.primary : Theme.onSurfaceVariant;
+            return toggled ? Theme.primary : Theme.fgSurfaceVariant;
         }
     }
     property bool checkable: false

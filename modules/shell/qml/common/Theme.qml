@@ -130,30 +130,30 @@ Singleton {
     readonly property color sourceColor: scheme.source ?? "#4285f4"
 
     readonly property color primary: p.primary
-    readonly property color onPrimary: p.on_primary
+    readonly property color fgPrimary: p.on_primary
     readonly property color primaryContainer: p.primary_container
-    readonly property color onPrimaryContainer: p.on_primary_container
+    readonly property color fgPrimaryContainer: p.on_primary_container
     readonly property color primaryFixed: p.primary_fixed
     readonly property color primaryFixedDim: p.primary_fixed_dim
-    readonly property color onPrimaryFixed: p.on_primary_fixed
+    readonly property color fgPrimaryFixed: p.on_primary_fixed
     readonly property color inversePrimary: p.inverse_primary
     readonly property color secondary: p.secondary
-    readonly property color onSecondary: p.on_secondary
+    readonly property color fgSecondary: p.on_secondary
     readonly property color secondaryContainer: p.secondary_container
-    readonly property color onSecondaryContainer: p.on_secondary_container
+    readonly property color fgSecondaryContainer: p.on_secondary_container
     readonly property color tertiary: p.tertiary
-    readonly property color onTertiary: p.on_tertiary
+    readonly property color fgTertiary: p.on_tertiary
     readonly property color tertiaryContainer: p.tertiary_container
-    readonly property color onTertiaryContainer: p.on_tertiary_container
+    readonly property color fgTertiaryContainer: p.on_tertiary_container
     readonly property color error: p.error
-    readonly property color onError: p.on_error
+    readonly property color fgError: p.on_error
     readonly property color errorContainer: p.error_container
-    readonly property color onErrorContainer: p.on_error_container
+    readonly property color fgErrorContainer: p.on_error_container
     readonly property color background: p.background
     readonly property color surface: p.surface
-    readonly property color onSurface: p.on_surface
+    readonly property color fgSurface: p.on_surface
     readonly property color surfaceVariant: p.surface_variant
-    readonly property color onSurfaceVariant: p.on_surface_variant
+    readonly property color fgSurfaceVariant: p.on_surface_variant
     readonly property color surfaceDim: p.surface_dim
     readonly property color surfaceBright: p.surface_bright
     readonly property color surfaceContainerLowest: p.surface_container_lowest
@@ -173,15 +173,15 @@ Singleton {
     readonly property var accents: [
         {
             bg: primaryContainer,
-            fg: onPrimaryContainer
+            fg: fgPrimaryContainer
         },
         {
             bg: secondaryContainer,
-            fg: onSecondaryContainer
+            fg: fgSecondaryContainer
         },
         {
             bg: tertiaryContainer,
-            fg: onTertiaryContainer
+            fg: fgTertiaryContainer
         },
         {
             bg: dark ? "#4a2a1a" : "#ffdbc9",

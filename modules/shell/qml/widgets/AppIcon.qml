@@ -38,7 +38,7 @@ Item {
             anchors.centerIn: parent
             icon: "apps"
             size: root.size * 0.55
-            color: Theme.onPrimaryContainer
+            color: Theme.fgPrimaryContainer
         }
     }
 }

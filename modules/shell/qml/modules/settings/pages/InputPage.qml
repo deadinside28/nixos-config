@@ -221,7 +221,7 @@ SettingsPage {
                         text: sc.modelData[0]
                         font.family: Theme.monoFont
                         size: Theme.type.bodyS
-                        color: Theme.onSurfaceVariant
+                        color: Theme.fgSurfaceVariant
                     }
                 }
             }

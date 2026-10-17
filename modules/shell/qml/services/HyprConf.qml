@@ -85,6 +85,19 @@ ${lines.join("\n")}
         Quickshell.execDetached(["hyprctl", "eval", content]);
     }
 
+    // Правило hl.monitor() через eval только запоминается, а уже включённые
+    // выходы не перестраивает. Поэтому для мониторов — полная перезагрузка
+    // конфига: hyprland.lua заново подключит shell/monitors.lua.
+    function applyMonitors(content) {
+        monitorsFile.setText(content);
+        reloadTimer.restart();
+    }
+    Timer {
+        id: reloadTimer
+        interval: 300 // дать файлу записаться
+        onTriggered: Quickshell.execDetached(["hyprctl", "reload"])
+    }
+
     Connections {
         target: Settings
         function onLoadedChanged() {
@@ -118,7 +131,7 @@ ${lines.join("\n")}
     Timer {
         id: monitorsTimer
         interval: 250
-        onTriggered: root.apply(monitorsFile, root.monitorsLua)
+        onTriggered: root.applyMonitors(root.monitorsLua)
     }
 
     FileView {

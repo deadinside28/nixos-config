@@ -15,7 +15,7 @@ Rectangle {
     property string appIcon: ""
     property bool iconTinted: false
     property color iconBg: Theme.secondaryContainer
-    property color iconFg: Theme.onSecondaryContainer
+    property color iconFg: Theme.fgSecondaryContainer
     property string title
     property string subtitle: ""
     property bool clickable: true
@@ -77,7 +77,7 @@ Rectangle {
                 icon: root.icon
                 size: 24
                 fill: root.selected ? 1 : 0
-                color: root.iconTinted ? root.iconFg : (root.selected ? Theme.onSecondaryContainer : Theme.onSurfaceVariant)
+                color: root.iconTinted ? root.iconFg : (root.selected ? Theme.fgSecondaryContainer : Theme.fgSurfaceVariant)
             }
         }
 
@@ -88,14 +88,14 @@ Rectangle {
                 Layout.fillWidth: true
                 text: root.title
                 size: Theme.type.bodyL
-                color: root.selected ? Theme.onSecondaryContainer : Theme.onSurface
+                color: root.selected ? Theme.fgSecondaryContainer : Theme.fgSurface
             }
             MText {
                 Layout.fillWidth: true
                 visible: root.subtitle !== ""
                 text: root.subtitle
                 size: Theme.type.bodyM
-                color: root.selected ? Theme.onSecondaryContainer : Theme.onSurfaceVariant
+                color: root.selected ? Theme.fgSecondaryContainer : Theme.fgSurfaceVariant
                 wrapMode: Text.WordWrap
                 maximumLineCount: 3
             }
@@ -109,7 +109,7 @@ Rectangle {
         MIcon {
             visible: root.chevron
             icon: "chevron_right"
-            color: Theme.onSurfaceVariant
+            color: Theme.fgSurfaceVariant
         }
     }
 }

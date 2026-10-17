@@ -63,7 +63,7 @@ Item {
                 horizontalAlignment: Text.AlignHCenter
                 text: root.app.name
                 size: Theme.type.bodyS
-                color: root.highlighted ? Theme.onSecondaryContainer : Theme.onSurface
+                color: root.highlighted ? Theme.fgSecondaryContainer : Theme.fgSurface
                 maximumLineCount: 2
                 wrapMode: Text.Wrap
             }

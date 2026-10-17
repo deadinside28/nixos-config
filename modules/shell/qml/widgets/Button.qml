@@ -14,14 +14,14 @@ Rectangle {
 
     readonly property color fg: {
         if (disabled)
-            return Theme.alpha(Theme.onSurface, 0.38);
+            return Theme.alpha(Theme.fgSurface, 0.38);
         switch (variant) {
         case "filled":
-            return Theme.onPrimary;
+            return Theme.fgPrimary;
         case "tonal":
-            return Theme.onSecondaryContainer;
+            return Theme.fgSecondaryContainer;
         case "danger":
-            return Theme.onError;
+            return Theme.fgError;
         default:
             return Theme.primary;
         }
@@ -34,7 +34,7 @@ Rectangle {
         if (variant === "text" || variant === "outlined")
             return "transparent";
         if (disabled)
-            return Theme.alpha(Theme.onSurface, 0.12);
+            return Theme.alpha(Theme.fgSurface, 0.12);
         switch (variant) {
         case "filled":
             return Theme.primary;

@@ -6,7 +6,7 @@ import qs.common
 MouseArea {
     id: root
 
-    property color color: Theme.onSurface
+    property color color: Theme.fgSurface
     property real radius: parent?.radius ?? 0
     property bool disabled: false
     property real topLeftRadius: radius

@@ -98,7 +98,7 @@ Overlay {
                             icon: act.modelData.icon
                             size: 36
                             fill: 1
-                            color: act.isArmed ? Theme.onError : act.modelData.id === "poweroff" ? Theme.onPrimary : Theme.onSecondaryContainer
+                            color: act.isArmed ? Theme.fgError : act.modelData.id === "poweroff" ? Theme.fgPrimary : Theme.fgSecondaryContainer
                         }
                         StateLayer {
                             onClicked: {
@@ -114,7 +114,7 @@ Overlay {
                     MText {
                         Layout.alignment: Qt.AlignHCenter
                         text: act.isArmed ? "Ещё раз" : act.modelData.label
-                        color: act.isArmed ? Theme.error : Theme.onSurface
+                        color: act.isArmed ? Theme.error : Theme.fgSurface
                         weight: Font.Medium
                     }
                 }

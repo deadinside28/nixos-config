@@ -106,7 +106,7 @@ SettingsPage {
                 width: parent.width * 0.4
                 height: 12
                 radius: 6
-                color: Theme.onSurface
+                color: Theme.fgSurface
                 opacity: 0.8
             }
             Row {
@@ -147,7 +147,7 @@ SettingsPage {
                 radius: 7
                 color: "transparent"
                 border.width: 2
-                border.color: Theme.onSurface
+                border.color: Theme.fgSurface
             }
             Row {
                 anchors.centerIn: parent
@@ -204,7 +204,7 @@ SettingsPage {
                     MText {
                         Layout.fillWidth: true
                         text: Wallpapers.dir.replace(Settings.home, "~")
-                        color: Theme.onSurfaceVariant
+                        color: Theme.fgSurfaceVariant
                     }
                     Button {
                         variant: "tonal"
@@ -281,7 +281,7 @@ SettingsPage {
                     visible: Wallpapers.files.length === 0
                     Layout.fillWidth: true
                     text: "В папке нет картинок. Положи обои в " + Wallpapers.dir.replace(Settings.home, "~") + " или выбери другую папку."
-                    color: Theme.onSurfaceVariant
+                    color: Theme.fgSurfaceVariant
                     wrapMode: Text.WordWrap
                 }
             }
@@ -328,7 +328,7 @@ SettingsPage {
                     MText {
                         Layout.fillWidth: true
                         text: WallpaperEngine.scanning ? "Ищу обои в библиотеках Steam…" : "Из мастерской Steam: " + WallpaperEngine.items.length
-                        color: Theme.onSurfaceVariant
+                        color: Theme.fgSurfaceVariant
                     }
                     Button {
                         variant: "tonal"
@@ -428,7 +428,7 @@ SettingsPage {
                             width: parent.width - 16
                             text: we.modelData.title
                             size: Theme.type.bodyS
-                            color: we.sel ? Theme.primary : Theme.onSurfaceVariant
+                            color: we.sel ? Theme.primary : Theme.fgSurfaceVariant
                         }
                     }
                 }
@@ -437,7 +437,7 @@ SettingsPage {
                     visible: !WallpaperEngine.scanning && WallpaperEngine.items.length === 0
                     Layout.fillWidth: true
                     text: "Обоев не найдено. Купи и установи Wallpaper Engine в Steam (запускать не нужно), подпишись на обои в мастерской и дождись загрузки — они появятся здесь."
-                    color: Theme.onSurfaceVariant
+                    color: Theme.fgSurfaceVariant
                     wrapMode: Text.WordWrap
                 }
                 MText {
@@ -621,7 +621,7 @@ SettingsPage {
                         MIcon {
                             anchors.centerIn: parent
                             icon: "colorize"
-                            color: Theme.onSurfaceVariant
+                            color: Theme.fgSurfaceVariant
                         }
                         MouseArea {
                             anchors.fill: parent
@@ -633,7 +633,7 @@ SettingsPage {
 
                 MText {
                     text: "Стиль палитры"
-                    color: Theme.onSurfaceVariant
+                    color: Theme.fgSurfaceVariant
                     size: Theme.type.labelL
                     weight: Font.Medium
                 }
@@ -704,7 +704,7 @@ SettingsPage {
                                 horizontalAlignment: Text.AlignHCenter
                                 text: sch.modelData.label
                                 size: Theme.type.bodyS
-                                color: sch.sel ? Theme.primary : Theme.onSurfaceVariant
+                                color: sch.sel ? Theme.primary : Theme.fgSurfaceVariant
                             }
                         }
                     }

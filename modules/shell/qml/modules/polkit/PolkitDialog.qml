@@ -59,7 +59,7 @@ Scope {
                     Layout.fillWidth: true
                     horizontalAlignment: Text.AlignHCenter
                     text: root.flow?.message ?? ""
-                    color: Theme.onSurfaceVariant
+                    color: Theme.fgSurfaceVariant
                     wrapMode: Text.Wrap
                 }
                 MText {
@@ -68,7 +68,7 @@ Scope {
                     visible: (root.flow?.identities?.length ?? 0) > 0
                     text: "Пользователь: " + (root.flow?.selectedIdentity?.displayName ?? "")
                     size: Theme.type.bodyS
-                    color: Theme.onSurfaceVariant
+                    color: Theme.fgSurfaceVariant
                 }
 
                 TextField {
@@ -84,7 +84,7 @@ Scope {
                     Layout.fillWidth: true
                     visible: text !== ""
                     text: (root.flow?.failed ?? false) ? "Неверный пароль, попробуй ещё раз" : (root.flow?.supplementaryMessage ?? "")
-                    color: (root.flow?.failed || root.flow?.supplementaryIsError) ? Theme.error : Theme.onSurfaceVariant
+                    color: (root.flow?.failed || root.flow?.supplementaryIsError) ? Theme.error : Theme.fgSurfaceVariant
                     wrapMode: Text.Wrap
                 }
 

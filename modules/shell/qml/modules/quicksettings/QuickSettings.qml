@@ -120,7 +120,7 @@ Overlay {
                         }
                         MText {
                             text: Time.dateLong.charAt(0).toUpperCase() + Time.dateLong.slice(1)
-                            color: Theme.onSurfaceVariant
+                            color: Theme.fgSurfaceVariant
                         }
                     }
                     Item {
@@ -129,7 +129,7 @@ Overlay {
                     MText {
                         visible: Battery.present
                         text: Math.round(Battery.percent * 100) + "%"
-                        color: Theme.onSurfaceVariant
+                        color: Theme.fgSurfaceVariant
                         Layout.rightMargin: 8
                     }
                     IconButton {

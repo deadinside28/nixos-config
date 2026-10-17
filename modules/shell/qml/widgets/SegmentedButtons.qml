@@ -50,13 +50,13 @@ RowLayout {
                     visible: !!seg.modelData.icon || seg.active
                     icon: seg.modelData.icon ?? "check"
                     size: 18
-                    color: seg.active ? Theme.onPrimary : Theme.onSecondaryContainer
+                    color: seg.active ? Theme.fgPrimary : Theme.fgSecondaryContainer
                 }
                 MText {
                     text: seg.modelData.label
                     size: Theme.type.labelL
                     weight: Font.Medium
-                    color: seg.active ? Theme.onPrimary : Theme.onSecondaryContainer
+                    color: seg.active ? Theme.fgPrimary : Theme.fgSecondaryContainer
                 }
             }
 

@@ -66,7 +66,7 @@ Rectangle {
             MIcon {
                 visible: root.icon !== ""
                 icon: root.icon
-                color: Theme.onSurfaceVariant
+                color: Theme.fgSurfaceVariant
             }
             ColumnLayout {
                 Layout.fillWidth: true
@@ -84,7 +84,7 @@ Rectangle {
             }
             MIcon {
                 icon: "expand_more"
-                color: Theme.onSurfaceVariant
+                color: Theme.fgSurfaceVariant
                 rotation: root.expanded ? 180 : 0
                 Behavior on rotation {
                     NumberAnimation {
@@ -126,7 +126,7 @@ Rectangle {
                     radius: 10
                     color: "transparent"
                     border.width: 2
-                    border.color: opt.sel ? Theme.primary : Theme.onSurfaceVariant
+                    border.color: opt.sel ? Theme.primary : Theme.fgSurfaceVariant
                     Rectangle {
                         anchors.centerIn: parent
                         width: 10
@@ -144,7 +144,7 @@ Rectangle {
                 MText {
                     visible: !!opt.modelData.sublabel
                     text: opt.modelData.sublabel ?? ""
-                    color: Theme.onSurfaceVariant
+                    color: Theme.fgSurfaceVariant
                 }
             }
             StateLayer {

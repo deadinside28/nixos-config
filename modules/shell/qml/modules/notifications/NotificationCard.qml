@@ -115,7 +115,7 @@ Item {
                             visible: Notifs.icon(root.notification) === ""
                             icon: root.critical ? "priority_high" : "notifications"
                             fill: 1
-                            color: root.critical ? Theme.onError : Theme.onPrimaryContainer
+                            color: root.critical ? Theme.fgError : Theme.fgPrimaryContainer
                         }
                     }
                     // маленький значок приложения поверх картинки
@@ -139,7 +139,7 @@ Item {
                         MText {
                             text: root.notification.appName || "Уведомление"
                             size: Theme.type.labelM
-                            color: root.critical ? Theme.onErrorContainer : Theme.onSurfaceVariant
+                            color: root.critical ? Theme.fgErrorContainer : Theme.fgSurfaceVariant
                         }
                         Item {
                             Layout.fillWidth: true
@@ -150,7 +150,7 @@ Item {
                         text: root.notification.summary
                         size: Theme.type.titleS
                         weight: Font.Medium
-                        color: root.critical ? Theme.onErrorContainer : Theme.onSurface
+                        color: root.critical ? Theme.fgErrorContainer : Theme.fgSurface
                         wrapMode: Text.Wrap
                         maximumLineCount: 2
                     }
@@ -160,7 +160,7 @@ Item {
                         text: root.notification.body
                         textFormat: Text.StyledText
                         size: Theme.type.bodyM
-                        color: root.critical ? Theme.onErrorContainer : Theme.onSurfaceVariant
+                        color: root.critical ? Theme.fgErrorContainer : Theme.fgSurfaceVariant
                         wrapMode: Text.Wrap
                         maximumLineCount: root.expanded ? 12 : 3
                         onLinkActivated: link => Qt.openUrlExternally(link)

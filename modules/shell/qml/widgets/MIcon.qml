@@ -10,7 +10,7 @@ Text {
     property int weight: 400
 
     text: icon
-    color: Theme.onSurface
+    color: Theme.fgSurface
     font.family: Theme.iconFont
     font.pixelSize: size
     font.weight: weight

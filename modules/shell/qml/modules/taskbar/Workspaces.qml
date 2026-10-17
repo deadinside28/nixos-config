@@ -36,7 +36,7 @@ Rectangle {
                 implicitWidth: active ? 24 : 8
                 implicitHeight: 8
                 radius: 4
-                color: active ? Theme.primary : Theme.alpha(Theme.onSurfaceVariant, occupied ? 0.75 : 0.3)
+                color: active ? Theme.primary : Theme.alpha(Theme.fgSurfaceVariant, occupied ? 0.75 : 0.3)
 
                 Behavior on implicitWidth {
                     NumberAnimation {

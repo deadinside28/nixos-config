@@ -22,7 +22,7 @@ SettingsPage {
             icon: "lan"
             iconTinted: true
             iconBg: Net.wiredConnected ? Theme.primaryContainer : Theme.surfaceContainerHighest
-            iconFg: Net.wiredConnected ? Theme.onPrimaryContainer : Theme.onSurfaceVariant
+            iconFg: Net.wiredConnected ? Theme.fgPrimaryContainer : Theme.fgSurfaceVariant
             title: "Ethernet"
             subtitle: Net.wiredConnected ? "Подключено" + (Net.wiredDevice.linkSpeed > 0 ? " · " + Net.wiredDevice.linkSpeed + " Мбит/с" : "") : (Net.wiredDevice?.hasLink ? "Кабель подключён" : "Кабель не подключён")
             clickable: false
@@ -116,7 +116,7 @@ SettingsPage {
                                 anchors.centerIn: parent
                                 icon: Net.signalIcon(net.modelData.signalStrength)
                                 fill: 1
-                                color: net.modelData.connected ? Theme.onPrimaryContainer : Theme.onSurfaceVariant
+                                color: net.modelData.connected ? Theme.fgPrimaryContainer : Theme.fgSurfaceVariant
                             }
                             MIcon {
                                 visible: net.secured
@@ -125,7 +125,7 @@ SettingsPage {
                                 icon: "lock"
                                 size: 14
                                 fill: 1
-                                color: Theme.onSurfaceVariant
+                                color: Theme.fgSurfaceVariant
                             }
                         }
                         ColumnLayout {
@@ -139,13 +139,13 @@ SettingsPage {
                             MText {
                                 Layout.fillWidth: true
                                 text: net.modelData.stateChanging ? "Подключение…" : net.modelData.connected ? "Подключено" : page.failed === net.modelData.name ? "Не удалось подключиться" : net.modelData.known ? "Сохранена" : net.secured ? "Защищена" : "Открытая"
-                                color: page.failed === net.modelData.name ? Theme.error : net.modelData.connected ? Theme.primary : Theme.onSurfaceVariant
+                                color: page.failed === net.modelData.name ? Theme.error : net.modelData.connected ? Theme.primary : Theme.fgSurfaceVariant
                             }
                         }
                         MIcon {
                             visible: net.modelData.connected || net.modelData.known
                             icon: "settings"
-                            color: Theme.onSurfaceVariant
+                            color: Theme.fgSurfaceVariant
                         }
                     }
                 }
@@ -184,7 +184,7 @@ SettingsPage {
                             }
                             MText {
                                 text: "Показать пароль"
-                                color: Theme.onSurfaceVariant
+                                color: Theme.fgSurfaceVariant
                             }
                         }
                         Item {

@@ -35,7 +35,7 @@ Rectangle {
         MIcon {
             visible: root.icon !== ""
             icon: root.icon
-            color: Theme.onSurfaceVariant
+            color: Theme.fgSurfaceVariant
         }
 
         Item {
@@ -47,9 +47,9 @@ Rectangle {
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
-                color: Theme.onSurface
+                color: Theme.fgSurface
                 selectionColor: Theme.alpha(Theme.primary, 0.4)
-                selectedTextColor: Theme.onSurface
+                selectedTextColor: Theme.fgSurface
                 font.family: Theme.font
                 font.pixelSize: Theme.type.bodyL
                 echoMode: root.password ? TextInput.Password : TextInput.Normal
@@ -62,7 +62,7 @@ Rectangle {
                 anchors.fill: parent
                 visible: input.text === ""
                 text: root.placeholder
-                color: Theme.onSurfaceVariant
+                color: Theme.fgSurfaceVariant
                 size: Theme.type.bodyL
             }
         }
@@ -71,7 +71,7 @@ Rectangle {
             visible: input.text !== "" && !root.password
             icon: "close"
             size: 20
-            color: Theme.onSurfaceVariant
+            color: Theme.fgSurfaceVariant
             MouseArea {
                 anchors.fill: parent
                 anchors.margins: -8

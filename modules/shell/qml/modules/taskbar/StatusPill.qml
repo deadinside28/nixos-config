@@ -15,7 +15,7 @@ Rectangle {
     implicitWidth: row.implicitWidth + 28
     radius: height / 2
     color: active ? Theme.primaryContainer : Theme.alpha(Theme.surfaceContainerHighest, 0.8)
-    readonly property color fg: active ? Theme.onPrimaryContainer : Theme.onSurface
+    readonly property color fg: active ? Theme.fgPrimaryContainer : Theme.fgSurface
 
     Behavior on color {
         ColorAnimation {

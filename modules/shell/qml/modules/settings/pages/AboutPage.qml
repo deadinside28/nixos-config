@@ -33,7 +33,7 @@ SettingsPage {
                     icon: "computer"
                     size: 64
                     fill: 1
-                    color: Theme.onPrimary
+                    color: Theme.fgPrimary
                 }
             }
             ColumnLayout {
@@ -42,16 +42,16 @@ SettingsPage {
                 MText {
                     text: page.i.host ?? Nix.hostname
                     size: Theme.type.headlineL
-                    color: Theme.onPrimaryContainer
+                    color: Theme.fgPrimaryContainer
                 }
                 MText {
                     text: page.i.os ?? "NixOS"
                     size: Theme.type.titleM
-                    color: Theme.onPrimaryContainer
+                    color: Theme.fgPrimaryContainer
                 }
                 MText {
                     text: "Поколение " + (page.i.generation ?? "?") + " · включён " + (page.i.uptime ?? "")
-                    color: Theme.alpha(Theme.onPrimaryContainer, 0.8)
+                    color: Theme.alpha(Theme.fgPrimaryContainer, 0.8)
                 }
             }
         }

@@ -77,7 +77,7 @@ SettingsPage {
         implicitHeight: statusCol.implicitHeight + 40
         radius: Theme.radius.xl
         color: SystemConfig.status === "failed" ? Theme.errorContainer : SystemConfig.status === "success" && !SystemConfig.pending ? Theme.tertiaryContainer : Theme.primaryContainer
-        readonly property color fg: SystemConfig.status === "failed" ? Theme.onErrorContainer : SystemConfig.status === "success" && !SystemConfig.pending ? Theme.onTertiaryContainer : Theme.onPrimaryContainer
+        readonly property color fg: SystemConfig.status === "failed" ? Theme.fgErrorContainer : SystemConfig.status === "success" && !SystemConfig.pending ? Theme.fgTertiaryContainer : Theme.fgPrimaryContainer
 
         id: banner
 
@@ -586,7 +586,7 @@ SettingsPage {
                 Layout.leftMargin: 16
                 text: sc.hint
                 size: Theme.type.bodyS
-                color: Theme.onSurfaceVariant
+                color: Theme.fgSurfaceVariant
             }
             Repeater {
                 model: sc.results
@@ -613,7 +613,7 @@ SettingsPage {
                                 Layout.fillWidth: true
                                 text: res.modelData.subtitle
                                 size: Theme.type.bodyS
-                                color: Theme.onSurfaceVariant
+                                color: Theme.fgSurfaceVariant
                             }
                         }
                         IconButton {
