@@ -232,6 +232,10 @@ SettingsPage {
                     overview: "Обзор",
                     power: "Меню питания",
                     lock: "Заблокировать",
+                    record: "Запись экрана: выбрать, что записывать",
+                    files: "Файлы",
+                    lens: "Обвести и найти",
+                    translate: "Перевести экран",
                     brightness: r[2] === "up" ? "Ярче" : "Темнее",
                     media: "Плеер: " + r[2]
                 })[r[1]] ?? ("Оболочка: " + r[1]);
@@ -241,10 +245,10 @@ SettingsPage {
                     full: "Скриншот экрана",
                     window: "Скриншот окна"
                 })[r[1]];
-        if (m(/pixel-record.*mic/))
-            return "Запись экрана с микрофоном";
+        if (m(/record toggle/))
+            return "Запись экрана: выбрать, что записывать";
         if (m(/pixel-record/))
-            return "Запись экрана";
+            return "Запись экрана сразу (как в прошлый раз)";
         if (m(/wpctl set-volume.*\+/))
             return "Громче";
         if (m(/wpctl set-volume.*-/))

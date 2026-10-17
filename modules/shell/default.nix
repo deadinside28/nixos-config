@@ -123,15 +123,17 @@
     '';
   };
 
-  # Запись экрана: повторный вызов останавливает. pixel-record <монитор> [mic]
-  # Параметры (кадры, кодек, качество, папка) — из «Настройки → Экран»,
-  # оболочка пишет их в record.env.
+  # Запись экрана: повторный вызов останавливает.
+  #   pixel-record [screen[:МОНИТОР]|area|window] [system|mic|none]
+  # Без аргументов — что выбрано последним в оболочке (record.env).
+  # Параметры (кадры, кодек, качество, папка) — из «Настройки → Экран».
   pixel-record = pkgs.writeShellApplication {
     name = "pixel-record";
-    runtimeInputs = with pkgs; [procps psmisc ffmpeg libnotify coreutils];
+    runtimeInputs = with pkgs; [procps psmisc ffmpeg libnotify coreutils slurp jq hyprland];
     excludeShellChecks = ["SC1091"];
     text = ''
       REC_FPS=60 REC_CODEC=av1 REC_QUALITY=very_high REC_CONTAINER=mp4 REC_CURSOR=yes REC_DIR="$HOME/Videos"
+      REC_AREA=screen REC_AUDIO=system
       env="''${XDG_STATE_HOME:-$HOME/.local/state}/pixel-shell/record.env"
       # shellcheck source=/dev/null
       [ -r "$env" ] && . "$env"
@@ -146,15 +148,150 @@
         notify-send -a "Запись экрана" -i "$thumb" "Запись завершена" "Файл сохранён: $file"
         exit 0
       fi
-      monitor=''${1:?монитор}
-      audio="default_output"; label="Без микрофона"
-      if [ "''${2:-}" = mic ]; then audio="default_output|default_input"; label="С микрофоном"; fi
+
+      area=''${1:-$REC_AREA}
+      audio=''${2:-$REC_AUDIO}
+      case "$area" in
+        screen|screen:*|area|window) ;;
+        *) area="screen:$area" ;; # старый вызов: pixel-record <монитор> [mic]
+      esac
+
+      what="Весь экран"
+      case "$area" in
+        area)
+          geom=$(slurp -b 00000099 -c ffffff -w 2 -f "%wx%h+%x+%y") || exit 0
+          target=(-w region -region "$geom"); what="Область" ;;
+        window)
+          geom=$(hyprctl activewindow -j | jq -r '"\(.size[0])x\(.size[1])+\(.at[0])+\(.at[1])"')
+          target=(-w region -region "$geom"); what="Окно" ;;
+        *)
+          mon=''${area#screen}; mon=''${mon#:}
+          [ -n "$mon" ] || mon=$(hyprctl monitors -j | jq -r '.[] | select(.focused) | .name')
+          target=(-w "$mon") ;;
+      esac
+
+      args=()
+      case "$audio" in
+        mic) args=(-a "default_output|default_input"); label="со звуком и микрофоном" ;;
+        none) label="без звука" ;;
+        *) args=(-a default_output); label="со звуком" ;;
+      esac
+
       mkdir -p "$REC_DIR"
       file="$REC_DIR/video_$(date +%F_%H-%M-%S).$REC_CONTAINER"
       echo "$file" > "$last"
-      gpu-screen-recorder -w "$monitor" -f "$REC_FPS" -a "$audio" -k "$REC_CODEC" -q "$REC_QUALITY" \
+      gpu-screen-recorder "''${target[@]}" -f "$REC_FPS" "''${args[@]}" -k "$REC_CODEC" -q "$REC_QUALITY" \
         -cursor "$REC_CURSOR" -c "$REC_CONTAINER" -o "$file" &
-      notify-send -a "Запись экрана" -i camera-video "Запись начата" "$label · ''${REC_CODEC^^}, $REC_FPS кадров/с"
+      notify-send -a "Запись экрана" -i camera-video "Запись начата" "$what, $label · ''${REC_CODEC^^}, $REC_FPS кадров/с"
+    '';
+  };
+
+  # Распознавание текста: языки для tesseract (их же выбирают в настройках)
+  tesseract = pkgs.tesseract.override {
+    enableLanguages = ["eng" "rus" "ukr" "deu" "fra" "spa" "ita" "pol" "jpn" "chi_sim" "kor"];
+  };
+
+  # «Обвести и найти» и перевод экрана, как на Pixel. Оболочка рисует
+  # интерфейс, а тяжёлое делает этот скрипт:
+  #   pixel-lens shot <монитор> <файл>         — снимок экрана
+  #   pixel-lens crop <файл> <ШxВ+X+Y> <файл>  — вырезать область
+  #   pixel-lens ocr <файл> <языки>            — текст картинки
+  #   pixel-lens translate <файл> <языки> <в>  — абзацы с координатами, цветом
+  #                                              фона и переводом (TSV)
+  #   pixel-lens text <в> <текст>              — перевести строку
+  #   pixel-lens search <файл>                 — найти картинку в Google Lens
+  pixel-lens = pkgs.writeShellApplication {
+    name = "pixel-lens";
+    # строки для sh -c в одинарных кавычках намеренно
+    excludeShellChecks = ["SC2016"];
+    runtimeInputs = with pkgs; [grim imagemagick tesseract translate-shell curl wl-clipboard xdg-utils coreutils gawk findutils];
+    text = ''
+      cmd=''${1:?команда}; shift
+      case "$cmd" in
+        shot)
+          grim -o "$1" "$2" ;;
+        crop)
+          magick "$1" -crop "$2" +repage "$3" ;;
+        ocr)
+          tesseract "$1" stdout -l "''${2:-eng+rus}" --psm 3 2>/dev/null ;;
+        text)
+          trans -b -no-autocorrect ":$1" "$2" ;;
+        translate)
+          img=$1; langs=''${2:-eng+rus}; to=''${3:-ru}
+          tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
+          # слова → абзацы: рамка, средняя высота строки, текст
+          # второй проход по негативу находит светлый текст на тёмном фоне
+          # (кнопки, тёмные темы); совпадающие абзацы awk отбросит
+          magick "$img" -negate "$tmp/neg.png"
+          # по потоку на проход: два многопоточных tesseract рядом душат друг друга
+          OMP_THREAD_LIMIT=1 tesseract "$img" "$tmp/pos" -l "$langs" --psm 3 tsv 2>/dev/null &
+          OMP_THREAD_LIMIT=1 tesseract "$tmp/neg.png" "$tmp/neg" -l "$langs" --psm 3 tsv 2>/dev/null &
+          wait
+          { cat "$tmp/pos.tsv"
+            awk -F'\t' -v OFS='\t' 'NR > 1 { $3 = $3 + 10000; print }' "$tmp/neg.tsv"
+          } | LC_ALL=C awk -F'\t' -v dir="$tmp" '
+            # слова без букв и цифр — обычно значки интерфейса, их пропускаем.
+            # Проверка по байтам UTF-8 (без локали): латиница, цифры, латиница
+            # с диакритикой (C3–C5), кириллица (D0, D1), CJK (E3–ED)
+            $1 == 5 && $11 > 55 && $12 ~ /[A-Za-z0-9]|[\303-\305\320\321\343-\355]/ {
+              k = $3 "-" $4
+              if (!(k in x1)) { order[++n] = k; x1[k] = $7; y1[k] = $8; x2[k] = $7 + $9; y2[k] = $8 + $10 }
+              if ($7 < x1[k]) x1[k] = $7; if ($8 < y1[k]) y1[k] = $8
+              if ($7 + $9 > x2[k]) x2[k] = $7 + $9; if ($8 + $10 > y2[k]) y2[k] = $8 + $10
+              t[k] = t[k] (t[k] == "" ? "" : " ") $12; hs[k] += $10; hc[k]++
+            }
+            END {
+              m = 0
+              for (i = 1; i <= n; i++) {
+                k = order[i]
+                # абзац из негатива, который уже нашёлся на оригинале, — пропустить
+                dup = 0
+                for (j = 1; j < i; j++) {
+                  q = order[j]
+                  if (x1[k] < x2[q] && x2[k] > x1[q] && y1[k] < y2[q] && y2[k] > y1[q]) { dup = 1; break }
+                }
+                if (dup) continue
+                i_out = ++m
+                printf "%d\t%d\t%d\t%d\t%d\n", x1[k], y1[k], x2[k] - x1[k], y2[k] - y1[k], hs[k] / hc[k] > dir "/" i_out ".box"
+                printf "%s", t[k] > dir "/" i_out ".txt"
+              }
+            }'
+          # переводим абзацы параллельно
+          find "$tmp" -name '*.txt' -print0 | xargs -0 -P 8 -I{} sh -c 'trans -b -no-autocorrect ":$1" "$(cat "$2")" > "$2.tr" 2>/dev/null; grep -q "[^[:space:]]" "$2.tr" || cp "$2" "$2.tr"' sh "$to" {}
+          # фон — цвет у углов рамки (снаружи текста), какой встречается чаще;
+          # все точки — одним вызовом magick
+          fmt=""; i=1
+          while [ -e "$tmp/$i.box" ]; do
+            read -r x y w h _ < "$tmp/$i.box"
+            l=$((x > 3 ? x - 3 : 0)); t=$((y > 3 ? y - 3 : 0)); r=$((x + w + 3)); b=$((y + h + 3))
+            fmt="$fmt%[hex:p{$l,$t}] %[hex:p{$r,$t}] %[hex:p{$l,$b}] %[hex:p{$r,$b}]\n"
+            i=$((i + 1))
+          done
+          [ -n "$fmt" ] || exit 0
+          magick "$img" -format "$fmt" info: > "$tmp/bg" 2>/dev/null || true
+          i=1
+          while [ -e "$tmp/$i.box" ]; do
+            read -r x y w h lh < "$tmp/$i.box"
+            bg=$(sed -n "''${i}p" "$tmp/bg" | tr ' ' '\n' | cut -c1-6 | grep . | sort | uniq -c | sort -rn | awk 'NR == 1 { print $2 }')
+            [ -n "$bg" ] || bg=202020
+            tr=$(tr '\n\t' '  ' < "$tmp/$i.txt.tr")
+            printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$x" "$y" "$w" "$h" "$lh" "$bg" "$tr"
+            i=$((i + 1))
+          done ;;
+        search)
+          # Google Lens принимает картинку и отвечает адресом страницы с результатами
+          url=$(curl -s -o /dev/null -w '%{redirect_url}' \
+            -F "encoded_image=@$1;type=image/png" -F "image_url=" -F "sbisrc=Chromium" \
+            "https://lens.google.com/v3/upload?hl=ru" || true)
+          if [ -n "$url" ]; then
+            xdg-open "$url"
+          else
+            # не вышло — картинка в буфер, Lens в браузере (там Ctrl+V)
+            wl-copy --type image/png < "$1"
+            xdg-open "https://lens.google.com/"
+          fi ;;
+        *) echo "pixel-lens shot|crop|ocr|text|translate|search" >&2; exit 1 ;;
+      esac
     '';
   };
 
@@ -225,6 +362,7 @@ in {
     pixel-screenshot
     pixel-record
     pixel-rebuild
+    pixel-lens
   ];
 
   # QML по файлам (recursive), чтобы рядом можно было положить

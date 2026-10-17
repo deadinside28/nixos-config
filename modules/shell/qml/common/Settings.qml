@@ -98,7 +98,7 @@ Singleton {
             property list<string> frameScreens: [] // пусто — на всех экранах
 
             // Быстрые настройки (шторка)
-            property list<string> qsTiles: ["internet", "bluetooth", "dnd", "night", "dark", "mic", "caffeine", "record", "screenshot", "clipboard"]
+            property list<string> qsTiles: ["internet", "bluetooth", "dnd", "night", "dark", "mic", "caffeine", "record", "screenshot", "lens", "translate", "clipboard"]
             property bool qsShowMedia: true
             property bool qsShowBrightness: true
             property bool showWorkspaces: true
@@ -172,6 +172,8 @@ Singleton {
             property string recContainer: "mp4" // mp4 | mkv
             property bool recCursor: true
             property string recDir: root.home + "/Videos"
+            property string recArea: "screen" // screen | area | window
+            property string recAudio: "system" // system | mic | none
 
             // Ввод (Hyprland)
             property string kbLayout: "us,ru"
@@ -184,6 +186,10 @@ Singleton {
 
             // Мониторы: { "HDMI-A-1": { mode, position, scale, vrr } }
             property var monitors: ({})
+
+            // Обвести и найти / перевод экрана
+            property string ocrLangs: "eng+rus" // языки распознавания (tesseract)
+            property string translateTo: "ru"
 
             // Файлы
             property string filesView: "grid" // grid | list

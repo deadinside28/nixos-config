@@ -544,4 +544,102 @@ SettingsPage {
             }
         }
     }
+
+    Group {
+        title: "Обвести и найти · перевод экрана"
+        ListItem {
+            icon: "frame_inspect"
+            title: "Обвести и найти"
+            subtitle: "Super + A: обведи или ткни что угодно на экране — поиск в Google, текст, перевод"
+            clickable: true
+            onClicked: Quickshell.execDetached(["sh", "-c", "sleep 0.3; pixel-shell lens search"])
+        }
+        ListItem {
+            icon: "translate"
+            title: "Перевести экран"
+            subtitle: "Super + Shift + T: весь текст на экране переводится на месте; есть режим в реальном времени"
+            clickable: true
+            onClicked: Quickshell.execDetached(["sh", "-c", "sleep 0.3; pixel-shell lens translate"])
+        }
+        ChoiceItem {
+            icon: "language"
+            title: "Переводить на"
+            options: Lens.languages
+            current: Settings.data.translateTo
+            onSelected: v => Settings.data.translateTo = v
+        }
+        // Языки, которые распознаются на экране
+        Rectangle {
+            readonly property bool groupItem: true
+            property bool first: false
+            property bool last: true
+            Layout.fillWidth: true
+            implicitHeight: ocrCol.implicitHeight + 32
+            color: Theme.dark ? Theme.surfaceContainerHigh : Theme.surfaceContainerLowest
+            topLeftRadius: first ? 24 : 4
+            topRightRadius: first ? 24 : 4
+            bottomLeftRadius: last ? 24 : 4
+            bottomRightRadius: last ? 24 : 4
+            ColumnLayout {
+                id: ocrCol
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                anchors.margins: 16
+                spacing: 10
+                MText {
+                    text: "Распознавать текст на языках"
+                }
+                MText {
+                    Layout.fillWidth: true
+                    text: "Чем меньше языков, тем быстрее и точнее"
+                    size: Theme.type.bodyS
+                    color: Theme.fgSurfaceVariant
+                }
+                Flow {
+                    Layout.fillWidth: true
+                    spacing: 8
+                    Repeater {
+                        model: [["eng", "Английский"], ["rus", "Русский"], ["ukr", "Украинский"], ["deu", "Немецкий"], ["fra", "Французский"], ["spa", "Испанский"], ["ita", "Итальянский"], ["pol", "Польский"], ["jpn", "Японский"], ["chi_sim", "Китайский"], ["kor", "Корейский"]]
+                        Rectangle {
+                            id: lc
+                            required property var modelData
+                            readonly property var list: Settings.data.ocrLangs.split("+").filter(x => x)
+                            readonly property bool on: list.includes(modelData[0])
+                            implicitHeight: 32
+                            implicitWidth: lcRow.implicitWidth + 24
+                            radius: Theme.radius.s
+                            color: on ? Theme.secondaryContainer : "transparent"
+                            border.width: on ? 0 : 1
+                            border.color: Theme.outlineVariant
+                            Row {
+                                id: lcRow
+                                anchors.centerIn: parent
+                                spacing: 6
+                                MIcon {
+                                    visible: lc.on
+                                    icon: "check"
+                                    size: 18
+                                    color: Theme.fgSecondaryContainer
+                                }
+                                MText {
+                                    text: lc.modelData[1]
+                                    size: Theme.type.labelL
+                                    color: lc.on ? Theme.fgSecondaryContainer : Theme.fgSurfaceVariant
+                                }
+                            }
+                            StateLayer {
+                                radius: lc.radius
+                                onClicked: {
+                                    const l = lc.on ? lc.list.filter(x => x !== lc.modelData[0]) : [...lc.list, lc.modelData[0]];
+                                    if (l.length)
+                                        Settings.data.ocrLangs = l.join("+");
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 }

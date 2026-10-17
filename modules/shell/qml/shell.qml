@@ -26,6 +26,8 @@ import qs.modules.settings
 import qs.modules.dnd
 import qs.modules.frame
 import qs.modules.files
+import qs.modules.record
+import qs.modules.lens
 
 ShellRoot {
     id: root
@@ -62,6 +64,8 @@ ShellRoot {
     Lock {}
     Idle {}
     PowerMenu {}
+    RecordPanel {}
+    LensOverlay {}
     ClipboardPanel {}
     Overview {}
     PolkitDialog {}

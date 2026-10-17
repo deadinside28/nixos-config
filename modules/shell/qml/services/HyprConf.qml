@@ -398,6 +398,8 @@ REC_QUALITY=${q(d.recQuality)}
 REC_CONTAINER=${q(d.recContainer)}
 REC_CURSOR=${q(d.recCursor ? "yes" : "no")}
 REC_DIR=${q(d.recDir)}
+REC_AREA=${q(d.recArea)}
+REC_AUDIO=${q(d.recAudio)}
 `;
     }
     onRecordEnvChanged: if (Settings.loaded)

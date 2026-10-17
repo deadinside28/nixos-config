@@ -72,11 +72,19 @@ Singleton {
             id: "record",
             label: "Запись экрана",
             icon: () => Ui.recording ? "stop_circle" : "screen_record",
-            sub: () => Ui.recording ? "Идёт запись" : "Без микрофона",
+            sub: () => Ui.recording ? "Нажми, чтобы остановить" : ({
+                        screen: "Весь экран",
+                        area: "Область",
+                        window: "Окно"
+                    })[Settings.data.recArea],
             active: () => Ui.recording,
+            // идёт запись — остановить, иначе — выбрать, что записывать
             toggle: () => {
-                Quickshell.execDetached(["pixel-record", Ui.activeScreen]);
-                Ui.close();
+                if (Ui.recording) {
+                    Quickshell.execDetached(["pixel-record"]);
+                    Ui.close();
+                } else
+                    Ui.open("record");
             }
         },
         {
@@ -88,6 +96,31 @@ Singleton {
             toggle: () => {
                 Ui.close();
                 Quickshell.execDetached(["sh", "-c", "sleep 0.4; pixel-screenshot area"]);
+            }
+        },
+        {
+            id: "lens",
+            label: "Обвести и найти",
+            icon: () => "frame_inspect",
+            sub: () => "Поиск по экрану",
+            active: () => false,
+            toggle: () => {
+                Ui.close();
+                Quickshell.execDetached(["sh", "-c", "sleep 0.4; pixel-shell lens search"]);
+            }
+        },
+        {
+            id: "translate",
+            label: "Перевод экрана",
+            icon: () => "translate",
+            sub: () => Lens.active && Lens.mode === "live" ? "В реальном времени" : "Перевести всё",
+            active: () => Lens.active && Lens.mode === "live",
+            toggle: () => {
+                Ui.close();
+                if (Lens.active)
+                    Lens.stop();
+                else
+                    Quickshell.execDetached(["sh", "-c", "sleep 0.4; pixel-shell lens translate"]);
             }
         },
         {

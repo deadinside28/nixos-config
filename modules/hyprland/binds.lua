@@ -61,11 +61,15 @@ hl.bind(mainMod .. " + SHIFT + A", hl.dsp.exec_cmd("pixel-screenshot full"))
 -- Скриншот активного окна (Win + Shift + D)
 hl.bind(mainMod .. " + SHIFT + D", hl.dsp.exec_cmd("pixel-screenshot window"))
 
--- Запись экрана без микрофона (Alt + F9)
-hl.bind("ALT + F9", hl.dsp.exec_cmd("pixel-record " .. PRIMARY_MONITOR))
+-- Обвести и найти (Win + A) и перевод экрана (Win + Shift + T), как на Pixel
+hl.bind(mainMod .. " + A", hl.dsp.exec_cmd("pixel-shell lens search"))
+hl.bind(mainMod .. " + SHIFT + T", hl.dsp.exec_cmd("pixel-shell lens translate"))
 
--- Запись экрана с микрофоном (Alt + F10)
-hl.bind("ALT + F10", hl.dsp.exec_cmd("pixel-record " .. PRIMARY_MONITOR .. " mic"))
+-- Запись экрана: панель «что записывать» (Alt + F9; если запись идёт — стоп)
+hl.bind("ALT + F9", hl.dsp.exec_cmd("pixel-shell record toggle"))
+
+-- Запись экрана сразу, с прошлым выбором (Alt + F10; повторно — стоп)
+hl.bind("ALT + F10", hl.dsp.exec_cmd("pixel-record"))
 
 ------------------
 ---- LAUNCHER ----

@@ -65,6 +65,29 @@ Scope {
         }
     }
     IpcHandler {
+        target: "record"
+        // панель «что записывать»; если запись идёт — остановить
+        function toggle(): void {
+            if (Ui.recording)
+                Quickshell.execDetached(["pixel-record"]);
+            else
+                Ui.toggle("record");
+        }
+    }
+    IpcHandler {
+        target: "lens"
+        // обвести и найти / перевести экран / перевод в реальном времени
+        function search(): void {
+            Lens.start("search");
+        }
+        function translate(): void {
+            Lens.start("translate");
+        }
+        function live(): void {
+            Lens.start("live");
+        }
+    }
+    IpcHandler {
         target: "files"
         // pixel-shell files open [путь или file://-адрес]
         function open(path: string): void {

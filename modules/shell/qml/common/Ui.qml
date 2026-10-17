@@ -6,6 +6,7 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Hyprland
+import Quickshell.Io
 
 Singleton {
     id: root
@@ -18,6 +19,18 @@ Singleton {
     property bool locked: false
     property bool caffeine: false
     property bool recording: false
+    // Идёт ли запись экрана (gpu-screen-recorder запускает pixel-record)
+    Process {
+        id: recCheck
+        command: ["pidof", "gpu-screen-recorder"]
+        onExited: code => root.recording = code === 0
+    }
+    Timer {
+        running: true
+        interval: 2000
+        repeat: true
+        onTriggered: recCheck.running = true
+    }
 
     // Окно «Настройки» и открытый в нём раздел
     property bool settingsOpen: false
