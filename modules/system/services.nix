@@ -8,6 +8,8 @@
   services.gnome.gnome-keyring.enable = true;
   security.pam.services.greetd.enableGnomeKeyring = true;
 
+  services.ollama.enable = true;
+
   # Цель сессии Hyprland. Её запускает hyprland.lua при старте, а за ней
   # поднимаются оболочка (pixel-shell.service из home-manager), история
   # буфера обмена и стандартный автозапуск приложений.

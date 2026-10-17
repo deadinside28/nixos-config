@@ -10,10 +10,11 @@ local function shell(name)
 end
 
 hl.on("hyprland.start", function()
-    hl.exec_cmd("dbus-update-activation-environment --systemd --all")
+    -- Сначала передаём окружение Wayland, затем запускаем службы сессии.
+    -- Два независимых exec_cmd могли запустить приложения со старым окружением.
     -- За целью сессии поднимаются оболочка (pixel-shell.service),
     -- cliphist и автозапуск приложений из ~/.config/autostart.
-    hl.exec_cmd("systemctl --user start hyprland-session.target")
+    hl.exec_cmd([[sh -c 'dbus-update-activation-environment --systemd --all && systemctl --user start hyprland-session.target']])
     -- Курсор: тема и размер приходят из сессии (flake.nix → appearance).
     hl.exec_cmd([[sh -c 'hyprctl setcursor "$XCURSOR_THEME" "$XCURSOR_SIZE"']])
 end)

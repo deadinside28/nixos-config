@@ -21,6 +21,11 @@
     alejandra # автоформатер
     distrobox
     xhost # проброс графики XWayland в контейнер
+    claude-code
+    codex
+    antigravity-cli
+    ollama-rocm
+    gemini-cli
 
     # --- Файловый менеджер и превью ---
     ffmpegthumbnailer
@@ -65,6 +70,10 @@
     baobab # что занимает место на диске
     zed-editor # лёгкий редактор кода
     ffmpeg
+    # Явный Wayland: одинаковый запуск из терминала, меню и автозапуска.
+    (discord.override {
+      commandLineArgs = "--ozone-platform=wayland";
+    })
 
     # --- Кодеки GStreamer ---
     gst_all_1.gstreamer

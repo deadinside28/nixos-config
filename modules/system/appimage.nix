@@ -50,7 +50,7 @@
       export GTK_USE_PORTAL=1
       export GDK_DEBUG=portals
 
-      exec "$img" "$@"
+      exec ${pkgs.appimage-run}/bin/appimage-run "$img" "$@"
     '')
   ];
 }
