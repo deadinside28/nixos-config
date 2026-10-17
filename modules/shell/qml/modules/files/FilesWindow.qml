@@ -26,7 +26,7 @@ FloatingWindow {
 
     // --- Где мы --------------------------------------------------------------
     // path — папка; place — "dir" | "recent" | "search" | "trash"
-    property string path: entry.path
+    property string path: entry.archive ? entry.path.slice(0, entry.path.lastIndexOf("/")) || "/" : entry.path
     property string place: path === Files.trashDir ? "trash" : "dir"
     property var back: []
     property var forward: []
@@ -264,11 +264,32 @@ FloatingWindow {
     function activate(item) {
         if (item.isDir)
             go(item.path);
-        else if (place !== "trash")
+        else if (place === "trash")
+            return;
+        else if (Files.isArchive(item.name))
+            enterArchive(item.path);
+        else if (Files.isAppImage(item.name) || Files.isScript(item.name))
+            Files.launch(item.path);
+        else
             Files.openFile(item.path);
     }
+
+    // --- Архив как папка -------------------------------------------------------
+    // archive — сам файл архива, archiveRoot — куда он распакован в кеше
+    property string archive: ""
+    property string archiveRoot: ""
+    readonly property bool inArchive: archiveRoot !== "" && place === "dir" && (path === archiveRoot || path.startsWith(archiveRoot + "/"))
+    function enterArchive(file) {
+        Files.openArchive(file, (ok, dir) => {
+            if (!ok)
+                return;
+            win.archive = file;
+            win.archiveRoot = dir;
+            win.go(dir);
+        });
+    }
     // Куда вставлять / создавать
-    readonly property string here: place === "dir" ? path : ""
+    readonly property string here: place === "dir" && !inArchive ? path : ""
 
     // --- Клавиатура ------------------------------------------------------------
     Shortcut {
@@ -479,6 +500,44 @@ FloatingWindow {
                             onClicked: win.go(modelData.path)
                         }
                     }
+                    // Сеть: подключённые папки, сохранённые и «Подключиться»
+                    NavHeader {
+                        text: "Сеть"
+                    }
+                    Repeater {
+                        model: Files.mounts
+                        NavItem {
+                            required property var modelData
+                            icon: modelData.icon
+                            text: modelData.name
+                            hint: "ПКМ — отключить"
+                            active: win.place === "dir" && (win.path === modelData.path || win.path.startsWith(modelData.path + "/"))
+                            dropPath: modelData.path
+                            onClicked: win.go(modelData.path)
+                            onRightClicked: {
+                                if (win.path.startsWith(modelData.path))
+                                    win.go(Files.home);
+                                Files.disconnect(modelData.path);
+                            }
+                        }
+                    }
+                    Repeater {
+                        // сохранённые, но сейчас не подключённые
+                        model: Settings.data.netPlaces.filter(n => !Files.mounts.some(m => m.name && n.uri.includes(m.name.split(" на ")[0])))
+                        NavItem {
+                            required property var modelData
+                            icon: "link"
+                            text: modelData.uri.replace(/^[a-z]+:\/\//, "")
+                            hint: "ПКМ — забыть"
+                            onClicked: dialog.askConnect(modelData.uri, modelData.user ?? "")
+                            onRightClicked: Files.forgetPlace(modelData.uri)
+                        }
+                    }
+                    NavItem {
+                        icon: "add_link"
+                        text: "Подключиться к серверу"
+                        onClicked: dialog.askConnect("", "")
+                    }
                     Item {
                         implicitHeight: 8
                     }
@@ -582,7 +641,14 @@ FloatingWindow {
                                     const home = Files.home;
                                     const out = [];
                                     let base, rest;
-                                    if (p === home || p.startsWith(home + "/")) {
+                                    if (win.inArchive) {
+                                        out.push({
+                                            label: win.archive.split("/").pop(),
+                                            path: win.archiveRoot
+                                        });
+                                        base = win.archiveRoot;
+                                        rest = p.slice(base.length);
+                                    } else if (p === home || p.startsWith(home + "/")) {
                                         out.push({
                                             label: "Мои файлы",
                                             path: home
@@ -802,6 +868,43 @@ FloatingWindow {
                         }
                     }
                 }
+                // Архив: содержимое и «Распаковать»
+                Rectangle {
+                    Layout.fillWidth: true
+                    visible: win.inArchive
+                    implicitHeight: 56
+                    radius: 28
+                    color: Theme.secondaryContainer
+                    RowLayout {
+                        anchors.fill: parent
+                        anchors.leftMargin: 18
+                        anchors.rightMargin: 8
+                        spacing: 12
+                        MIcon {
+                            icon: "folder_zip"
+                            color: Theme.fgSecondaryContainer
+                        }
+                        MText {
+                            Layout.fillWidth: true
+                            text: "Содержимое архива. Перетащи файлы куда нужно или распакуй целиком"
+                            color: Theme.fgSecondaryContainer
+                        }
+                        Button {
+                            variant: "text"
+                            text: "Папка архива"
+                            onClicked: win.go(win.archive.slice(0, win.archive.lastIndexOf("/")) || "/")
+                        }
+                        Button {
+                            icon: "unarchive"
+                            text: "Распаковать сюда"
+                            onClicked: {
+                                Files.extract(win.archive);
+                                win.go(win.archive.slice(0, win.archive.lastIndexOf("/")) || "/");
+                            }
+                        }
+                    }
+                }
+
                 // Корзина: очистить
                 RowLayout {
                     visible: win.place === "trash" && win.allShown.length > 0
@@ -976,13 +1079,7 @@ FloatingWindow {
                                 return;
                             const paths = drop.urls.map(u => decodeURIComponent(String(u).replace(/^file:\/\//, "")));
                             if (paths.length) {
-                                const saved = Files.clipboard;
-                                Files.clipboard = {
-                                    mode: "copy",
-                                    paths
-                                };
-                                Files.paste(win.here);
-                                Files.clipboard = saved;
+                                Files.transfer(paths, win.here, false);
                                 drop.accept(Qt.CopyAction);
                             }
                         }
@@ -1024,6 +1121,8 @@ FloatingWindow {
     Component.onCompleted: {
         dfProc.running = true;
         Files.refreshDrives();
+        if (entry.archive)
+            enterArchive(entry.archive);
     }
 
     // ===========================================================================
@@ -1085,14 +1184,9 @@ FloatingWindow {
         const paths = drop.urls.map(u => decodeURIComponent(String(u).replace(/^file:\/\//, ""))).filter(p => p !== dir);
         if (!paths.length)
             return;
-        const internal = drop.source && drop.source.isFileItem;
-        const saved = Files.clipboard;
-        Files.clipboard = {
-            mode: internal ? "cut" : "copy",
-            paths
-        };
-        Files.paste(dir);
-        Files.clipboard = saved;
+        // внутри «Файлов» — переместить (из архива — скопировать), извне — скопировать
+        const internal = drop.source && drop.source.isFileItem && !win.inArchive;
+        Files.transfer(paths, dir, internal);
         drop.accept(internal ? Qt.MoveAction : Qt.CopyAction);
         win.selected = {};
     }
@@ -1420,10 +1514,24 @@ FloatingWindow {
             entries = list;
             visible = true;
         }
+        // Для файла сначала узнаём, исполняемый ли он и есть ли в меню приложений
         function openAt(item, src, x, y) {
+            const sel = win.selectedPaths;
+            const one = sel.length === 1 ? win.allShown.find(i => i.path === sel[0]) : null;
+            if (item && one && !one.isDir && win.place !== "trash")
+                Files.inspect(one.path, (ex, inMenu) => build(item, src, x, y, {
+                        exec: ex,
+                        inMenu
+                    }));
+            else
+                build(item, src, x, y, null);
+        }
+        function build(item, src, x, y, info) {
             target = item;
             const sel = win.selectedPaths;
             const one = sel.length === 1 ? win.allShown.find(i => i.path === sel[0]) : null;
+            // программа или скрипт: AppImage, .sh и т.п., файл без расширения или уже исполняемый
+            const runnable = one && info && (info.exec || Files.isAppImage(one.name) || Files.isScript(one.name) || !one.name.includes("."));
             let l = [];
             if (item) {
                 if (win.place === "trash") {
@@ -1448,11 +1556,23 @@ FloatingWindow {
                         text: "Открыть",
                         act: () => sel.forEach(p => win.activate(win.allShown.find(i => i.path === p)))
                     });
+                    if (runnable)
+                        l.push({
+                            icon: "play_arrow",
+                            text: "Запустить",
+                            act: () => Files.launch(one.path)
+                        });
                     if (one && !one.isDir)
                         l.push({
                             icon: "apps",
                             text: "Открыть с помощью…",
                             act: () => dialog.ask("openwith")
+                        });
+                    if (one && Files.isArchive(one.name))
+                        l.push({
+                            icon: "folder_open",
+                            text: "Открыть как папку",
+                            act: () => win.enterArchive(one.path)
                         });
                     if (one && one.isDir) {
                         l.push({
@@ -1501,13 +1621,25 @@ FloatingWindow {
                             text: "Добавить в закладки",
                             act: () => Files.addBookmark(one.path)
                         });
-                    if (one && Files.kindOf(one.name, false) === "archive")
+                    if (runnable) {
+                        l.push({
+                            icon: info.inMenu ? "playlist_remove" : "add_to_home_screen",
+                            text: info.inMenu ? "Убрать из меню приложений" : "Добавить в меню приложений",
+                            act: () => info.inMenu ? Files.removeFromMenu(one.path) : Files.addToMenu(one.path)
+                        });
+                        l.push({
+                            icon: info.exec ? "block" : "verified",
+                            text: info.exec ? "Запретить выполнение" : "Разрешить выполнение",
+                            act: () => Files.setExecutable(one.path, !info.exec)
+                        });
+                    }
+                    if (one && Files.isArchive(one.name))
                         l.push({
                             icon: "unarchive",
                             text: "Распаковать сюда",
-                            act: () => Files.extract(one.path)
+                            act: () => Files.extract(one.path, win.inArchive ? "" : win.path)
                         });
-                    else if (win.place === "dir")
+                    else if (win.place === "dir" && !win.inArchive)
                         l.push({
                             icon: "folder_zip",
                             text: "Сжать в архив",
@@ -1551,13 +1683,13 @@ FloatingWindow {
                     key: "Ctrl+Shift+N",
                     act: () => dialog.ask("mkdir")
                 });
-                if (Files.clipboard.paths.length)
-                    l.push({
-                        icon: "content_paste",
-                        text: "Вставить (" + Files.clipboard.paths.length + ")",
-                        key: "Ctrl+V",
-                        act: () => Files.paste(win.here)
-                    });
+                // из буфера: файлы или картинка (скриншот сохранится файлом)
+                l.push({
+                    icon: "content_paste",
+                    text: Files.clipboard.paths.length ? "Вставить (" + Files.clipboard.paths.length + ")" : "Вставить",
+                    key: "Ctrl+V",
+                    act: () => Files.paste(win.here)
+                });
                 l.push({
                     icon: "terminal",
                     text: "Открыть в терминале",
@@ -1628,7 +1760,7 @@ FloatingWindow {
             id: menuCard
             x: Math.min(menu.mx, menu.width - width - 8)
             y: menu.my + height > menu.height - 8 ? Math.max(8, menu.my - height) : menu.my
-            width: 260
+            width: 320
             height: menuCol.implicitHeight + 16
             radius: Theme.radius.l
             color: Theme.surfaceContainer
@@ -1709,6 +1841,32 @@ FloatingWindow {
         property string defApp: ""
         property string info: ""
 
+        property string connErr: ""
+        function askConnect(uri, user) {
+            kind = "connect";
+            connErr = "";
+            visible = true;
+            addrField.text = uri;
+            userField.text = user;
+            passField.text = "";
+            (uri ? passField : addrField).forceFocus();
+        }
+        function connect() {
+            let uri = addrField.text.trim();
+            if (!uri)
+                return;
+            // без схемы — считаем, что это Windows/Samba: \\host\share или host/share
+            if (!/^[a-z]+:\/\//.test(uri))
+                uri = "smb://" + uri.replace(/\\/g, "/").replace(/^\/+/, "");
+            connErr = "";
+            Files.connect(uri, userField.text.trim(), passField.text, saveConn.checked, (ok, path, err) => {
+                if (ok) {
+                    dialog.visible = false;
+                    win.go(path);
+                } else
+                    dialog.connErr = err || "Не удалось подключиться";
+            });
+        }
         function ask(k) {
             kind = k;
             one = win.allShown.find(i => i.path === win.selectedPaths[0]) ?? null;
@@ -1734,6 +1892,10 @@ FloatingWindow {
             }
         }
         function accept() {
+            if (kind === "connect") {
+                connect();
+                return;
+            }
             const name = nameField.text.trim().replace(/\//g, "");
             if (kind === "mkdir" && name)
                 Files.mkdir(win.here, name);
@@ -1783,6 +1945,7 @@ FloatingWindow {
                 MIcon {
                     Layout.alignment: Qt.AlignHCenter
                     icon: ({
+                            connect: "add_link",
                             mkdir: "create_new_folder",
                             rename: "edit",
                             delete: "delete_forever",
@@ -1795,6 +1958,7 @@ FloatingWindow {
                 MText {
                     Layout.alignment: Qt.AlignHCenter
                     text: ({
+                            connect: "Подключиться к серверу",
                             mkdir: "Новая папка",
                             rename: "Переименовать",
                             delete: "Удалить навсегда?",
@@ -1815,6 +1979,69 @@ FloatingWindow {
                     color: Theme.fgSurfaceVariant
                     text: dialog.kind === "empty" ? "Все файлы в корзине будут удалены без возможности восстановления." : "Выбрано: " + win.selCount + ". Файлы удалятся сразу, без корзины."
                 }
+                // Подключение к сетевой папке
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    visible: dialog.kind === "connect"
+                    spacing: 10
+                    TextField {
+                        id: addrField
+                        Layout.fillWidth: true
+                        implicitHeight: 52
+                        icon: "dns"
+                        placeholder: "smb://192.168.1.10/share или sftp://user@host"
+                        onAccepted: dialog.connect()
+                    }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 8
+                        TextField {
+                            id: userField
+                            Layout.fillWidth: true
+                            implicitHeight: 52
+                            icon: "person"
+                            placeholder: "Пользователь"
+                            onAccepted: dialog.connect()
+                        }
+                        TextField {
+                            id: passField
+                            Layout.fillWidth: true
+                            implicitHeight: 52
+                            icon: "key"
+                            password: true
+                            placeholder: "Пароль"
+                            onAccepted: dialog.connect()
+                        }
+                    }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        MText {
+                            Layout.fillWidth: true
+                            text: "Запомнить в боковой панели (без пароля)"
+                            color: Theme.fgSurfaceVariant
+                        }
+                        MSwitch {
+                            id: saveConn
+                            checked: true
+                            onToggled: v => checked = v
+                        }
+                    }
+                    MText {
+                        Layout.fillWidth: true
+                        text: "Пустые логин и пароль — гостевой вход. Подходят smb://, sftp://, ftp://, davs://"
+                        size: Theme.type.bodyS
+                        color: Theme.fgSurfaceVariant
+                        wrapMode: Text.WordWrap
+                    }
+                    MText {
+                        Layout.fillWidth: true
+                        visible: dialog.connErr !== ""
+                        text: dialog.connErr
+                        color: Theme.error
+                        wrapMode: Text.WordWrap
+                    }
+                }
+
                 TextField {
                     id: nameField
                     Layout.fillWidth: true
@@ -1926,6 +2153,7 @@ FloatingWindow {
                     Button {
                         visible: dialog.kind !== "info" && dialog.kind !== "openwith"
                         text: ({
+                                connect: Files.busy > 0 ? "Подключаю…" : "Подключиться",
                                 mkdir: "Создать",
                                 rename: "Переименовать",
                                 delete: "Удалить",

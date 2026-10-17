@@ -196,6 +196,7 @@ Singleton {
             property bool filesHidden: false
             property string filesSort: "name" // name | time | size | type
             property bool filesSortDesc: false
+            property var netPlaces: [] // сохранённые сетевые папки: [{ uri, user }]
 
             // Лаунчер
             property var appUsage: ({})

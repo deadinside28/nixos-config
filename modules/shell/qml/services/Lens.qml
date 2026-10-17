@@ -88,6 +88,8 @@ Singleton {
             stop();
             return;
         }
+        // открытая панель не должна попасть в снимок — даём ей закрыться
+        const wait = Ui.panel !== "";
         Ui.close();
         mode = m;
         screen = Ui.focusedScreen;
@@ -97,12 +99,17 @@ Singleton {
         textTranslated = "";
         boxes = [];
         status = "";
-        if (m === "live") {
+        if (m === "live")
             active = true;
+        if (wait)
+            startDelay.restart();
+        else
             capture();
-            return;
-        }
-        capture();
+    }
+    Timer {
+        id: startDelay
+        interval: Theme.anim.normal + 80
+        onTriggered: root.capture()
     }
     function stop() {
         active = false;
@@ -202,7 +209,7 @@ Singleton {
     // Живой перевод: снимок каждые несколько секунд, пока включён
     Timer {
         id: liveTimer
-        interval: 2500
+        interval: 1200
         onTriggered: if (root.active && root.mode === "live")
             root.capture()
     }

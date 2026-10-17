@@ -24,9 +24,12 @@ Singleton {
             p = home + p.slice(1);
         if (p.length > 1 && p.endsWith("/"))
             p = p.slice(0, -1);
+        // архив, открытый «Файлами» снаружи (из браузера, по умолчанию для
+        // zip и т.п.), — окно с его содержимым
         windows = [...windows, {
                 id: nextId,
-                path: p
+                path: p,
+                archive: isArchive(p.split("/").pop()) ? p : ""
             }];
         nextId++;
     }
@@ -315,18 +318,15 @@ Singleton {
         const dir = path.slice(0, path.lastIndexOf("/"));
         run(["mv", "-n", "--", path, dir + "/" + name], dir);
     }
-    // Вставка: при совпадении имён — «имя (2).ext»
+    // Вставка. Источник — системный буфер: файлы (text/uri-list — из «Файлов»,
+    // Nemo, браузера…) копируются, картинка (скриншот) сохраняется файлом.
+    // Вырезанное в «Файлах» — перемещается. Совпали имена — «имя (2).ext».
     function paste(dir) {
-        if (!clipboard.paths.length)
-            return;
-        const mode = clipboard.mode;
+        const cut = clipboard.mode === "cut" && clipboard.paths.length > 0;
         run(["sh", "-c", `
-            mode="$1"; dest="$2"; shift 2
-            for src in "$@"; do
-                base=$(basename -- "$src")
-                target="$dest/$base"
-                if [ "$mode" = cut ] && [ "$(dirname -- "$src")" = "$dest" ]; then continue; fi
-                n=2
+            dest="$1"; mode="$2"; shift 2
+            unique() {
+                base=$(basename -- "$1"); target="$dest/$base"; n=2
                 while [ -e "$target" ]; do
                     case "$base" in
                         ?*.*) target="$dest/\${base%.*} ($n).\${base##*.}" ;;
@@ -334,22 +334,288 @@ Singleton {
                     esac
                     n=$((n + 1))
                 done
+                printf '%s' "$target"
+            }
+            if [ "$mode" != cut ]; then
+                types=$(wl-paste --list-types 2>/dev/null || true)
+                if printf '%s\\n' "$types" | grep -qx 'text/uri-list'; then
+                    list=$(mktemp)
+                    wl-paste --type text/uri-list 2>/dev/null | tr -d '\\r' | sed -n 's|^file://||p' > "$list"
+                    set --
+                    while IFS= read -r u; do
+                        set -- "$@" "$(printf '%b' "$(printf '%s' "$u" | sed 's/%/\\\\x/g')")"
+                    done < "$list"
+                    rm -f "$list"
+                else
+                    img=$(printf '%s\\n' "$types" | grep -m1 '^image/' || true)
+                    [ -n "$img" ] || exit 0
+                    ext=\${img#image/}; [ "$ext" = jpeg ] && ext=jpg
+                    f=$(unique "$dest/Снимок экрана $(date '+%Y-%m-%d %H-%M-%S').$ext")
+                    wl-paste --type "$img" > "$f"
+                    exit 0
+                fi
+            fi
+            for src in "$@"; do
+                [ -e "$src" ] || continue
+                if [ "$mode" = cut ] && [ "$(dirname -- "$src")" = "$dest" ]; then continue; fi
+                target=$(unique "$src")
                 if [ "$mode" = cut ]; then mv -- "$src" "$target"; else cp -a -- "$src" "$target"; fi
             done
-        `, "sh", mode, dir, ...clipboard.paths], dir);
-        if (mode === "cut")
+        `, "sh", dir, cut ? "cut" : "copy", ...(cut ? clipboard.paths : [])], dir);
+        if (cut)
             clipboard = {
                 mode: "",
                 paths: []
             };
     }
-    function extract(path) {
-        const dir = path.slice(0, path.lastIndexOf("/"));
-        run(["sh", "-c", 'cd "$(dirname -- "$1")" && (command -v file-roller >/dev/null && file-roller --extract-here "$1" || (case "$1" in *.zip) unzip -o "$1";; *) tar xf "$1";; esac))', "sh", path], dir);
+    // Копирование или перемещение конкретных путей (перетаскивание)
+    function transfer(paths, dir, move) {
+        run(["sh", "-c", `
+            dest="$1"; mode="$2"; shift 2
+            for src in "$@"; do
+                [ -e "$src" ] || continue
+                if [ "$mode" = move ] && [ "$(dirname -- "$src")" = "$dest" ]; then continue; fi
+                b=$(basename -- "$src"); t="$dest/$b"; n=2
+                while [ -e "$t" ]; do
+                    case "$b" in ?*.*) t="$dest/\${b%.*} ($n).\${b##*.}" ;; *) t="$dest/$b ($n)" ;; esac
+                    n=$((n + 1))
+                done
+                if [ "$mode" = move ]; then mv -- "$src" "$t"; else cp -a -- "$src" "$t"; fi
+            done
+        `, "sh", dir, move ? "move" : "copy", ...paths], dir);
+    }
+
+    // --- Архивы: внутрь как в папку, распаковка, сжатие (bsdtar) ---------------
+    readonly property string archiveCache: (Quickshell.env("XDG_CACHE_HOME") || home + "/.cache") + "/pixel-shell/archives"
+    function isArchive(name) {
+        return /\.(zip|7z|rar|tar|tgz|tbz2|txz|tzst|tar\.(gz|bz2|xz|zst|lz4)|gz|xz|bz2|zst|iso|cab|jar|deb|rpm)$/i.test(name);
+    }
+    function archiveBase(name) {
+        return name.replace(/\.(tar\.(gz|bz2|xz|zst|lz4)|[^.]+)$/i, "");
+    }
+    // Содержимое архива распаковывается в кеш, и окно ходит по нему как по
+    // обычной папке: открывать, копировать и перетаскивать файлы куда угодно.
+    function openArchive(path, cb) {
+        const dir = archiveCache + "/" + Qt.md5(path);
+        const p = archProc.createObject(root, {
+            path,
+            dir
+        });
+        p.done.connect(cb);
+        busy++;
+        p.running = true;
+    }
+    property Component archProc: Component {
+        Process {
+            id: arp
+            property string path
+            property string dir
+            signal done(bool ok, string dir)
+            command: ["sh", "-c", `
+                find "$3" -mindepth 1 -maxdepth 1 -mtime +1 -exec rm -rf {} + 2>/dev/null
+                if [ ! -e "$2/.pixel-done" ] || [ "$1" -nt "$2/.pixel-done" ]; then
+                    rm -rf "$2"; mkdir -p "$2"
+                    bsdtar -xf "$1" -C "$2" && touch "$2/.pixel-done"
+                fi
+            `, "sh", path, dir, root.archiveCache]
+            stderr: StdioCollector {
+                id: arErr
+            }
+            onExited: code => {
+                root.busy--;
+                root.lastError = code === 0 ? "" : "Не удалось открыть архив: " + arErr.text.trim().split("\n").pop();
+                arp.done(code === 0, arp.dir);
+                arp.destroy();
+            }
+        }
+    }
+    // Распаковать рядом: в папку с именем архива (если внутри один каталог —
+    // просто его), как на ChromeOS
+    function extract(path, destDir) {
+        const dir = destDir || path.slice(0, path.lastIndexOf("/"));
+        run(["sh", "-c", `
+            src="$1"; dest="$2"; name="$3"
+            tmp=$(mktemp -d "$dest/.pixel-extract.XXXXXX") || exit 1
+            if ! bsdtar -xf "$src" -C "$tmp"; then rm -rf "$tmp"; exit 1; fi
+            items=0; one=""
+            for f in "$tmp"/* "$tmp"/.[!.]*; do [ -e "$f" ] && { items=$((items + 1)); one="$f"; }; done
+            if [ "$items" -eq 1 ] && [ -d "$one" ]; then from="$one"; name=$(basename -- "$one"); else from="$tmp"; fi
+            target="$dest/$name"; n=2
+            while [ -e "$target" ]; do target="$dest/$name ($n)"; n=$((n + 1)); done
+            mv -- "$from" "$target"
+            rm -rf "$tmp"
+        `, "sh", path, dir, archiveBase(path.split("/").pop())], dir);
     }
     function compress(paths, dir) {
-        const name = paths.length === 1 ? paths[0].split("/").pop() : "Архив";
-        run(["sh", "-c", 'dir="$1"; name="$2"; shift 2; cd "$dir" && n=""; i=2; while [ -e "$dir/$name$n.zip" ]; do n=" ($i)"; i=$((i+1)); done; zip -qr "$name$n.zip" "$@" 2>/dev/null || tar czf "$name$n.tar.gz" "$@"', "sh", dir, name, ...paths.map(p => p.split("/").pop())], dir);
+        const name = paths.length === 1 ? archiveBase(paths[0].split("/").pop()) || paths[0].split("/").pop() : "Архив";
+        run(["sh", "-c", 'dir="$1"; name="$2"; shift 2; cd "$dir" || exit 1; t="$name.zip"; i=2; while [ -e "$t" ]; do t="$name ($i).zip"; i=$((i+1)); done; bsdtar -a -cf "$t" -- "$@"', "sh", dir, name, ...paths.map(p => p.split("/").pop())], dir);
+    }
+
+    // --- Программы и скрипты ---------------------------------------------------
+    function isScript(name) {
+        return /\.(sh|bash|run|py|pl|rb)$/i.test(name);
+    }
+    function isAppImage(name) {
+        return /\.appimage$/i.test(name);
+    }
+    // Запуск: AppImage — через appimage-run (если есть), скрипт — в терминале.
+    // Права на выполнение выставляются сами, chmod руками не нужен.
+    function launch(path) {
+        Quickshell.execDetached(["sh", "-c", `
+            f="$1"; term="$2"
+            chmod +x -- "$f"
+            cd "$(dirname -- "$f")" || exit 1
+            case "$f" in
+                *.[Aa]pp[Ii]mage|*.APPIMAGE)
+                    if command -v appimage-run >/dev/null; then exec appimage-run "$f"; else exec "$f"; fi ;;
+                *.sh|*.bash|*.run|*.py|*.pl|*.rb)
+                    exec "$term" --hold -- "$f" ;;
+                *) exec "$f" ;;
+            esac
+        `, "sh", path, Nix.terminal]);
+    }
+    function setExecutable(path, on) {
+        run(["chmod", on ? "+x" : "-x", "--", path], path.slice(0, path.lastIndexOf("/")));
+    }
+    // Узнать, исполняемый ли файл и есть ли он уже в меню приложений
+    readonly property string appsDir: (Quickshell.env("XDG_DATA_HOME") || home + "/.local/share") + "/applications"
+    function desktopIdFor(path) {
+        return "pixel-files-" + Qt.md5(path).slice(0, 10);
+    }
+    function inspect(path, cb) {
+        const p = inspProc.createObject(root, {
+            path
+        });
+        p.done.connect(cb);
+        p.running = true;
+    }
+    property Component inspProc: Component {
+        Process {
+            id: ip
+            property string path
+            signal done(bool exec, bool inMenu)
+            command: ["sh", "-c", '[ -x "$1" ] && echo x; [ -e "$2" ] && echo m; true', "sh", path, root.appsDir + "/" + root.desktopIdFor(path) + ".desktop"]
+            stdout: StdioCollector {
+                id: ipOut
+            }
+            onExited: {
+                ip.done(ipOut.text.includes("x"), ipOut.text.includes("m"));
+                ip.destroy();
+            }
+        }
+    }
+    // Ярлык в меню приложений (лаунчер оболочки и все остальные)
+    function addToMenu(path) {
+        const name = path.split("/").pop().replace(/\.(appimage|sh|bash|run|py)$/i, "").replace(/[-_.]+(x86_64|amd64|linux|v?\d[\w.]*)$/i, "").replace(/[-_]+/g, " ");
+        run(["sh", "-c", `
+            f="$1"; out="$2"; name="$3"; term=false
+            chmod +x -- "$f"
+            exec_line="\\"$f\\""
+            case "$f" in
+                *.[Aa]pp[Ii]mage|*.APPIMAGE) command -v appimage-run >/dev/null && exec_line="appimage-run \\"$f\\"" ;;
+                *.sh|*.bash|*.run|*.py|*.pl|*.rb) term=true ;;
+            esac
+            mkdir -p "$(dirname "$out")"
+            printf '[Desktop Entry]\\nType=Application\\nName=%s\\nExec=%s\\nPath=%s\\nIcon=application-x-executable\\nTerminal=%s\\nCategories=Utility;\\nComment=Добавлено из «Файлов»: %s\\n' \\
+                "$name" "$exec_line" "$(dirname -- "$f")" "$term" "$f" > "$out"
+        `, "sh", path, appsDir + "/" + desktopIdFor(path) + ".desktop", name]);
+    }
+    function removeFromMenu(path) {
+        run(["rm", "-f", appsDir + "/" + desktopIdFor(path) + ".desktop"]);
+    }
+
+    // --- Сетевые папки (gvfs: smb, sftp, ftp, webdav) ---------------------------
+    readonly property string gvfsDir: (Quickshell.env("XDG_RUNTIME_DIR") || "/run/user") + "/gvfs"
+    property var mounts: []
+    function refreshMounts() {
+        mountsProc.running = true;
+    }
+    Process {
+        id: mountsProc
+        command: ["sh", "-c", 'for d in "$1"/*; do [ -d "$d" ] && printf "%s\\n" "$d"; done; true', "sh", root.gvfsDir]
+        stdout: StdioCollector {
+            onStreamFinished: root.mounts = text.split("\n").filter(l => l).map(path => {
+                const id = path.split("/").pop();
+                const kv = {};
+                for (const part of (id.split(":")[1] ?? "").split(","))
+                    kv[part.split("=")[0]] = decodeURIComponent(part.split("=")[1] ?? "");
+                const proto = id.split(":")[0].replace("-share", "");
+                const name = kv.share ? kv.share + " на " + kv.server : (kv.user ? kv.user + "@" : "") + (kv.host ?? kv.server ?? id);
+                return {
+                    path,
+                    name,
+                    proto,
+                    icon: proto === "smb" ? "lan" : "cloud"
+                };
+            })
+        }
+    }
+    Timer {
+        running: root.windows.length > 0
+        interval: 4000
+        repeat: true
+        triggeredOnStart: true
+        onTriggered: root.refreshMounts()
+    }
+    // Подключить: логин и пароль уходят в gio mount через stdin
+    function connect(uri, user, pass, save, cb) {
+        const p = mountProc.createObject(root, {
+            uri,
+            user,
+            pass
+        });
+        p.done.connect((ok, path, err) => {
+            if (ok && save && !Settings.data.netPlaces.some(n => n.uri === uri))
+                Settings.data.netPlaces = [...Settings.data.netPlaces, {
+                        uri,
+                        user
+                    }];
+            refreshMounts();
+            cb(ok, path, err);
+        });
+        busy++;
+        p.running = true;
+    }
+    property Component mountProc: Component {
+        Process {
+            id: mp
+            property string uri
+            property string user
+            property string pass
+            signal done(bool ok, string path, string err)
+            command: ["sh", "-c", `
+                uri="$1"; user="$2"; pass="$3"
+                if ! gio info "$uri" >/dev/null 2>&1; then
+                    if [ -z "$user" ] && [ -z "$pass" ]; then
+                        gio mount -a "$uri" </dev/null || exit 1
+                    else
+                        case "$uri" in
+                            smb://*) printf '%s\\n%s\\n%s\\n' "$user" "WORKGROUP" "$pass" | gio mount "$uri" || exit 1 ;;
+                            *) printf '%s\\n%s\\n' "$user" "$pass" | gio mount "$uri" || exit 1 ;;
+                        esac
+                    fi
+                fi
+                gio info "$uri" | sed -n 's/^local path: //p'
+            `, "sh", uri, user, pass]
+            stdout: StdioCollector {
+                id: mpOut
+            }
+            stderr: StdioCollector {
+                id: mpErr
+            }
+            onExited: code => {
+                root.busy--;
+                mp.done(code === 0 && mpOut.text.trim() !== "", mpOut.text.trim(), mpErr.text.trim().split("\n").pop());
+                mp.destroy();
+            }
+        }
+    }
+    function disconnect(path) {
+        run(["gio", "mount", "-u", path]);
+        Qt.callLater(refreshMounts);
+    }
+    function forgetPlace(uri) {
+        Settings.data.netPlaces = Settings.data.netPlaces.filter(n => n.uri !== uri);
     }
 
     // Приложения, которые умеют открывать этот файл (для «Открыть с помощью»)

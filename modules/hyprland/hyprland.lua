@@ -127,7 +127,9 @@ hl.layer_rule({ match = { namespace = "^(mpvpaper|linux-wallpaperengine.*|wallpa
 -- ignore_alpha — не размывать полностью прозрачные части поверхностей
 -- (оверлеи панелей занимают весь экран, но видна только карточка).
 hl.layer_rule({
-    match = { namespace = "^pixel-shell:(taskbar|launcher|quicksettings|notifications|osd|clipboard|power)$" },
+    -- все слои оболочки; почти прозрачные (затемнение, перехватчик кликов)
+    -- ignore_alpha пропускает, непрозрачные (рамка, обои) размывать нечего
+    match = { namespace = "^pixel-shell:.*$" },
     blur = true,
     ignore_alpha = 0.4,
 })

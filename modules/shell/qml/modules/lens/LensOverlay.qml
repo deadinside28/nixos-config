@@ -256,7 +256,7 @@ Scope {
                     width: Math.min(720, parent.width - 48)
                     height: sheetCol.implicitHeight + 32
                     radius: 32
-                    color: Theme.surfaceContainer
+                    color: "transparent"
                     // выезжает снизу
                     transform: Translate {
                         id: slide
@@ -274,6 +274,39 @@ Scope {
                     }
                     MouseArea {
                         anchors.fill: parent
+                    }
+
+                    // Матовое стекло: снимок под карточкой лежит в этом же слое,
+                    // Hyprland его не размоет — размываем сами
+                    Item {
+                        anchors.fill: parent
+                        layer.enabled: true
+                        layer.effect: MultiEffect {
+                            maskEnabled: true
+                            maskSource: sheetMask
+                        }
+                        MultiEffect {
+                            anchors.fill: parent
+                            source: ShaderEffectSource {
+                                sourceItem: shot
+                                sourceRect: Qt.rect(sheet.x, sheet.y + slide.y, sheet.width, sheet.height)
+                            }
+                            blurEnabled: true
+                            blur: 1
+                            blurMax: 64
+                            saturation: 0.2
+                        }
+                        Rectangle {
+                            anchors.fill: parent
+                            color: Theme.alpha(Theme.surfaceContainer, 0.72)
+                        }
+                    }
+                    Rectangle {
+                        id: sheetMask
+                        anchors.fill: parent
+                        radius: sheet.radius
+                        visible: false
+                        layer.enabled: true
                     }
 
                     ColumnLayout {
@@ -565,7 +598,7 @@ Scope {
                     width: pillRow.implicitWidth + 24
                     height: 52
                     radius: 26
-                    color: Theme.surfaceContainer
+                    color: Theme.panel
                     RowLayout {
                         id: pillRow
                         anchors.centerIn: parent

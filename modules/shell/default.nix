@@ -186,10 +186,36 @@
     '';
   };
 
-  # Распознавание текста: языки для tesseract (их же выбирают в настройках)
-  tesseract = pkgs.tesseract.override {
-    enableLanguages = ["eng" "rus" "ukr" "deu" "fra" "spa" "ita" "pol" "jpn" "chi_sim" "kor"];
-  };
+  # Распознавание текста: быстрые модели tesseract (tessdata_fast) — в разы
+  # быстрее обычных при почти той же точности на тексте с экрана.
+  tesseract = pkgs.tesseract.override {enableLanguages = [];};
+  tessdata = pkgs.linkFarm "tessdata-fast" (
+    [
+      {
+        name = "configs";
+        path = "${tesseract}/share/tessdata/configs";
+      }
+    ]
+    ++ lib.mapAttrsToList (lang: sha256: {
+      name = "${lang}.traineddata";
+      path = pkgs.fetchurl {
+        url = "https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/4.1.0/${lang}.traineddata";
+        inherit sha256;
+      };
+    }) {
+      eng = "1ckhf515c98ka8dcqfy80scz2hmm5j8w6gv8g5474jbp5ayj4hvx";
+      rus = "09gj9pmys39bkqb3m2adw6wja9j7aj5wyqq0n319w7ffdh1mwvp1";
+      ukr = "16xm7l5lzffc4aw3l02c0klcgjhg4h04njqjbx2g8cpdppi577nm";
+      deu = "0bdjrpi305fbw3mr7jwn2ykvj7m82rl6qqx942fqcb37nsxiklhr";
+      fra = "1jj56hgaqqvals8qg8hi17w9lfbx8zfjikny48qw304c5rb3gl6f";
+      spa = "0r5llq7a967qscy3gi4xmjkknzydy88i2jylpq0qz8bl4z808bkg";
+      ita = "09w8ims15m564wqgfbp47rfdnkm657045q0ssp2dl62ig0g9xy5q";
+      pol = "1ckrxzhmciviqw30z4jzw6n8bgqwpsvj4l9l6a6qjgg3q3dnqiy4";
+      jpn = "0k8vp61qv7id8ya573zj96a8svwjskr01idkykyzb19fdliyjp8z";
+      chi_sim = "0c7pw50k2svbszl89rbjj5k88ngh93lb97gk4a2ns78yvgqbdz55";
+      kor = "1cmkc08gv0d031jbdy1xf4zc8i1824dknlmkjwxqc1xzkcfy31bb";
+    }
+  );
 
   # «Обвести и найти» и перевод экрана, как на Pixel. Оболочка рисует
   # интерфейс, а тяжёлое делает этот скрипт:
@@ -213,71 +239,108 @@
         crop)
           magick "$1" -crop "$2" +repage "$3" ;;
         ocr)
-          tesseract "$1" stdout -l "''${2:-eng+rus}" --psm 3 2>/dev/null ;;
+          tesseract --tessdata-dir ${tessdata} "$1" stdout -l "''${2:-eng+rus}" --psm 3 2>/dev/null ;;
         text)
           trans -b -no-autocorrect ":$1" "$2" ;;
         translate)
           img=$1; langs=''${2:-eng+rus}; to=''${3:-ru}
           tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
-          # слова → абзацы: рамка, средняя высота строки, текст
-          # второй проход по негативу находит светлый текст на тёмном фоне
-          # (кнопки, тёмные темы); совпадающие абзацы awk отбросит
-          magick "$img" -negate "$tmp/neg.png"
-          # по потоку на проход: два многопоточных tesseract рядом душат друг друга
-          OMP_THREAD_LIMIT=1 tesseract "$img" "$tmp/pos" -l "$langs" --psm 3 tsv 2>/dev/null &
-          OMP_THREAD_LIMIT=1 tesseract "$tmp/neg.png" "$tmp/neg" -l "$langs" --psm 3 tsv 2>/dev/null &
-          wait
+          td=(--tessdata-dir ${tessdata})
+          # tesseract 5 сам переворачивает светлый текст на тёмном фоне,
+          # так что достаточно одного прохода
+          tesseract "''${td[@]}" "$img" "$tmp/pos" -l "$langs" --psm 3 tsv 2>/dev/null
+          # Слова → строки → абзацы. Строку рвём там, где между словами большой
+          # промежуток (это другая колонка), а в абзац склеиваем только соседние
+          # строки с тем же левым краем и кеглем — иначе tesseract сливает в
+          # одну кашу текст из разных колонок.
           { cat "$tmp/pos.tsv"
-            awk -F'\t' -v OFS='\t' 'NR > 1 { $3 = $3 + 10000; print }' "$tmp/neg.tsv"
           } | LC_ALL=C awk -F'\t' -v dir="$tmp" '
-            # слова без букв и цифр — обычно значки интерфейса, их пропускаем.
-            # Проверка по байтам UTF-8 (без локали): латиница, цифры, латиница
-            # с диакритикой (C3–C5), кириллица (D0, D1), CJK (E3–ED)
-            $1 == 5 && $11 > 55 && $12 ~ /[A-Za-z0-9]|[\303-\305\320\321\343-\355]/ {
-              k = $3 "-" $4
-              if (!(k in x1)) { order[++n] = k; x1[k] = $7; y1[k] = $8; x2[k] = $7 + $9; y2[k] = $8 + $10 }
-              if ($7 < x1[k]) x1[k] = $7; if ($8 < y1[k]) y1[k] = $8
-              if ($7 + $9 > x2[k]) x2[k] = $7 + $9; if ($8 + $10 > y2[k]) y2[k] = $8 + $10
-              t[k] = t[k] (t[k] == "" ? "" : " ") $12; hs[k] += $10; hc[k]++
+            # слова без букв и цифр — обычно значки интерфейса. Проверка по
+            # байтам UTF-8 (без локали): латиница, цифры, латиница с
+            # диакритикой (C3–C5), кириллица (D0, D1), CJK (E3–ED)
+            $1 == 5 && $11 > 50 && $12 ~ /[A-Za-z0-9]|[\303-\305\320\321\343-\355]/ {
+              k = $3 "-" $4 "-" $5
+              if (k == lk && $7 - ex < 1.8 * sh[n] / sc[n]) {
+                if ($7 + $9 > sx2[n]) sx2[n] = $7 + $9
+                if ($8 < sy1[n]) sy1[n] = $8
+                if ($8 + $10 > sy2[n]) sy2[n] = $8 + $10
+                st[n] = st[n] " " $12; sh[n] += $10; sc[n]++
+              } else {
+                n++; sx1[n] = $7; sy1[n] = $8; sx2[n] = $7 + $9; sy2[n] = $8 + $10
+                st[n] = $12; sh[n] = $10; sc[n] = 1
+              }
+              lk = k; ex = $7 + $9
             }
+            function abs(v) { return v < 0 ? -v : v }
             END {
               m = 0
               for (i = 1; i <= n; i++) {
-                k = order[i]
-                # абзац из негатива, который уже нашёлся на оригинале, — пропустить
+                h = sh[i] / sc[i]
+                # тот же текст уже нашёлся (проход по негативу) — пропустить
                 dup = 0
-                for (j = 1; j < i; j++) {
-                  q = order[j]
-                  if (x1[k] < x2[q] && x2[k] > x1[q] && y1[k] < y2[q] && y2[k] > y1[q]) { dup = 1; break }
-                }
+                for (j = 1; j <= m; j++)
+                  if (sx1[i] < px2[j] && sx2[i] > px1[j] && sy1[i] < py2[j] && sy2[i] > py1[j]) { dup = j; break }
                 if (dup) continue
-                i_out = ++m
-                printf "%d\t%d\t%d\t%d\t%d\n", x1[k], y1[k], x2[k] - x1[k], y2[k] - y1[k], hs[k] / hc[k] > dir "/" i_out ".box"
-                printf "%s", t[k] > dir "/" i_out ".txt"
+                merged = 0
+                for (j = m; j >= 1 && j > m - 6; j--) {
+                  gap = sy1[i] - py2[j]
+                  if (abs(sx1[i] - px1[j]) < 0.8 * h && gap >= -0.2 * h && gap < 0.9 * h && abs(h - ph[j]) < 0.35 * h) {
+                    if (sx2[i] > px2[j]) px2[j] = sx2[i]
+                    py2[j] = sy2[i]; pt[j] = pt[j] " " st[i]; pn[j]++
+                    merged = 1; break
+                  }
+                }
+                if (!merged) {
+                  m++; px1[m] = sx1[i]; py1[m] = sy1[i]; px2[m] = sx2[i]; py2[m] = sy2[i]
+                  ph[m] = h; pt[m] = st[i]; pn[m] = 1
+                }
+              }
+              for (j = 1; j <= m; j++) {
+                printf "%d\t%d\t%d\t%d\t%d\n", px1[j], py1[j], px2[j] - px1[j], py2[j] - py1[j], ph[j] > dir "/boxes"
+                print pt[j] > dir "/text"
               }
             }'
-          # переводим абзацы параллельно
-          find "$tmp" -name '*.txt' -print0 | xargs -0 -P 8 -I{} sh -c 'trans -b -no-autocorrect ":$1" "$(cat "$2")" > "$2.tr" 2>/dev/null; grep -q "[^[:space:]]" "$2.tr" || cp "$2" "$2.tr"' sh "$to" {}
+          [ -s "$tmp/boxes" ] || exit 0
+          # Перевод: что уже переводилось — из кеша (живой режим каждые
+          # пару секунд видит почти тот же текст), остальное — одним запросом
+          # (по строке на абзац); если строки разъехались — по одному, параллельно.
+          cache="''${XDG_RUNTIME_DIR:-/tmp}/pixel-lens/tr-$to.tsv"
+          mkdir -p "$(dirname "$cache")"; touch "$cache"
+          awk -F'\t' -v miss="$tmp/miss" 'NR == FNR { c[$1] = $2; next }
+            { if ($0 in c) print c[$0]; else { print "\001"; print > miss } }' "$cache" "$tmp/text" > "$tmp/known"
+          if [ -s "$tmp/miss" ]; then
+            n=$(wc -l < "$tmp/miss")
+            trans -b -no-autocorrect -no-warn ":$to" "$(cat "$tmp/miss")" > "$tmp/mtr" 2>/dev/null || true
+            sed -i '/^[[:space:]]*$/d' "$tmp/mtr"
+            if [ "$(wc -l < "$tmp/mtr")" -ne "$n" ]; then
+              mkdir -p "$tmp/p"
+              split -l 1 -d -a 4 "$tmp/miss" "$tmp/p/"
+              find "$tmp/p" -type f -print0 | xargs -0 -P 8 -I{} sh -c 'trans -b -no-autocorrect -no-warn ":$1" "$(cat "$2")" 2>/dev/null | tr "\n" " " > "$2.tr"' sh "$to" {}
+              : > "$tmp/mtr"
+              for f in $(find "$tmp/p" -name '*.tr' | sort); do { tr -d '\n' < "$f"; echo; } >> "$tmp/mtr"; done
+            fi
+            # удачные переводы — в кеш
+            paste "$tmp/miss" "$tmp/mtr" | awk -F'\t' '$2 ~ /[^[:space:]]/' >> "$cache"
+          fi
+          awk -v mtr="$tmp/mtr" '$0 == "\001" { getline t < mtr; print t; next } { print }' "$tmp/known" > "$tmp/tr"
           # фон — цвет у углов рамки (снаружи текста), какой встречается чаще;
           # все точки — одним вызовом magick
-          fmt=""; i=1
-          while [ -e "$tmp/$i.box" ]; do
-            read -r x y w h _ < "$tmp/$i.box"
+          fmt=""
+          while read -r x y w h _; do
             l=$((x > 3 ? x - 3 : 0)); t=$((y > 3 ? y - 3 : 0)); r=$((x + w + 3)); b=$((y + h + 3))
             fmt="$fmt%[hex:p{$l,$t}] %[hex:p{$r,$t}] %[hex:p{$l,$b}] %[hex:p{$r,$b}]\n"
-            i=$((i + 1))
-          done
-          [ -n "$fmt" ] || exit 0
+          done < "$tmp/boxes"
           magick "$img" -format "$fmt" info: > "$tmp/bg" 2>/dev/null || true
-          i=1
-          while [ -e "$tmp/$i.box" ]; do
-            read -r x y w h lh < "$tmp/$i.box"
-            bg=$(sed -n "''${i}p" "$tmp/bg" | tr ' ' '\n' | cut -c1-6 | grep . | sort | uniq -c | sort -rn | awk 'NR == 1 { print $2 }')
-            [ -n "$bg" ] || bg=202020
-            tr=$(tr '\n\t' '  ' < "$tmp/$i.txt.tr")
-            printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$x" "$y" "$w" "$h" "$lh" "$bg" "$tr"
-            i=$((i + 1))
-          done ;;
+          # сборка: рамка, фон (самый частый цвет из четырёх углов), перевод
+          LC_ALL=C awk -F'\t' -v bgf="$tmp/bg" -v trf="$tmp/tr" -v txf="$tmp/text" '{
+            getline bgl < bgf; getline trl < trf; getline txl < txf
+            split(bgl, c, " "); best = ""; bc = 0
+            for (i in c) { v = substr(c[i], 1, 6); if (v == "") continue; cnt[v]++; if (cnt[v] > bc) { bc = cnt[v]; best = v } }
+            delete cnt
+            if (best == "") best = "202020"
+            gsub(/\t/, " ", trl); if (trl !~ /[^[:space:]]/) trl = txl
+            printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\n", $1, $2, $3, $4, $5, best, trl
+          }' "$tmp/boxes" ;;
         search)
           # Google Lens принимает картинку и отвечает адресом страницы с результатами
           url=$(curl -s -o /dev/null -w '%{redirect_url}' \
@@ -409,6 +472,7 @@ in {
           hyprsunset
           mpvpaper # видеообои Wallpaper Engine
           ffmpeg # кадры из видеообоев для превью и палитры
+          libarchive # bsdtar: архивы в «Файлах»
           ddcutil # яркость внешних мониторов
           xdg-utils
           flatpak
@@ -448,7 +512,20 @@ in {
     icon = "system-file-manager";
     exec = "pixel-shell files open %U";
     categories = ["System" "FileManager" "Utility"];
-    mimeType = ["inode/directory"];
+    mimeType = [
+      "inode/directory"
+      # архивы открываются как папки
+      "application/zip"
+      "application/x-7z-compressed"
+      "application/vnd.rar"
+      "application/x-rar"
+      "application/x-tar"
+      "application/x-compressed-tar"
+      "application/x-xz-compressed-tar"
+      "application/x-zstd-compressed-tar"
+      "application/x-bzip2-compressed-tar"
+      "application/gzip"
+    ];
     settings.StartupWMClass = "pixel-shell";
   };
 
