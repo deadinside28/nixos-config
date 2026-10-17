@@ -248,6 +248,17 @@ SettingsPage {
             checked: Settings.data.blur
             onToggled: v => Settings.data.blur = v
         }
+        SliderItem {
+            icon: "opacity"
+            title: "Плотность панелей"
+            valueText: Math.round(Settings.data.panelOpacity * 100) + "%"
+            from: 0.5
+            to: 1
+            stepSize: 0.01
+            value: Settings.data.panelOpacity
+            disabled: !Settings.data.blur
+            onMoved: v => Settings.data.panelOpacity = Math.round(v * 100) / 100
+        }
     }
 
     Group {

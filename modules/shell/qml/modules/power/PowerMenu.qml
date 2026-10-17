@@ -60,7 +60,7 @@ Overlay {
         height: row.implicitHeight + 48
         scale: 0.9 + 0.1 * root.progress
         opacity: root.progress
-        color: Theme.surfaceContainer
+        color: Theme.panel
 
         RowLayout {
             id: row

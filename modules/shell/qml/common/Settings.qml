@@ -126,6 +126,7 @@ Singleton {
             property int blurPasses: 2
             property int blurSize: 5
             property bool blurXray: false // размывать только обои — заметно дешевле
+            property real panelOpacity: 0.82 // непрозрачность панелей оболочки (стекло)
             property bool shadows: true
             property bool hyprAnimations: true
             property real windowOpacity: 0.93

@@ -35,7 +35,7 @@ Overlay {
         x: root.insetLeft + (root.width - root.insetLeft - root.insetRight - width) / 2
         y: (Bar.edge === "top" ? root.insetTop + 12 : Bar.vertical ? (root.height - height) / 2 : root.height - root.insetBottom - 12 - height) + root.slideY((1 - root.progress) * 40)
         opacity: root.progress
-        color: Theme.surfaceContainer
+        color: Theme.panel
 
         ColumnLayout {
             anchors.fill: parent

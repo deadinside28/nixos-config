@@ -34,7 +34,7 @@ PanelWindow {
 
     Rectangle {
         anchors.fill: parent
-        color: Theme.alpha(Theme.surfaceContainer, 0.86)
+        color: Theme.panel
 
         // тонкая линия со стороны рабочего стола
         Rectangle {

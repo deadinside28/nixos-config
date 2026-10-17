@@ -24,7 +24,8 @@ Item {
         blur: 24
         spread: 0
         offset.y: 6
-        color: Theme.alpha(Theme.shadow, Theme.dark ? 0.5 : 0.22)
+        // под стеклянной карточкой тень просвечивает — делаем её легче
+        color: Theme.alpha(Theme.shadow, (Theme.dark ? 0.5 : 0.22) * (root.color.a < 0.99 ? 0.4 : 1))
     }
 
     Rectangle {

@@ -81,7 +81,7 @@ Overlay {
         opacity: root.progress
         scale: 0.94 + 0.06 * root.progress
         transformOrigin: Bar.edge === "top" ? Item.Top : Item.Bottom
-        color: Theme.surfaceContainer
+        color: Theme.panel
 
         ColumnLayout {
             anchors.fill: parent

@@ -135,12 +135,14 @@ ${on.join("\n")}
         const rules = (Settings.data.userRules ?? []).filter(r => r.cls || r.title).map(r => {
             const match = [];
             if (r.cls)
-                match.push(`class = ${lua(rx(r.cls))}`);
+                match.push(`class = ${lua(r.exact ? "^(" + r.cls.replace(/[\^$.*+?()[\]{}|\\]/g, "\\$&") + ")$" : rx(r.cls))}`);
             if (r.title)
                 match.push(`title = ${lua(rx(r.title))}`);
             const fx = [`match = { ${match.join(", ")} }`];
             if (r.float)
                 fx.push("float = true");
+            else if (r.tile && !r.fullscreen)
+                fx.push("tile = true");
             if (r.center)
                 fx.push("center = true");
             if (r.pin)

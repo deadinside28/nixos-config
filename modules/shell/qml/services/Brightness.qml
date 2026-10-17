@@ -13,6 +13,8 @@ Singleton {
     // [{ name, bus, value (0…1), max }] — name: имя выхода (HDMI-A-1) или "backlight"
     property var monitors: []
     readonly property bool available: monitors.length > 0
+    // Для списков в интерфейсе (ScriptModel по строкам не пересоздаёт строки)
+    readonly property var names: monitors.map(m => m.name)
     // Яркость экрана с фокусом (для быстрых настроек и OSD)
     readonly property var focused: monitors.find(m => m.name === Ui.focusedScreen) ?? monitors.find(m => m.name === "backlight") ?? monitors[0] ?? null
     readonly property real value: focused?.value ?? 0
@@ -74,11 +76,21 @@ Singleton {
             value: Math.max(0.01, Math.min(1, v))
         });
         monitors = list;
-        changedByUser();
         pending[target] = true;
         applyTimer.restart();
     }
     property var pending: ({})
+    // Клавиши яркости: шаг для экрана с фокусом + OSD
+    function step(d) {
+        set(value + d);
+        changedByUser();
+    }
+    function label(name) {
+        if (name === "backlight")
+            return "Экран ноутбука";
+        const s = Quickshell.screens.find(x => x.name === name);
+        return s?.model ? s.model + " · " + name : name;
+    }
 
     // DDC медленный: шлём не чаще раза в 150 мс и только последнее значение
     Timer {

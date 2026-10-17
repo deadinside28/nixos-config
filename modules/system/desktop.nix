@@ -65,7 +65,6 @@ in {
     gtk3 # gtk-launch — запуск приложений из своих биндов
     hyprsunset
     brightnessctl
-    networkmanagerapplet # nm-connection-editor
     pavucontrol
     xdg-utils
   ];

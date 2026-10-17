@@ -215,6 +215,22 @@ Singleton {
         });
     }
 
+    // Списки в интерфейсе строятся по ключам (ScriptModel сравнивает строки),
+    // а сам объект берётся отсюда. Иначе каждое движение громкости пересоздавало
+    // строки микшера, и слайдер нельзя было тянуть — только нажать.
+    readonly property var appKeys: apps.map(a => a.key)
+    readonly property var emptyApp: ({
+            key: "",
+            name: "",
+            icon: "",
+            nodes: [],
+            volume: 0,
+            muted: false
+        })
+    function appByKey(k) {
+        return apps.find(a => a.key === k) ?? emptyApp;
+    }
+
     function setAppVolume(app, v) {
         for (const n of app.nodes)
             if (n.audio) {

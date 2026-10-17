@@ -419,14 +419,17 @@ SettingsPage {
         title: "Яркость"
         // У каждого монитора своя: внешние — по DDC/CI, ноутбук — подсветка
         Repeater {
-            model: Brightness.monitors
+            model: ScriptModel {
+                values: Brightness.names
+            }
             SliderItem {
-                required property var modelData
+                required property string modelData
+                readonly property real level: Brightness.valueFor(modelData)
                 icon: "brightness_6"
-                title: modelData.name === "backlight" ? "Экран ноутбука" : modelData.name
-                valueText: Math.round(modelData.value * 100) + "%"
-                value: modelData.value
-                onMoved: v => Brightness.set(v, modelData.name)
+                title: Brightness.label(modelData)
+                valueText: Math.round(level * 100) + "%"
+                value: level
+                onMoved: v => Brightness.set(v, modelData)
             }
         }
         ListItem {

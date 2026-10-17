@@ -16,6 +16,7 @@ Overlay {
     onDismissed: Ui.close()
 
     property bool mixerOpen: false
+    property bool brightOpen: false
 
     // Идёт ли запись экрана — проверяем, пока панель открыта.
     Process {
@@ -47,7 +48,7 @@ Overlay {
             id: qsCard
             Layout.fillWidth: true
             implicitHeight: qsCol.implicitHeight + 32
-            color: Theme.surfaceContainer
+            color: Theme.panel
 
             ColumnLayout {
                 id: qsCol
@@ -145,12 +146,14 @@ Overlay {
                         spacing: 4
 
                         Repeater {
-                            model: Audio.apps
+                            model: ScriptModel {
+                                values: Audio.appKeys
+                            }
                             AppVolumeRow {
-                                required property var modelData
+                                required property string modelData
                                 Layout.fillWidth: true
                                 compact: true
-                                app: modelData
+                                app: Audio.appByKey(modelData)
                             }
                         }
                         MText {
@@ -169,12 +172,100 @@ Overlay {
                         }
                     }
                 }
-                PillSlider {
+                // Яркость — как звук: общий слайдер и раскрывашка по мониторам
+                RowLayout {
                     Layout.fillWidth: true
                     visible: Brightness.available && Settings.data.qsShowBrightness
-                    icon: "brightness_6"
-                    value: Brightness.value
-                    onMoved: v => Brightness.set(v)
+                    spacing: 8
+                    PillSlider {
+                        Layout.fillWidth: true
+                        icon: "brightness_6"
+                        value: Brightness.value
+                        onMoved: v => Brightness.set(v)
+                    }
+                    IconButton {
+                        visible: Brightness.names.length > 1
+                        implicitWidth: 52
+                        implicitHeight: 52
+                        variant: "tonal"
+                        checkable: true
+                        toggled: root.brightOpen
+                        icon: "desktop_windows"
+                        onClicked: root.brightOpen = !root.brightOpen
+                    }
+                }
+                Rectangle {
+                    Layout.fillWidth: true
+                    visible: root.brightOpen && Brightness.available && Settings.data.qsShowBrightness
+                    implicitHeight: brightCol.implicitHeight + 24
+                    radius: Theme.radius.xl * 0.8
+                    color: Theme.surfaceContainerHigh
+
+                    ColumnLayout {
+                        id: brightCol
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.top: parent.top
+                        anchors.margins: 12
+                        anchors.leftMargin: 16
+                        spacing: 4
+
+                        Repeater {
+                            model: ScriptModel {
+                                values: Brightness.names
+                            }
+                            RowLayout {
+                                id: brow
+                                required property string modelData
+                                readonly property real level: Brightness.valueFor(modelData)
+                                Layout.fillWidth: true
+                                spacing: 12
+                                Rectangle {
+                                    implicitWidth: 32
+                                    implicitHeight: 32
+                                    radius: 16
+                                    color: brow.modelData === Ui.activeScreen ? Theme.primaryContainer : Theme.secondaryContainer
+                                    MIcon {
+                                        anchors.centerIn: parent
+                                        icon: brow.modelData === "backlight" ? "laptop" : "monitor"
+                                        size: 18
+                                        color: brow.modelData === Ui.activeScreen ? Theme.fgPrimaryContainer : Theme.fgSecondaryContainer
+                                    }
+                                }
+                                ColumnLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 0
+                                    RowLayout {
+                                        Layout.fillWidth: true
+                                        MText {
+                                            Layout.fillWidth: true
+                                            text: Brightness.label(brow.modelData)
+                                            size: Theme.type.bodyM
+                                            elide: Text.ElideRight
+                                        }
+                                        MText {
+                                            text: Math.round(brow.level * 100) + "%"
+                                            color: Theme.fgSurfaceVariant
+                                            size: Theme.type.bodyS
+                                        }
+                                    }
+                                    MSlider {
+                                        Layout.fillWidth: true
+                                        implicitHeight: 32
+                                        value: brow.level
+                                        onMoved: v => Brightness.set(v, brow.modelData)
+                                    }
+                                }
+                            }
+                        }
+                        Button {
+                            Layout.alignment: Qt.AlignRight
+                            variant: "text"
+                            icon: "settings"
+                            text: "Настройки экрана"
+                            onClicked: Ui.openSettings("display")
+                        }
+                    }
                 }
 
                 // Плитки — состав и порядок из «Настройки → Быстрые настройки»
@@ -214,7 +305,7 @@ Overlay {
             visible: Notifs.count > 0 || !SystemConfig.cardDismissed
             // сколько влезет под шторкой
             implicitHeight: Math.min(notifCol.implicitHeight + 32, Math.max(180, root.height - root.insetTop - root.insetBottom - 36 - qsCard.height))
-            color: Theme.surfaceContainer
+            color: Theme.panel
 
             ColumnLayout {
                 id: notifCol

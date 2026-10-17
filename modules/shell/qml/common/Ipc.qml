@@ -107,10 +107,10 @@ Scope {
     IpcHandler {
         target: "brightness"
         function up(): void {
-            Brightness.set(Brightness.value + 0.05);
+            Brightness.step(0.05);
         }
         function down(): void {
-            Brightness.set(Brightness.value - 0.05);
+            Brightness.step(-0.05);
         }
     }
     IpcHandler {

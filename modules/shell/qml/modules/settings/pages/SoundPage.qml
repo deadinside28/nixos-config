@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
+import Quickshell
 import Quickshell.Services.Pipewire
 import qs.common
 import qs.widgets
@@ -67,10 +68,13 @@ SettingsPage {
         title: "Громкость приложений"
 
         Repeater {
-            model: Audio.apps
+            model: ScriptModel {
+                values: Audio.appKeys
+            }
             Rectangle {
                 id: app
-                required property var modelData
+                required property string modelData
+                readonly property var entry: Audio.appByKey(modelData)
                 readonly property bool groupItem: true
                 property bool first: true
                 property bool last: true
@@ -93,7 +97,7 @@ SettingsPage {
 
                     AppVolumeRow {
                         Layout.fillWidth: true
-                        app: app.modelData
+                        app: app.entry
                     }
 
                     // Вывод на другое устройство — только когда их больше одного
@@ -111,7 +115,7 @@ SettingsPage {
                             Rectangle {
                                 id: chip
                                 required property var modelData
-                                readonly property bool sel: Audio.appSinkId(app.modelData) === modelData.id
+                                readonly property bool sel: Audio.appSinkId(app.entry) === modelData.id
                                 implicitHeight: 32
                                 implicitWidth: chipText.implicitWidth + 24
                                 radius: Theme.radius.s
@@ -127,7 +131,7 @@ SettingsPage {
                                     width: Math.min(implicitWidth, 220)
                                 }
                                 StateLayer {
-                                    onClicked: Audio.moveApp(app.modelData, chip.modelData)
+                                    onClicked: Audio.moveApp(app.entry, chip.modelData)
                                 }
                             }
                         }

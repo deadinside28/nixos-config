@@ -233,7 +233,7 @@ SettingsPage {
             onToggled: v => Settings.data.resizeOnBorder = v
         }
         SwitchItem {
-            icon: "magnet"
+            icon: "drag_pan"
             title: "Прилипание плавающих окон"
             subtitle: "К краям экрана и друг к другу"
             checked: Settings.data.snapEnabled
@@ -249,6 +249,8 @@ SettingsPage {
     }
 
     // --- Правила окон -----------------------------------------------------
+    // Всё мышкой: выбираешь окно (открытое сейчас или приложение из списка),
+    // дальше — стол, монитор, режим и размер кнопками. Писать ничего не нужно.
     readonly property var rules: Settings.data.userRules ?? []
     function saveRule(i, patch) {
         const r = rules.slice();
@@ -259,11 +261,66 @@ SettingsPage {
         Settings.data.userRules = rules.filter((_, j) => j !== i);
         editing = -1;
     }
-    // Классы открытых окон — подсказки для нового правила
-    readonly property var openClasses: [...new Set(Hyprland.toplevels.values.map(t => t.lastIpcObject?.class ?? "").filter(c => c))].sort()
+    function addRule(rule) {
+        const i = rules.findIndex(r => r.cls === rule.cls && !r.title);
+        if (i >= 0) {
+            editing = i;
+        } else {
+            Settings.data.userRules = [...rules, Object.assign({
+                    exact: true
+                }, rule)];
+            editing = rules.length - 1;
+        }
+        picking = false;
+    }
+    property bool picking: false
+    property string pickQuery: ""
+
+    // Открытые окна: значок, имя, заголовок и где сейчас
+    readonly property var openWindows: Hyprland.toplevels.values.map(t => {
+        const o = t.lastIpcObject ?? {};
+        const mon = Hyprland.monitors.values.find(m => m.id === o.monitor);
+        return {
+            cls: o.class ?? "",
+            title: o.title ?? t.title ?? "",
+            workspace: o.workspace?.name ?? "",
+            monitor: mon?.name ?? "",
+            floating: !!o.floating,
+            size: o.size ?? [0, 0]
+        };
+    }).filter(w => w.cls)
+
+    function wsLabel(w) {
+        return /^special/.test(w) ? "особый стол" : "стол " + w;
+    }
+    function screenSize(name) {
+        const sc = Quickshell.screens.find(x => x.name === name) ?? Quickshell.screens[0];
+        return sc ? [sc.width, sc.height] : [1920, 1080];
+    }
+    readonly property var sizePresets: [
+        {
+            value: "",
+            label: "Как получится"
+        },
+        {
+            value: "s",
+            label: "Маленькое",
+            k: [0.4, 0.5]
+        },
+        {
+            value: "m",
+            label: "Среднее",
+            k: [0.6, 0.7]
+        },
+        {
+            value: "l",
+            label: "Большое",
+            k: [0.8, 0.85]
+        }
+    ]
 
     Group {
-        title: "Свои правила окон"
+        title: "Правила для приложений"
 
         Repeater {
             model: page.rules
@@ -276,8 +333,9 @@ SettingsPage {
                 property bool last: false
                 readonly property bool open: page.editing === index
                 readonly property var entry: Apps.forWindow(modelData.cls)
+                readonly property string mode: modelData.fullscreen ? "fullscreen" : modelData.float ? "float" : "tile"
                 Layout.fillWidth: true
-                implicitHeight: 72 + (open ? editor.implicitHeight + 16 : 0)
+                implicitHeight: 72 + (open ? editor.implicitHeight + 20 : 0)
                 color: Theme.dark ? Theme.surfaceContainerHigh : Theme.surfaceContainerLowest
                 topLeftRadius: first ? 24 : 4
                 topRightRadius: first ? 24 : 4
@@ -305,7 +363,7 @@ SettingsPage {
                         anchors.rightMargin: 12
                         spacing: 16
                         AppIcon {
-                            size: 32
+                            size: 36
                             icon: rule.entry?.icon ?? rule.modelData.cls ?? ""
                         }
                         ColumnLayout {
@@ -313,36 +371,29 @@ SettingsPage {
                             spacing: 2
                             MText {
                                 Layout.fillWidth: true
-                                text: rule.entry?.name ?? (rule.modelData.cls || ("Заголовок: " + rule.modelData.title))
+                                text: rule.entry?.name ?? (rule.modelData.cls || rule.modelData.title)
                                 size: Theme.type.bodyL
+                                elide: Text.ElideRight
                             }
                             MText {
                                 Layout.fillWidth: true
                                 color: Theme.fgSurfaceVariant
+                                elide: Text.ElideRight
                                 text: {
                                     const r = rule.modelData;
                                     const p = [];
-                                    if (r.float)
-                                        p.push("плавающее");
-                                    if (r.center)
+                                    if (r.workspace)
+                                        p.push(page.wsLabel(r.workspace));
+                                    if (r.monitor)
+                                        p.push(Brightness.label(r.monitor));
+                                    p.push(rule.mode === "fullscreen" ? "на весь экран" : rule.mode === "float" ? "плавающее" : "в раскладке");
+                                    if (r.float && r.center)
                                         p.push("по центру");
                                     if (r.pin)
                                         p.push("на всех столах");
-                                    if (r.fullscreen)
-                                        p.push("на весь экран");
-                                    if (r.workspace)
-                                        p.push("стол " + r.workspace);
-                                    if (r.monitor)
-                                        p.push(r.monitor);
-                                    if (r.width && r.height)
-                                        p.push(r.width + "×" + r.height);
                                     if (r.opacity && r.opacity < 1)
                                         p.push("прозрачность " + Math.round(r.opacity * 100) + "%");
-                                    if (r.noBlur)
-                                        p.push("без размытия");
-                                    if (r.opaque)
-                                        p.push("непрозрачное");
-                                    return p.length ? p.join(" · ") : "Нажми, чтобы настроить";
+                                    return p.join(" · ");
                                 }
                             }
                         }
@@ -359,59 +410,140 @@ SettingsPage {
                     y: 72
                     x: 20
                     width: parent.width - 40
-                    spacing: 8
+                    spacing: 10
 
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: 8
-                        TextField {
-                            Layout.fillWidth: true
-                            implicitHeight: 48
-                            icon: "apps"
-                            placeholder: "Класс окна (app_id)"
-                            text: rule.modelData.cls ?? ""
-                            onAccepted: page.saveRule(rule.index, {
-                                cls: text
-                            })
-                            input.onEditingFinished: page.saveRule(rule.index, {
-                                cls: text
-                            })
-                        }
-                        TextField {
-                            Layout.fillWidth: true
-                            implicitHeight: 48
-                            icon: "title"
-                            placeholder: "Заголовок (необязательно)"
-                            text: rule.modelData.title ?? ""
-                            input.onEditingFinished: page.saveRule(rule.index, {
-                                title: text
-                            })
-                        }
+                    Label {
+                        text: "На каком столе открывать"
                     }
                     Flow {
                         Layout.fillWidth: true
-                        spacing: 8
+                        spacing: 6
+                        Repeater {
+                            model: ["", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
+                            Chip {
+                                required property string modelData
+                                text: modelData === "" ? "На текущем" : modelData
+                                square: modelData !== ""
+                                on: (rule.modelData.workspace ?? "") === modelData
+                                onClicked: page.saveRule(rule.index, {
+                                    workspace: modelData
+                                })
+                            }
+                        }
+                    }
+
+                    Label {
+                        visible: Quickshell.screens.length > 1
+                        text: "На каком мониторе"
+                    }
+                    Flow {
+                        Layout.fillWidth: true
+                        visible: Quickshell.screens.length > 1
+                        spacing: 6
+                        Repeater {
+                            model: ["", ...Quickshell.screens.map(x => x.name)]
+                            Chip {
+                                required property string modelData
+                                icon: modelData === "" ? "" : "monitor"
+                                text: modelData === "" ? "Любой" : Brightness.label(modelData)
+                                on: (rule.modelData.monitor ?? "") === modelData
+                                onClicked: page.saveRule(rule.index, {
+                                    monitor: modelData
+                                })
+                            }
+                        }
+                    }
+
+                    Label {
+                        text: "Как показывать"
+                    }
+                    SegmentedButtons {
+                        Layout.fillWidth: true
+                        options: [
+                            {
+                                value: "tile",
+                                label: "В раскладке",
+                                icon: "view_column"
+                            },
+                            {
+                                value: "float",
+                                label: "Плавающее",
+                                icon: "picture_in_picture"
+                            },
+                            {
+                                value: "fullscreen",
+                                label: "На весь экран",
+                                icon: "fullscreen"
+                            }
+                        ]
+                        current: rule.mode
+                        onSelected: v => page.saveRule(rule.index, {
+                            float: v === "float",
+                            tile: v === "tile",
+                            fullscreen: v === "fullscreen",
+                            center: v === "float" ? (rule.modelData.center ?? true) : false
+                        })
+                    }
+
+                    // Размер — для плавающих
+                    Label {
+                        visible: rule.mode === "float"
+                        text: "Размер"
+                    }
+                    Flow {
+                        Layout.fillWidth: true
+                        visible: rule.mode === "float"
+                        spacing: 6
+                        Repeater {
+                            model: page.sizePresets
+                            Chip {
+                                required property var modelData
+                                text: modelData.label
+                                on: (rule.modelData.sizePreset ?? (rule.modelData.width ? "custom" : "")) === modelData.value
+                                onClicked: {
+                                    if (!modelData.k) {
+                                        page.saveRule(rule.index, {
+                                            sizePreset: "",
+                                            width: "",
+                                            height: ""
+                                        });
+                                        return;
+                                    }
+                                    const [w, h] = page.screenSize(rule.modelData.monitor);
+                                    page.saveRule(rule.index, {
+                                        sizePreset: modelData.value,
+                                        width: Math.round(w * modelData.k[0]),
+                                        height: Math.round(h * modelData.k[1])
+                                    });
+                                }
+                            }
+                        }
+                        Chip {
+                            visible: !!rule.modelData.width && (rule.modelData.sizePreset ?? "") === ""
+                            on: true
+                            text: rule.modelData.width + " × " + rule.modelData.height
+                        }
+                    }
+
+                    Label {
+                        text: "Ещё"
+                    }
+                    Flow {
+                        Layout.fillWidth: true
+                        spacing: 6
                         Repeater {
                             model: [
                                 {
-                                    key: "float",
-                                    label: "Плавающее",
-                                    icon: "picture_in_picture"
-                                },
-                                {
                                     key: "center",
                                     label: "По центру",
-                                    icon: "center_focus_weak"
+                                    icon: "center_focus_weak",
+                                    floatOnly: true
                                 },
                                 {
                                     key: "pin",
                                     label: "На всех столах",
-                                    icon: "push_pin"
-                                },
-                                {
-                                    key: "fullscreen",
-                                    label: "На весь экран",
-                                    icon: "fullscreen"
+                                    icon: "push_pin",
+                                    floatOnly: true
                                 },
                                 {
                                     key: "noBlur",
@@ -423,90 +555,17 @@ SettingsPage {
                                     label: "Непрозрачное",
                                     icon: "opacity"
                                 }
-                            ]
-                            Rectangle {
-                                id: chip
+                            ].filter(c => !c.floatOnly || rule.mode === "float")
+                            Chip {
                                 required property var modelData
-                                readonly property bool on: !!rule.modelData[modelData.key]
-                                implicitHeight: 36
-                                implicitWidth: chipRow.implicitWidth + 24
-                                radius: Theme.radius.s
-                                color: on ? Theme.secondaryContainer : "transparent"
-                                border.width: on ? 0 : 1
-                                border.color: Theme.outlineVariant
-                                RowLayout {
-                                    id: chipRow
-                                    anchors.centerIn: parent
-                                    spacing: 6
-                                    MIcon {
-                                        icon: chip.on ? "check" : chip.modelData.icon
-                                        size: 18
-                                        color: chip.on ? Theme.fgSecondaryContainer : Theme.fgSurfaceVariant
-                                    }
-                                    MText {
-                                        text: chip.modelData.label
-                                        size: Theme.type.labelL
-                                        color: chip.on ? Theme.fgSecondaryContainer : Theme.fgSurfaceVariant
-                                    }
-                                }
-                                StateLayer {
-                                    onClicked: page.saveRule(rule.index, {
-                                        [chip.modelData.key]: !chip.on
-                                    })
-                                }
+                                icon: modelData.icon
+                                text: modelData.label
+                                on: !!rule.modelData[modelData.key]
+                                onClicked: page.saveRule(rule.index, {
+                                    [modelData.key]: !on
+                                })
                             }
                         }
-                    }
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: 8
-                        TextField {
-                            Layout.preferredWidth: 150
-                            implicitHeight: 48
-                            icon: "space_dashboard"
-                            placeholder: "Стол"
-                            text: rule.modelData.workspace ?? ""
-                            input.onEditingFinished: page.saveRule(rule.index, {
-                                workspace: text
-                            })
-                        }
-                        TextField {
-                            Layout.fillWidth: true
-                            implicitHeight: 48
-                            icon: "aspect_ratio"
-                            placeholder: "Ширина"
-                            text: rule.modelData.width ?? ""
-                            input.onEditingFinished: page.saveRule(rule.index, {
-                                width: text
-                            })
-                        }
-                        TextField {
-                            Layout.fillWidth: true
-                            implicitHeight: 48
-                            placeholder: "Высота"
-                            text: rule.modelData.height ?? ""
-                            input.onEditingFinished: page.saveRule(rule.index, {
-                                height: text
-                            })
-                        }
-                    }
-                    SegmentedButtons {
-                        Layout.fillWidth: true
-                        visible: Quickshell.screens.length > 1
-                        options: [
-                            {
-                                value: "",
-                                label: "Любой монитор"
-                            },
-                            ...Quickshell.screens.map(s => ({
-                                        value: s.name,
-                                        label: s.name
-                                    }))
-                        ]
-                        current: rule.modelData.monitor ?? ""
-                        onSelected: v => page.saveRule(rule.index, {
-                            monitor: v
-                        })
                     }
                     RowLayout {
                         Layout.fillWidth: true
@@ -533,28 +592,232 @@ SettingsPage {
             }
         }
 
-        ChoiceItem {
-            icon: "add"
-            title: "Добавить правило для открытого окна"
-            options: [
-                {
-                    value: "",
-                    label: "Пустое правило — впишу класс сам"
-                },
-                ...page.openClasses.map(c => ({
-                            value: c,
-                            label: (Apps.forWindow(c)?.name ?? c) + "  ·  " + c
-                        }))
-            ]
-            current: undefined
-            onSelected: v => {
-                Settings.data.userRules = [...page.rules, {
-                        cls: v,
-                        float: true,
-                        center: true
-                    }];
-                page.editing = page.rules.length - 1;
+        ListItem {
+            visible: page.rules.length === 0 && !page.picking
+            icon: "rule"
+            title: "Правил пока нет"
+            subtitle: "Например: Telegram всегда на 7-м столе, калькулятор — маленьким плавающим окном"
+            clickable: false
+        }
+
+        // --- Выбор окна для нового правила ---------------------------------
+        Rectangle {
+            readonly property bool groupItem: true
+            property bool first: false
+            property bool last: false
+            Layout.fillWidth: true
+            implicitHeight: page.picking ? pickCol.implicitHeight + 32 : 64
+            color: Theme.dark ? Theme.surfaceContainerHigh : Theme.surfaceContainerLowest
+            topLeftRadius: first ? 24 : 4
+            topRightRadius: first ? 24 : 4
+            bottomLeftRadius: last ? 24 : 4
+            bottomRightRadius: last ? 24 : 4
+            clip: true
+
+            StateLayer {
+                visible: !page.picking
+                radius: parent.bottomLeftRadius
+                onClicked: page.picking = true
             }
+            RowLayout {
+                visible: !page.picking
+                anchors.fill: parent
+                anchors.leftMargin: 20
+                spacing: 16
+                MIcon {
+                    icon: "add"
+                    color: Theme.primary
+                }
+                MText {
+                    text: "Добавить правило"
+                    color: Theme.primary
+                    weight: Theme.strongWeight
+                }
+            }
+
+            ColumnLayout {
+                id: pickCol
+                visible: page.picking
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                anchors.margins: 16
+                spacing: 12
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    MText {
+                        Layout.fillWidth: true
+                        text: "Выбери окно"
+                        size: Theme.type.titleM
+                        weight: Theme.strongWeight
+                    }
+                    IconButton {
+                        icon: "close"
+                        onClicked: page.picking = false
+                    }
+                }
+                MText {
+                    visible: page.openWindows.length > 0
+                    text: "Открытые сейчас — правило запомнит, где окно стоит"
+                    color: Theme.fgSurfaceVariant
+                }
+                Flow {
+                    Layout.fillWidth: true
+                    spacing: 8
+                    Repeater {
+                        model: page.openWindows
+                        Rectangle {
+                            id: ow
+                            required property var modelData
+                            readonly property var entry: Apps.forWindow(modelData.cls)
+                            width: 220
+                            height: 64
+                            radius: Theme.radius.l
+                            color: Theme.surfaceContainerHighest
+                            RowLayout {
+                                anchors.fill: parent
+                                anchors.margins: 12
+                                spacing: 10
+                                AppIcon {
+                                    size: 32
+                                    icon: ow.entry?.icon ?? ow.modelData.cls
+                                }
+                                ColumnLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 0
+                                    MText {
+                                        Layout.fillWidth: true
+                                        text: ow.entry?.name ?? ow.modelData.cls
+                                        elide: Text.ElideRight
+                                    }
+                                    MText {
+                                        Layout.fillWidth: true
+                                        text: page.wsLabel(ow.modelData.workspace) + (ow.modelData.floating ? " · плавающее" : "")
+                                        size: Theme.type.bodyS
+                                        color: Theme.fgSurfaceVariant
+                                        elide: Text.ElideRight
+                                    }
+                                }
+                            }
+                            StateLayer {
+                                radius: ow.radius
+                                onClicked: {
+                                    const w = ow.modelData;
+                                    page.addRule({
+                                        cls: w.cls,
+                                        workspace: /^special/.test(w.workspace) ? "" : w.workspace,
+                                        monitor: Quickshell.screens.length > 1 ? w.monitor : "",
+                                        float: w.floating,
+                                        center: w.floating,
+                                        width: w.floating ? w.size[0] : "",
+                                        height: w.floating ? w.size[1] : ""
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+
+                MText {
+                    text: "Или любое приложение"
+                    color: Theme.fgSurfaceVariant
+                }
+                TextField {
+                    Layout.fillWidth: true
+                    implicitHeight: 48
+                    icon: "search"
+                    placeholder: "Найти приложение"
+                    onTextChanged: page.pickQuery = text
+                }
+                GridLayout {
+                    Layout.fillWidth: true
+                    columns: Math.max(3, Math.floor(width / 120))
+                    rowSpacing: 4
+                    columnSpacing: 4
+                    Repeater {
+                        model: (page.pickQuery ? Apps.search(page.pickQuery) : Apps.all).slice(0, 24)
+                        Item {
+                            id: ap
+                            required property var modelData
+                            Layout.fillWidth: true
+                            implicitHeight: 92
+                            StateLayer {
+                                radius: Theme.radius.l
+                                onClicked: page.addRule({
+                                    cls: ap.modelData.startupClass || ap.modelData.id,
+                                    workspace: "",
+                                    float: false
+                                })
+                            }
+                            ColumnLayout {
+                                anchors.centerIn: parent
+                                width: parent.width - 8
+                                spacing: 6
+                                AppIcon {
+                                    Layout.alignment: Qt.AlignHCenter
+                                    size: 40
+                                    icon: ap.modelData.icon
+                                }
+                                MText {
+                                    Layout.fillWidth: true
+                                    horizontalAlignment: Text.AlignHCenter
+                                    text: ap.modelData.name
+                                    size: Theme.type.bodyS
+                                    elide: Text.ElideRight
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    component Label: MText {
+        size: Theme.type.labelL
+        weight: Theme.strongWeight
+        color: Theme.primary
+        Layout.topMargin: 4
+    }
+    component Chip: Rectangle {
+        id: chip
+        property string text
+        property string icon: ""
+        property bool on: false
+        property bool square: false
+        signal clicked
+        implicitHeight: 40
+        implicitWidth: square ? 48 : chipRow.implicitWidth + 28
+        radius: on ? Theme.radius.full : Theme.radius.m
+        color: on ? Theme.secondaryContainer : "transparent"
+        border.width: on ? 0 : 1
+        border.color: Theme.outlineVariant
+        Behavior on radius {
+            NumberAnimation {
+                duration: Theme.anim.fast
+            }
+        }
+        RowLayout {
+            id: chipRow
+            anchors.centerIn: parent
+            spacing: 6
+            MIcon {
+                visible: chip.on && !chip.square || chip.icon !== ""
+                icon: chip.on && !chip.square ? "check" : chip.icon
+                size: 18
+                color: chip.on ? Theme.fgSecondaryContainer : Theme.fgSurfaceVariant
+            }
+            MText {
+                text: chip.text
+                size: Theme.type.labelL
+                weight: chip.square ? Theme.strongWeight : Theme.fontWeight
+                color: chip.on ? Theme.fgSecondaryContainer : Theme.fgSurfaceVariant
+            }
+        }
+        StateLayer {
+            radius: chip.radius
+            onClicked: chip.clicked()
         }
     }
 }
