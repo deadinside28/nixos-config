@@ -100,54 +100,58 @@ $(sed -n 's/^[[:space:]]*"path"[[:space:]]*"\\(.*\\)"/\\1/p' "$vdf")"
         });
     }
 
-    readonly property var command: {
+    // Общие параметры для всех мониторов
+    readonly property var baseArgs: {
         const d = Settings.data;
-        const cmd = ["linux-wallpaperengine", "--fps", String(d.engineFps)];
+        const a = ["--fps", String(d.engineFps)];
         if (d.engineSilent)
-            cmd.push("--silent");
+            a.push("--silent");
         else
-            cmd.push("--volume", String(d.engineVolume));
+            a.push("--volume", String(d.engineVolume));
         if (!d.enginePauseFullscreen)
-            cmd.push("--no-fullscreen-pause");
+            a.push("--no-fullscreen-pause");
         else
-            cmd.push("--fullscreen-pause-only-active");
+            a.push("--fullscreen-pause-only-active");
         if (assetsDir)
-            cmd.push("--assets-dir", assetsDir);
-        for (const t of targets)
-            cmd.push("--screen-root", t.screen, "--bg", t.dir, "--scaling", d.engineScaling);
-        return cmd;
+            a.push("--assets-dir", assetsDir);
+        return a;
     }
 
-    // Перезапуск при смене обоев или параметров
-    onCommandChanged: if (proc.running)
-        restart.restart()
+    // Отдельный процесс на каждый монитор: смена обоев на одном экране не
+    // перезапускает другой, а разные обои на разных экранах в одном процессе
+    // linux-wallpaperengine показывает с ошибками.
+    Variants {
+        // Строка-ключ: экран + обои + параметры. Изменилась — пересоздаётся
+        // только процесс этого экрана.
+        model: root.targets.map(t => JSON.stringify([t.screen, t.dir, ...root.baseArgs, "--scaling", Settings.data.engineScaling]))
 
-    Process {
-        id: proc
-        running: root.active && Settings.loaded && !restart.running
-        command: root.command
-        stderr: StdioCollector {
-            onStreamFinished: {
-                const t = text.trim().split("\n").filter(l => /error|fail|cannot|could not/i.test(l)).slice(-3).join("\n");
-                if (t)
-                    root.lastError = t;
+        Scope {
+            id: inst
+            required property string modelData
+            readonly property var parts: JSON.parse(modelData)
+
+            Process {
+                id: proc
+                running: true
+                command: ["linux-wallpaperengine", ...inst.parts.slice(2), "--screen-root", inst.parts[0], "--bg", inst.parts[1]]
+                stderr: StdioCollector {
+                    onStreamFinished: {
+                        const t = text.trim().split("\n").filter(l => /error|fail|cannot|could not/i.test(l)).slice(-3).join("\n");
+                        if (t)
+                            root.lastError = inst.parts[0] + ": " + t;
+                    }
+                }
+                onExited: code => {
+                    // упал сам — попробуем ещё раз чуть позже
+                    if (code !== 0 && code !== 15 && code !== 143)
+                        retry.restart();
+                }
+            }
+            Timer {
+                id: retry
+                interval: 5000
+                onTriggered: proc.running = true
             }
         }
-        onStarted: root.lastError = ""
-        onExited: code => {
-            // упал сам — попробуем ещё раз чуть позже
-            if (root.active && code !== 0 && code !== 15)
-                crashRestart.restart();
-        }
-    }
-    Timer {
-        id: restart
-        interval: 400
-    }
-    Timer {
-        id: crashRestart
-        interval: 5000
-        onTriggered: if (root.active && !proc.running)
-            restart.restart()
     }
 }

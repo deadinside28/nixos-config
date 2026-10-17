@@ -75,12 +75,12 @@ Overlay {
         width: 660
         height: Math.min(720, root.height - root.insetTop - root.insetBottom - 24)
         // Рядом с кнопкой лаунчера: она в начале панели
-        // Снизу у начала панели (сверху — если панель сверху)
-        x: Bar.edge === "right" ? root.width - root.insetRight - 12 - width : root.insetLeft + 12
+        // Снизу по центру экрана (сверху — если панель сверху)
+        x: root.insetLeft + (root.width - root.insetLeft - root.insetRight - width) / 2
         y: (Bar.edge === "top" ? root.insetTop + 12 : root.height - root.insetBottom - 12 - height) + root.slideY((1 - root.progress) * 40)
         opacity: root.progress
         scale: 0.94 + 0.06 * root.progress
-        transformOrigin: Bar.edge === "top" ? (Bar.edge === "right" ? Item.TopRight : Item.TopLeft) : (Bar.edge === "right" ? Item.BottomRight : Item.BottomLeft)
+        transformOrigin: Bar.edge === "top" ? Item.Top : Item.Bottom
         color: Theme.surfaceContainer
 
         ColumnLayout {

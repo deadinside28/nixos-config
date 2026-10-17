@@ -36,7 +36,9 @@ Overlay {
         width: 460
         // У «таблетки» статуса: она в конце панели
         x: Bar.edge === "left" ? root.insetLeft + 12 : root.width - root.insetRight - 12 - width
-        y: (Bar.edge === "top" ? root.insetTop + 12 : root.height - root.insetBottom - 12 - height) + root.slideY((1 - root.progress) * 40)
+        // Шторка всегда на одном месте — сверху, уведомления растут под ней
+        // и не двигают её, сколько бы их ни было.
+        y: root.insetTop + 12 + root.slideY((1 - root.progress) * 40)
         opacity: root.progress
         spacing: 12
 
@@ -211,7 +213,7 @@ Overlay {
             Layout.fillWidth: true
             visible: Notifs.count > 0
             // сколько влезет под шторкой
-            implicitHeight: Math.min(notifCol.implicitHeight + 32, Math.max(180, root.height - root.insetTop - root.insetBottom - 48 - qsCard.height))
+            implicitHeight: Math.min(notifCol.implicitHeight + 32, Math.max(180, root.height - root.insetTop - root.insetBottom - 36 - qsCard.height))
             color: Theme.surfaceContainer
 
             ColumnLayout {

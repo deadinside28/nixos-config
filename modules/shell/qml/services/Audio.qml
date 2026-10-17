@@ -19,7 +19,9 @@ Singleton {
 
     readonly property var sinks: Pipewire.nodes.values.filter(n => n.isSink && !n.isStream && n.audio)
     readonly property var sources: Pipewire.nodes.values.filter(n => !n.isSink && !n.isStream && n.audio && !(n.name ?? "").includes(".monitor"))
-    readonly property var playbackStreams: Pipewire.nodes.values.filter(n => n.isStream && n.audio && (n.properties["media.class"] ?? "") === "Stream/Output/Audio")
+    // Тип узла известен сразу, а свойства (имя приложения и т.п.) приходят
+    // только после того, как узел начали отслеживать (PwObjectTracker ниже).
+    readonly property var playbackStreams: Pipewire.nodes.values.filter(n => n.type === PwNodeType.AudioOutStream)
 
     readonly property string icon: muted || volume <= 0 ? "volume_off" : volume < 0.34 ? "volume_mute" : volume < 0.67 ? "volume_down" : "volume_up"
 
@@ -172,6 +174,14 @@ Singleton {
                     icon: e.icon
                 };
         }
+        // Известные приложения без .desktop
+        const bin = clean(p["application.process.binary"] || p["application.name"]).toLowerCase();
+        if (bin === "linux-wallpaperengine")
+            return {
+                key: "linux-wallpaperengine",
+                name: "Живые обои",
+                icon: "preferences-desktop-wallpaper"
+            };
         const name = p["application.name"] || clean(p["application.process.binary"]) || nodeName(n);
         return {
             key: name.toLowerCase(),
