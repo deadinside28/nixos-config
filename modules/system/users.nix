@@ -9,7 +9,7 @@
   users.users.${username} = {
     isNormalUser = true;
     description = username;
-    extraGroups = ["networkmanager" "wheel" "docker"];
+    extraGroups = ["networkmanager" "wheel" "docker" "i2c"];
     shell = pkgs.fish;
     packages = [];
   };

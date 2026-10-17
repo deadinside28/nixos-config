@@ -122,6 +122,13 @@ SettingsPage {
             checked: Settings.data.showTray
             onToggled: v => Settings.data.showTray = v
         }
+        SwitchItem {
+            icon: "upgrade"
+            title: "Обновления системы"
+            subtitle: "Прогресс обновления и сколько пакетов обновилось — с версиями"
+            checked: Settings.data.showUpdates
+            onToggled: v => Settings.data.showUpdates = v
+        }
     }
 
     Group {

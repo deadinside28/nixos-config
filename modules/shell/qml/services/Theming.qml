@@ -87,6 +87,14 @@ Singleton {
         }
     }
 
+    // Появился настоящий кадр живых обоев — палитра по нему точнее
+    Connections {
+        target: WallpaperEngine
+        function onFramesChanged() {
+            root.regenerate();
+        }
+    }
+
     Connections {
         target: Settings
         function onLoadedChanged() {

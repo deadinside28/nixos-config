@@ -112,32 +112,45 @@
   };
 
   # Запись экрана: повторный вызов останавливает. pixel-record <монитор> [mic]
+  # Параметры (кадры, кодек, качество, папка) — из «Настройки → Экран»,
+  # оболочка пишет их в record.env.
   pixel-record = pkgs.writeShellApplication {
     name = "pixel-record";
     runtimeInputs = with pkgs; [procps psmisc ffmpeg libnotify coreutils];
+    excludeShellChecks = ["SC1091"];
     text = ''
+      REC_FPS=60 REC_CODEC=av1 REC_QUALITY=very_high REC_CONTAINER=mp4 REC_CURSOR=yes REC_DIR="$HOME/Videos"
+      env="''${XDG_STATE_HOME:-$HOME/.local/state}/pixel-shell/record.env"
+      # shellcheck source=/dev/null
+      [ -r "$env" ] && . "$env"
+      last="''${XDG_RUNTIME_DIR:-/tmp}/pixel-record.last"
+
       if pidof gpu-screen-recorder >/dev/null; then
         killall -SIGINT gpu-screen-recorder
         while pidof gpu-screen-recorder >/dev/null; do sleep 0.1; done
-        file=$(find "$HOME/Videos" -maxdepth 1 -name 'video_*.mp4' -printf '%T@ %p\n' | sort -nr | head -n 1 | cut -d' ' -f2-)
+        file=$(cat "$last" 2>/dev/null || true)
         thumb="''${XDG_RUNTIME_DIR:-/tmp}/gsr_thumb.jpg"
         ffmpeg -y -i "$file" -vframes 1 "$thumb" -loglevel error || true
-        notify-send -a "Запись экрана" -i "$thumb" "Запись завершена" "Файл сохранён в $HOME/Videos/"
+        notify-send -a "Запись экрана" -i "$thumb" "Запись завершена" "Файл сохранён: $file"
         exit 0
       fi
       monitor=''${1:?монитор}
-      audio="default_output"; label="БЕЗ микрофона"
+      audio="default_output"; label="Без микрофона"
       if [ "''${2:-}" = mic ]; then audio="default_output|default_input"; label="С микрофоном"; fi
-      mkdir -p "$HOME/Videos"
-      gpu-screen-recorder -w "$monitor" -f 60 -a "$audio" -k av1 -o "$HOME/Videos/video_$(date +%F_%H-%M-%S).mp4" &
-      notify-send -a "Запись экрана" -i camera-video "Запись начата" "$label (AV1, 60 FPS)"
+      mkdir -p "$REC_DIR"
+      file="$REC_DIR/video_$(date +%F_%H-%M-%S).$REC_CONTAINER"
+      echo "$file" > "$last"
+      gpu-screen-recorder -w "$monitor" -f "$REC_FPS" -a "$audio" -k "$REC_CODEC" -q "$REC_QUALITY" \
+        -cursor "$REC_CURSOR" -c "$REC_CONTAINER" -o "$file" &
+      notify-send -a "Запись экрана" -i camera-video "Запись начата" "$label · ''${REC_CODEC^^}, $REC_FPS кадров/с"
     '';
   };
 
   # Пересборка из «Настройки → Система». Сборка идёт от пользователя
   # (flake лежит в домашней папке, root на чужой git-репозиторий ругается),
   # а переключение — через pkexec, пароль спрашивает агент polkit оболочки.
-  # Строки «::stage …» — подписи этапов для интерфейса.
+  # Строки «::stage …» — подписи этапов для интерфейса, «@nix {…}» —
+  # события Nix (--log-format internal-json), из них считается прогресс.
   pixel-rebuild = pkgs.writeShellApplication {
     name = "pixel-rebuild";
     # Команды для pkexec намеренно в одинарных кавычках: $1 раскрывает
@@ -171,15 +184,16 @@
       cd "$flake"
       if [ "''${2:-}" = --update ]; then
         echo "::stage Обновляю flake.lock…"
-        nix flake update --flake "$flake"
+        nix flake update --flake "$flake" --log-format internal-json
       fi
 
       # Флейк видит только файлы, известные git, — новый system.json
       # без этого был бы невидим для сборки.
       git add --intent-to-add system.json 2>/dev/null || true
 
+      # internal-json: оболочка разбирает события Nix и рисует прогресс
       echo "::stage Собираю систему…"
-      out=$(nix build --no-link --print-out-paths -L "$flake#nixosConfigurations.$host.config.system.build.toplevel")
+      out=$(nix build --no-link --print-out-paths --log-format internal-json "$flake#nixosConfigurations.$host.config.system.build.toplevel")
       echo "Собрано: $out"
 
       if [ "$mode" = build ]; then
@@ -243,6 +257,8 @@ in {
           brightnessctl
           hyprsunset
           mpvpaper # видеообои Wallpaper Engine
+          ffmpeg # кадры из видеообоев для превью и палитры
+          ddcutil # яркость внешних мониторов
           xdg-utils
           flatpak
           matugen

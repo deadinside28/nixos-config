@@ -65,6 +65,16 @@ Scope {
         }
     }
     IpcHandler {
+        target: "update"
+        // окно с прогрессом и логом последнего обновления
+        function open(): void {
+            Ui.updateWindowOpen = true;
+        }
+        function run(): void {
+            SystemConfig.updateAndRebuild();
+        }
+    }
+    IpcHandler {
         target: "wallpaper"
         function set(path: string): void {
             Wallpapers.set(path);

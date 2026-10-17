@@ -209,10 +209,29 @@ SettingsPage {
                         const others = map.boxes.filter(b => b.m.name !== me.m.name);
                         let nx = Math.round(map.minX + (box.x - map.ox) / map.k);
                         let ny = Math.round(map.minY + (box.y - map.oy) / map.k);
+                        // Прилипаем к ближайшей стороне соседа, а вдоль стороны
+                        // монитор можно сдвигать свободно (по центру, со смещением);
+                        // рядом с краем или центром — мягко выравниваем.
+                        const align = (v, lo, hi, size, osize) => {
+                            v = Math.max(lo - size + 1, Math.min(hi - 1, v));
+                            const snapD = 48;
+                            for (const t of [lo, lo + (osize - size) / 2, lo + osize - size])
+                                if (Math.abs(v - t) < snapD)
+                                    return t;
+                            return v;
+                        };
                         let best = null;
                         for (const o of others) {
-                            const cands = [[o.x + o.w, o.y], [o.x - me.w, o.y], [o.x, o.y - me.h], [o.x, o.y + o.h]];
+                            const cands = [
+                                [o.x + o.w, align(ny, o.y, o.y + o.h, me.h, o.h)],
+                                [o.x - me.w, align(ny, o.y, o.y + o.h, me.h, o.h)],
+                                [align(nx, o.x, o.x + o.w, me.w, o.w), o.y - me.h],
+                                [align(nx, o.x, o.x + o.w, me.w, o.w), o.y + o.h]
+                            ];
                             for (const [cx, cy] of cands) {
+                                const overlaps = others.some(q => cx < q.x + q.w && cx + me.w > q.x && cy < q.y + q.h && cy + me.h > q.y);
+                                if (overlaps)
+                                    continue;
                                 const d = Math.hypot(cx - nx, cy - ny);
                                 if (!best || d < best.d)
                                     best = {
@@ -226,6 +245,14 @@ SettingsPage {
                             nx = best.cx;
                             ny = best.cy;
                         }
+                        // Hyprland хочет, чтобы левый верхний угол раскладки был в 0x0
+                        const all = [...others.map(o => [o.x, o.y]), [nx, ny]];
+                        const sx = Math.min(...all.map(p => p[0])), sy = Math.min(...all.map(p => p[1]));
+                        if (sx !== 0 || sy !== 0)
+                            for (const o of others)
+                                page.setDraft(o.m.name, "position", `${Math.round(o.x - sx)}x${Math.round(o.y - sy)}`);
+                        nx -= sx;
+                        ny -= sy;
                         page.setDraft(me.m.name, "position", `${Math.round(nx)}x${Math.round(ny)}`);
                     }
                 }
@@ -386,13 +413,132 @@ SettingsPage {
             value: Settings.data.nightTemp
             onMoved: v => Settings.data.nightTemp = Math.round(v)
         }
-        SliderItem {
-            visible: Brightness.available
-            icon: "brightness_6"
-            title: "Яркость"
-            valueText: Math.round(Brightness.value * 100) + "%"
-            value: Brightness.value
-            onMoved: v => Brightness.set(v)
+    }
+
+    Group {
+        title: "Яркость"
+        // У каждого монитора своя: внешние — по DDC/CI, ноутбук — подсветка
+        Repeater {
+            model: Brightness.monitors
+            SliderItem {
+                required property var modelData
+                icon: "brightness_6"
+                title: modelData.name === "backlight" ? "Экран ноутбука" : modelData.name
+                valueText: Math.round(modelData.value * 100) + "%"
+                value: modelData.value
+                onMoved: v => Brightness.set(v, modelData.name)
+            }
+        }
+        ListItem {
+            visible: !Brightness.available
+            icon: "brightness_low"
+            title: Brightness.detecting ? "Ищу мониторы с регулировкой яркости…" : "Мониторы не отвечают по DDC/CI"
+            subtitle: Brightness.detecting ? "" : "Включи DDC/CI в меню самого монитора. Нужна пересборка с hardware.i2c и перезаход в сессию"
+            clickable: !Brightness.detecting
+            onClicked: Brightness.refresh()
+        }
+    }
+
+    Group {
+        title: "Запись экрана"
+        ListItem {
+            icon: "speed"
+            title: "Частота кадров"
+            clickable: false
+            SegmentedButtons {
+                options: [30, 60, 120, 144].map(f => ({
+                            value: f,
+                            label: f + ""
+                        }))
+                current: Settings.data.recFps
+                onSelected: v => Settings.data.recFps = v
+            }
+        }
+        ChoiceItem {
+            icon: "movie"
+            title: "Кодек"
+            options: [
+                {
+                    value: "av1",
+                    label: "AV1 — меньше файл, нужна новая видеокарта"
+                },
+                {
+                    value: "hevc",
+                    label: "HEVC (H.265)"
+                },
+                {
+                    value: "h264",
+                    label: "H.264 — открывается везде"
+                }
+            ]
+            current: Settings.data.recCodec
+            onSelected: v => Settings.data.recCodec = v
+        }
+        ChoiceItem {
+            icon: "high_quality"
+            title: "Качество"
+            options: [
+                {
+                    value: "medium",
+                    label: "Среднее"
+                },
+                {
+                    value: "high",
+                    label: "Высокое"
+                },
+                {
+                    value: "very_high",
+                    label: "Очень высокое"
+                },
+                {
+                    value: "ultra",
+                    label: "Максимальное"
+                }
+            ]
+            current: Settings.data.recQuality
+            onSelected: v => Settings.data.recQuality = v
+        }
+        ListItem {
+            icon: "video_file"
+            title: "Формат файла"
+            clickable: false
+            SegmentedButtons {
+                options: [
+                    {
+                        value: "mp4",
+                        label: "MP4"
+                    },
+                    {
+                        value: "mkv",
+                        label: "MKV"
+                    }
+                ]
+                current: Settings.data.recContainer
+                onSelected: v => Settings.data.recContainer = v
+            }
+        }
+        SwitchItem {
+            icon: "arrow_selector_tool"
+            title: "Показывать курсор"
+            checked: Settings.data.recCursor
+            onToggled: v => Settings.data.recCursor = v
+        }
+        ListItem {
+            icon: "folder"
+            title: "Папка для записей"
+            clickable: false
+            TextField {
+                implicitWidth: 280
+                implicitHeight: 44
+                id: recDirField
+                text: Settings.data.recDir
+                Connections {
+                    target: recDirField.input
+                    function onEditingFinished() {
+                        Settings.data.recDir = recDirField.text.replace(/\/+$/, "") || Settings.home + "/Videos";
+                    }
+                }
+            }
         }
     }
 }

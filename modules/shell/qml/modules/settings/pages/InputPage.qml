@@ -3,6 +3,7 @@ import QtQuick.Layouts
 import qs.common
 import qs.widgets
 import qs.services
+import Quickshell.Io
 
 SettingsPage {
     id: page
@@ -201,37 +202,481 @@ SettingsPage {
         }
     }
 
+    // --- Сочетания клавиш ----------------------------------------------
+    // Стандартные бинды — из ~/.config/hypr/binds.lua (его собирает Nix),
+    // их можно выключать. Свои — в Settings.data.userBinds → hypr/shell/binds.lua.
+    property var defaultBinds: []
+    FileView {
+        path: Settings.configDir + "/hypr/binds.lua"
+        printErrors: false
+        onLoaded: page.defaultBinds = page.parseBinds(text())
+    }
+
+    function keyOf(expr) {
+        // mainMod .. " + Q"  →  SUPER + Q;  "ALT + Tab" → ALT + Tab
+        return expr.replace(/mainMod\s*\.\.\s*/g, '"SUPER" .. ').replace(/"\s*\.\.\s*"/g, "").replace(/"/g, "").replace(/\s+/g, " ").trim();
+    }
+    function describe(dsp) {
+        const m = (re) => dsp.match(re);
+        let r;
+        if (m(/hyprctl kill/))
+            return "Убить окно щелчком";
+        if (m(/settings open style/))
+            return "Обои и стиль";
+        if ((r = m(/exec_cmd\("pixel-shell ([a-z]+) ([a-z]+)/)))
+            return ({
+                    launcher: "Лаунчер",
+                    clipboard: "Буфер обмена",
+                    settings: "Настройки",
+                    quicksettings: "Быстрые настройки",
+                    overview: "Обзор",
+                    power: "Меню питания",
+                    lock: "Заблокировать",
+                    brightness: r[2] === "up" ? "Ярче" : "Темнее",
+                    media: "Плеер: " + r[2]
+                })[r[1]] ?? ("Оболочка: " + r[1]);
+        if ((r = m(/exec_cmd\("pixel-screenshot (\w+)/)))
+            return ({
+                    area: "Скриншот области",
+                    full: "Скриншот экрана",
+                    window: "Скриншот окна"
+                })[r[1]];
+        if (m(/pixel-record.*mic/))
+            return "Запись экрана с микрофоном";
+        if (m(/pixel-record/))
+            return "Запись экрана";
+        if (m(/wpctl set-volume.*\+/))
+            return "Громче";
+        if (m(/wpctl set-volume.*-/))
+            return "Тише";
+        if (m(/set-mute @DEFAULT_AUDIO_SOURCE/))
+            return "Выключить микрофон";
+        if (m(/set-mute/))
+            return "Без звука";
+        if ((r = m(/exec_cmd\("([^"]+)"/)))
+            return "Запуск: " + r[1].split(" ")[0];
+        if (m(/window\.close/))
+            return "Закрыть окно";
+        if (m(/window\.float/))
+            return "Плавающее окно";
+        if (m(/fullscreen\(\{ mode = 1/))
+            return "Развернуть";
+        if (m(/fullscreen/))
+            return "Полный экран";
+        if (m(/togglesplit/))
+            return "Сменить направление деления";
+        if (m(/cycle_next/))
+            return "Следующее окно";
+        if (m(/window\.drag/))
+            return "Перетащить окно мышью";
+        if (m(/window\.resize/))
+            return "Размер окна мышью";
+        if ((r = m(/toggle_special\("(\w+)"/)))
+            return r[1] === "monitor" ? "Мониторинг (btop)" : "Особый стол " + r[1];
+        if ((r = m(/window\.move\(\{ workspace = "?([^"} ]+)/)))
+            return /^r?\+/.test(r[1]) ? "Окно на следующий стол" : /^r?-/.test(r[1]) ? "Окно на предыдущий стол" : "Окно на стол " + r[1];
+        if ((r = m(/window\.move\(\{ direction = "(\w+)/)))
+            return "Сдвинуть окно: " + ({
+                    left: "влево",
+                    right: "вправо",
+                    up: "вверх",
+                    down: "вниз"
+                })[r[1]];
+        if ((r = m(/focus\(\{ workspace = "?([^"} ]+)/)))
+            return /^[mre]?\+/.test(r[1]) ? "Следующий стол" : /^[mre]?-/.test(r[1]) ? "Предыдущий стол" : /empty/.test(r[1]) ? "Пустой стол" : "Стол " + r[1];
+        if ((r = m(/focus\(\{ direction = "(\w+)/)))
+            return "Фокус " + ({
+                    left: "влево",
+                    right: "вправо",
+                    up: "вверх",
+                    down: "вниз"
+                })[r[1]];
+        return dsp.replace(/^hl\.dsp\./, "");
+    }
+    function parseBinds(text) {
+        const out = [];
+        for (const line of text.split("\n")) {
+            const r = line.match(/^hl\.bind\((.+?),\s*(hl\.dsp\..*)\)\s*$/);
+            if (!r)
+                continue;
+            const key = keyOf(r[1]);
+            out.push({
+                key,
+                what: describe(r[2])
+            });
+        }
+        return out;
+    }
+
+    property string bindFilter: ""
+    readonly property var shownDefaults: defaultBinds.filter(b => !bindFilter || (b.key + " " + b.what).toLowerCase().includes(bindFilter.toLowerCase()))
+
     Group {
-        title: "Сочетания клавиш"
+        title: "Свои сочетания"
         Repeater {
-            model: [["Super + Пробел", "Лаунчер"], ["Super + S", "Настройки"], ["Super + N", "Уведомления и быстрые настройки"], ["Super + V", "Буфер обмена"], ["Super + Tab", "Обзор"], ["Super + Shift + Q", "Меню питания"], ["Super + Alt + L", "Заблокировать"], ["Super + Q", "Закрыть окно"], ["Super + F / D", "Полный экран / развернуть"], ["Super + T / E / W / C", "Терминал / файлы / браузер / редактор"], ["Super + 1…4, G", "Рабочие столы основного монитора"], ["Super + F1…F4", "Рабочие столы второго монитора"], ["Super + M", "Мониторинг (btop)"], ["Super + Shift + S / A / D", "Скриншот области / экрана / окна"], ["Alt + F9 / F10", "Запись экрана без / с микрофоном"]]
+            model: Settings.data.userBinds ?? []
             ListItem {
-                id: sc
+                id: ub
                 required property var modelData
-                title: modelData[1]
+                required property int index
+                icon: "keyboard_command_key"
+                title: page.actionLabel(modelData)
                 clickable: false
+                KeyChip {
+                    text: HyprConf.bindKey(ub.modelData)
+                }
+                IconButton {
+                    icon: "delete"
+                    onClicked: Settings.data.userBinds = Settings.data.userBinds.filter((_, i) => i !== ub.index)
+                }
+            }
+        }
+
+        // Новое сочетание
+        Rectangle {
+            readonly property bool groupItem: true
+            property bool first: false
+            property bool last: false
+            Layout.fillWidth: true
+            implicitHeight: addCol.implicitHeight + 32
+            color: Theme.dark ? Theme.surfaceContainerHigh : Theme.surfaceContainerLowest
+            topLeftRadius: first ? 24 : 4
+            topRightRadius: first ? 24 : 4
+            bottomLeftRadius: last ? 24 : 4
+            bottomRightRadius: last ? 24 : 4
+
+            ColumnLayout {
+                id: addCol
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                anchors.margins: 16
+                spacing: 10
+
+                MText {
+                    text: "Новое сочетание"
+                    size: Theme.type.titleS
+                    weight: Theme.strongWeight
+                }
+
+                // Захват сочетания
                 Rectangle {
-                    implicitWidth: keyText.implicitWidth + 20
-                    implicitHeight: 32
-                    radius: Theme.radius.s
-                    color: Theme.surfaceContainerHighest
+                    id: capture
+                    Layout.fillWidth: true
+                    implicitHeight: 52
+                    radius: 26
+                    color: activeFocus ? Theme.primaryContainer : Theme.surfaceContainerHighest
+                    border.width: activeFocus ? 2 : 0
+                    border.color: Theme.primary
+                    focus: false
+                    property string mods: ""
+                    property string key: ""
+
+                    RowLayout {
+                        anchors.fill: parent
+                        anchors.leftMargin: 20
+                        anchors.rightMargin: 16
+                        MIcon {
+                            icon: "keyboard"
+                            color: capture.activeFocus ? Theme.fgPrimaryContainer : Theme.fgSurfaceVariant
+                        }
+                        MText {
+                            Layout.fillWidth: true
+                            text: capture.key ? (capture.mods ? capture.mods + " + " : "") + capture.key : (capture.activeFocus ? "Нажми сочетание клавиш…" : "Нажми здесь и затем сочетание клавиш")
+                            color: capture.activeFocus ? Theme.fgPrimaryContainer : Theme.fgSurfaceVariant
+                            size: Theme.type.bodyL
+                        }
+                    }
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: capture.forceActiveFocus()
+                    }
+                    Keys.onPressed: event => {
+                        const names = {
+                            [Qt.Key_Space]: "space",
+                            [Qt.Key_Return]: "Return",
+                            [Qt.Key_Enter]: "Return",
+                            [Qt.Key_Escape]: "Escape",
+                            [Qt.Key_Tab]: "Tab",
+                            [Qt.Key_Backspace]: "BackSpace",
+                            [Qt.Key_Delete]: "Delete",
+                            [Qt.Key_Left]: "Left",
+                            [Qt.Key_Right]: "Right",
+                            [Qt.Key_Up]: "Up",
+                            [Qt.Key_Down]: "Down",
+                            [Qt.Key_Home]: "Home",
+                            [Qt.Key_End]: "End",
+                            [Qt.Key_PageUp]: "Prior",
+                            [Qt.Key_PageDown]: "Next",
+                            [Qt.Key_Print]: "Print",
+                            [Qt.Key_Insert]: "Insert",
+                            [Qt.Key_Minus]: "minus",
+                            [Qt.Key_Equal]: "equal",
+                            [Qt.Key_Comma]: "comma",
+                            [Qt.Key_Period]: "period",
+                            [Qt.Key_Slash]: "slash",
+                            [Qt.Key_Semicolon]: "semicolon",
+                            [Qt.Key_Apostrophe]: "apostrophe",
+                            [Qt.Key_BracketLeft]: "bracketleft",
+                            [Qt.Key_BracketRight]: "bracketright",
+                            [Qt.Key_Backslash]: "backslash",
+                            [Qt.Key_QuoteLeft]: "grave"
+                        };
+                        const k = event.key;
+                        if ([Qt.Key_Shift, Qt.Key_Control, Qt.Key_Alt, Qt.Key_Meta, Qt.Key_Super_L, Qt.Key_Super_R, Qt.Key_AltGr].includes(k))
+                            return;
+                        let name = names[k];
+                        if (!name && k >= Qt.Key_A && k <= Qt.Key_Z)
+                            name = String.fromCharCode(k);
+                        if (!name && k >= Qt.Key_0 && k <= Qt.Key_9)
+                            name = String.fromCharCode(k);
+                        if (!name && k >= Qt.Key_F1 && k <= Qt.Key_F24)
+                            name = "F" + (k - Qt.Key_F1 + 1);
+                        if (!name)
+                            return;
+                        const m = [];
+                        if (event.modifiers & Qt.MetaModifier)
+                            m.push("SUPER");
+                        if (event.modifiers & Qt.ControlModifier)
+                            m.push("CONTROL");
+                        if (event.modifiers & Qt.AltModifier)
+                            m.push("ALT");
+                        if (event.modifiers & Qt.ShiftModifier)
+                            m.push("SHIFT");
+                        capture.mods = m.join(" + ");
+                        capture.key = name;
+                        capture.focus = false;
+                        event.accepted = true;
+                    }
+                }
+
+                ChoiceItem {
+                    id: actionChoice
+                    property string value: "exec"
+                    icon: "bolt"
+                    title: "Действие"
+                    options: page.actions
+                    current: value
+                    onSelected: v => value = v
+                }
+                ChoiceItem {
+                    id: appChoice
+                    visible: actionChoice.value === "app"
+                    property string value: ""
+                    icon: "apps"
+                    title: "Приложение"
+                    options: Apps.all.map(a => ({
+                                value: a.id,
+                                label: a.name
+                            }))
+                    current: value
+                    onSelected: v => value = v
+                }
+                ChoiceItem {
+                    id: shellChoice
+                    visible: actionChoice.value === "shell"
+                    property string value: "launcher toggle"
+                    icon: "space_dashboard"
+                    title: "Что открыть"
+                    options: page.shellActions
+                    current: value
+                    onSelected: v => value = v
+                }
+                TextField {
+                    id: argField
+                    Layout.fillWidth: true
+                    visible: ["exec", "workspace", "movetows", "focus"].includes(actionChoice.value)
+                    implicitHeight: 48
+                    icon: actionChoice.value === "exec" ? "terminal" : "tag"
+                    placeholder: ({
+                            exec: "Команда, например: firefox --new-window",
+                            workspace: "Номер стола",
+                            movetows: "Номер стола",
+                            focus: "left / right / up / down"
+                        })[actionChoice.value] ?? ""
+                }
+                RowLayout {
+                    Layout.fillWidth: true
                     MText {
-                        id: keyText
-                        anchors.centerIn: parent
-                        text: sc.modelData[0]
-                        font.family: Theme.monoFont
-                        size: Theme.type.bodyS
-                        color: Theme.fgSurfaceVariant
+                        Layout.fillWidth: true
+                        visible: page.conflict !== ""
+                        text: page.conflict
+                        color: Theme.error
+                        wrapMode: Text.WordWrap
+                    }
+                    Item {
+                        Layout.fillWidth: page.conflict === ""
+                    }
+                    Button {
+                        text: "Добавить"
+                        icon: "add"
+                        disabled: !capture.key
+                        onClicked: {
+                            const a = actionChoice.value;
+                            const arg = a === "app" ? appChoice.value : a === "shell" ? shellChoice.value : argField.text;
+                            Settings.data.userBinds = [...(Settings.data.userBinds ?? []), {
+                                    mods: capture.mods,
+                                    key: capture.key,
+                                    action: a,
+                                    arg
+                                }];
+                            capture.key = "";
+                            capture.mods = "";
+                            argField.text = "";
+                        }
                     }
                 }
             }
         }
-        ListItem {
-            icon: "edit"
-            title: "Изменить сочетания"
-            subtitle: "modules/hyprland/binds.lua в конфиге NixOS"
-            chevron: true
-            onClicked: Apps.run(["xdg-open", Nix.flake + "/modules/hyprland/binds.lua"])
+    }
+
+    readonly property string conflict: {
+        const k = (capture.mods ? capture.mods + " + " : "") + capture.key;
+        if (!capture.key)
+            return "";
+        const norm = x => x.toLowerCase().replace(/\bctrl\b/g, "control");
+        const d = defaultBinds.find(b => norm(b.key) === norm(k) && !Settings.data.disabledBinds.includes(b.key));
+        return d ? "Уже занято: «" + d.what + "». Выключи стандартное ниже, чтобы переназначить." : "";
+    }
+
+    readonly property var actions: [
+        {
+            value: "exec",
+            label: "Выполнить команду"
+        },
+        {
+            value: "app",
+            label: "Открыть приложение"
+        },
+        {
+            value: "shell",
+            label: "Открыть панель оболочки"
+        },
+        {
+            value: "close",
+            label: "Закрыть окно"
+        },
+        {
+            value: "float",
+            label: "Плавающее окно вкл/выкл"
+        },
+        {
+            value: "fullscreen",
+            label: "Полный экран"
+        },
+        {
+            value: "maximize",
+            label: "Развернуть"
+        },
+        {
+            value: "pin",
+            label: "Закрепить окно на всех столах"
+        },
+        {
+            value: "workspace",
+            label: "Перейти на стол…"
+        },
+        {
+            value: "movetows",
+            label: "Отправить окно на стол…"
+        },
+        {
+            value: "focus",
+            label: "Фокус в сторону…"
+        }
+    ]
+    readonly property var shellActions: [
+        {
+            value: "launcher toggle",
+            label: "Лаунчер"
+        },
+        {
+            value: "quicksettings toggle",
+            label: "Быстрые настройки"
+        },
+        {
+            value: "settings toggle",
+            label: "Настройки"
+        },
+        {
+            value: "overview toggle",
+            label: "Обзор"
+        },
+        {
+            value: "clipboard toggle",
+            label: "Буфер обмена"
+        },
+        {
+            value: "power toggle",
+            label: "Меню питания"
+        },
+        {
+            value: "lock lock",
+            label: "Заблокировать"
+        },
+        {
+            value: "theme toggle",
+            label: "Тёмная/светлая тема"
+        },
+        {
+            value: "wallpaper random",
+            label: "Случайные обои"
+        },
+        {
+            value: "notifications dnd",
+            label: "Не беспокоить вкл/выкл"
+        }
+    ]
+    function actionLabel(b) {
+        const a = actions.find(x => x.value === b.action)?.label ?? b.action;
+        if (b.action === "app")
+            return "Открыть " + (Apps.byId(b.arg)?.name ?? b.arg);
+        if (b.action === "shell")
+            return shellActions.find(x => x.value === b.arg)?.label ?? b.arg;
+        if (b.action === "exec")
+            return "Команда: " + b.arg;
+        if (["workspace", "movetows", "focus"].includes(b.action))
+            return a.replace("…", " " + b.arg);
+        return a;
+    }
+
+    Group {
+        title: "Стандартные сочетания"
+        TextField {
+            Layout.fillWidth: true
+            implicitHeight: 48
+            icon: "search"
+            placeholder: "Найти сочетание или действие"
+            onTextChanged: page.bindFilter = text
+        }
+        Repeater {
+            model: page.shownDefaults
+            SwitchItem {
+                id: db
+                required property var modelData
+                title: modelData.what
+                checked: !Settings.data.disabledBinds.includes(modelData.key)
+                onToggled: v => Settings.data.disabledBinds = v ? Settings.data.disabledBinds.filter(k => k !== modelData.key) : [...Settings.data.disabledBinds, modelData.key]
+                KeyChip {
+                    text: db.modelData.key
+                }
+            }
+        }
+    }
+
+    component KeyChip: Rectangle {
+        property alias text: keyText.text
+        implicitWidth: keyText.implicitWidth + 20
+        implicitHeight: 32
+        radius: Theme.radius.s
+        color: Theme.surfaceContainerHighest
+        MText {
+            id: keyText
+            anchors.centerIn: parent
+            font.family: Theme.monoFont
+            size: Theme.type.bodyS
+            color: Theme.fgSurfaceVariant
         }
     }
 }

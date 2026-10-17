@@ -211,7 +211,7 @@ Overlay {
         Card {
             id: notifCard
             Layout.fillWidth: true
-            visible: Notifs.count > 0
+            visible: Notifs.count > 0 || !SystemConfig.cardDismissed
             // сколько влезет под шторкой
             implicitHeight: Math.min(notifCol.implicitHeight + 32, Math.max(180, root.height - root.insetTop - root.insetBottom - 36 - qsCard.height))
             color: Theme.surfaceContainer
@@ -234,9 +234,16 @@ Overlay {
                     Button {
                         variant: "tonal"
                         implicitHeight: 32
+                        visible: Notifs.count > 0
                         text: "Очистить все"
                         onClicked: Notifs.clearAll()
                     }
+                }
+
+                // Обновление системы — первой карточкой
+                UpdateCard {
+                    Layout.fillWidth: true
+                    visible: !SystemConfig.cardDismissed
                 }
 
                 ListView {

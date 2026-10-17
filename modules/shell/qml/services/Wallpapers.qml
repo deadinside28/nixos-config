@@ -45,7 +45,11 @@ Singleton {
     // Картинка экрана: для Wallpaper Engine — его превью.
     function imageFor(name) {
         const w = forScreen(name);
-        return w.type === "engine" && w.preview ? w.preview : (w.image ?? "");
+        if (w.type !== "engine")
+            return w.image ?? "";
+        // настоящий кадр живых обоев, пока его нет — превью из мастерской
+        const frame = WallpaperEngine.frameFor(w.engine);
+        return frame ? frame : (w.preview ?? "");
     }
 
     // По основному (первому) монитору считаются цвета и рисуется экран блокировки.
@@ -53,6 +57,7 @@ Singleton {
     readonly property string image: {
         const _ = Settings.data.screenWallpapers;
         const __ = Settings.data.wallpaper + Settings.data.wallpaperType + Settings.data.enginePreview;
+        const ___ = WallpaperEngine.frames;
         return imageFor(primaryScreen);
     }
 

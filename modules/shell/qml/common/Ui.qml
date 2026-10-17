@@ -22,6 +22,7 @@ Singleton {
     // Окно «Настройки» и открытый в нём раздел
     property bool settingsOpen: false
     property string settingsPage: "network"
+    property bool updateWindowOpen: false // окно с прогрессом обновления и логом
 
     function openSettings(page) {
         if (page)

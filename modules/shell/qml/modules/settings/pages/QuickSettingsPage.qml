@@ -89,7 +89,7 @@ SettingsPage {
         SwitchItem {
             icon: "brightness_6"
             title: "Яркость"
-            subtitle: Brightness.available ? "Слайдер под громкостью" : "У внешних мониторов нет подсветки — слайдер скрыт"
+            subtitle: Brightness.available ? "Слайдер под громкостью — для монитора, на котором открыта шторка" : "Мониторы не отвечают по DDC/CI — слайдер скрыт"
             checked: Settings.data.qsShowBrightness
             disabled: !Brightness.available
             onToggled: v => Settings.data.qsShowBrightness = v

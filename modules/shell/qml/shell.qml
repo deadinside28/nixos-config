@@ -52,6 +52,7 @@ ShellRoot {
     Overview {}
     PolkitDialog {}
     SettingsWindow {}
+    UpdateWindow {}
     DndSpring {}
 
     Ipc {}

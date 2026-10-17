@@ -12,14 +12,32 @@ Rectangle {
     required property var bar
     // окно, относительно которого открывать меню (панель или всплывашка)
     property var menuWindow: bar
+    // В списке скрытых значков — строкой с названием приложения
+    property bool labeled: false
+    readonly property string label: item.tooltipTitle || item.title || item.id
 
-    implicitWidth: 34
-    implicitHeight: 34
-    radius: height / 2
+    implicitWidth: labeled ? Math.max(200, labelText.implicitWidth + 64) : 34
+    implicitHeight: labeled ? 44 : 34
+    radius: labeled ? Theme.radius.m : height / 2
     color: "transparent"
 
+    MText {
+        id: labelText
+        visible: root.labeled
+        anchors.left: parent.left
+        anchors.leftMargin: 48
+        anchors.right: parent.right
+        anchors.rightMargin: 12
+        anchors.verticalCenter: parent.verticalCenter
+        text: root.label
+        elide: Text.ElideRight
+    }
+
     IconImage {
-        anchors.centerIn: parent
+        anchors.centerIn: root.labeled ? undefined : parent
+        anchors.left: root.labeled ? parent.left : undefined
+        anchors.leftMargin: 14
+        anchors.verticalCenter: parent.verticalCenter
         implicitSize: 20
         source: {
             // Telegram и прочие отдают путь вида name?path=…

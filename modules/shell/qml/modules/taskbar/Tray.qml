@@ -9,17 +9,27 @@ import Quickshell.Services.SystemTray
 import qs.common
 import qs.widgets
 
-GridLayout {
+// Видимые значки — в общей «таблетке», как остальные блоки панели.
+Rectangle {
     id: root
     required property var bar
-    flow: bar.vertical ? GridLayout.TopToBottom : GridLayout.LeftToRight
-    rowSpacing: 2
-    columnSpacing: 2
+    implicitWidth: row.implicitWidth + (bar.vertical ? 8 : 12)
+    implicitHeight: row.implicitHeight + (bar.vertical ? 12 : 8)
+    radius: Math.min(width, height) / 2
+    color: Theme.alpha(Theme.surfaceContainerHighest, 0.8)
+    readonly property bool hasItems: items.length > 0
 
     readonly property var items: SystemTray.items.values
     readonly property int limit: Math.max(0, Settings.data.trayVisible)
     readonly property var shown: items.slice(0, limit)
     readonly property var hidden: items.slice(limit)
+
+    GridLayout {
+    id: row
+    anchors.centerIn: parent
+    flow: root.bar.vertical ? GridLayout.TopToBottom : GridLayout.LeftToRight
+    rowSpacing: 2
+    columnSpacing: 2
 
     // Стрелка «ещё»
     Rectangle {
@@ -48,6 +58,7 @@ GridLayout {
             bar: root.bar
         }
     }
+    }
 
     PopupWindow {
         id: overflow
@@ -59,8 +70,8 @@ GridLayout {
         anchor.margins.bottom: Bar.edge === "top" ? -8 : 0
         anchor.margins.left: Bar.edge === "right" ? -8 : 0
         anchor.margins.right: Bar.edge === "left" ? -8 : 0
-        implicitWidth: grid.implicitWidth + 16
-        implicitHeight: grid.implicitHeight + 16
+        implicitWidth: list.implicitWidth + 16
+        implicitHeight: list.implicitHeight + 16
         color: "transparent"
         visible: false
 
@@ -77,19 +88,20 @@ GridLayout {
             border.width: 1
             border.color: Theme.alpha(Theme.outlineVariant, 0.6)
 
-            GridLayout {
-                id: grid
+            // Скрытые значки — столбиком, с названиями
+            ColumnLayout {
+                id: list
                 anchors.centerIn: parent
-                columns: Math.min(4, Math.max(1, root.hidden.length))
-                rowSpacing: 2
-                columnSpacing: 2
+                spacing: 2
                 Repeater {
                     model: root.hidden
                     TrayIcon {
                         required property var modelData
+                        Layout.fillWidth: true
                         item: modelData
                         bar: root.bar
                         menuWindow: overflow
+                        labeled: true
                     }
                 }
             }

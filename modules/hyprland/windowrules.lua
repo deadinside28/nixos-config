@@ -163,6 +163,7 @@ hl.window_rule({
 -- из него — тоже плавающие (у них тот же класс).
 hl.window_rule({ match = { class = "^(pixel-shell)$" }, float = true, center = true })
 hl.window_rule({ match = { class = "^(pixel-shell)$", title = "^(Настройки)$" }, size = { "1180", "800" } })
+hl.window_rule({ match = { class = "^(pixel-shell)$", title = "^(Обновление системы)$" }, size = { "760", "640" } })
 
 -- Autostart Apps to Monitor 2
 hl.window_rule({ match = { class = "^(discord)$" }, workspace = "6" })

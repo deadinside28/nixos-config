@@ -83,6 +83,8 @@ Singleton {
             property list<string> taskbarScreens: [] // пусто — на всех экранах
             property bool showKeyboardLayout: true
             property int trayVisible: 3 // сколько значков трея видно, остальные — под стрелкой
+            property bool showUpdates: true // значок «что обновилось» и прогресс обновления
+            property int updatesSeen: 0 // поколение системы, изменения которого уже просмотрены
 
             // Быстрые настройки (шторка)
             property list<string> qsTiles: ["internet", "bluetooth", "dnd", "night", "dark", "mic", "caffeine", "record", "screenshot", "clipboard"]
@@ -127,6 +129,37 @@ Singleton {
             property bool shadows: true
             property bool hyprAnimations: true
             property real windowOpacity: 0.93
+
+            // Раскладка окон и поведение (Hyprland)
+            property string layout: "scrolling" // scrolling | dwindle | master
+            property real scrollColumnWidth: 0.5
+            property bool scrollFullscreenOne: true
+            property int scrollFocusFit: 1 // 0 — по центру, 1 — по краю
+            property bool scrollFollowFocus: true
+            property bool dwindlePreserveSplit: false
+            property bool dwindleSmartSplit: false
+            property real masterMfact: 0.55
+            property string masterNewStatus: "slave"
+            property string masterOrientation: "left"
+            property bool resizeOnBorder: false
+            property bool snapEnabled: false
+            property int followMouse: 1
+            property bool focusOnActivate: false
+            property bool allowTearing: false
+
+            // Свои бинды: [{ mods, key, action, arg }], отключённые стандартные: ["SUPER + J"]
+            property var userBinds: []
+            property list<string> disabledBinds: []
+            // Свои правила окон: [{ cls, title, float, center, pin, fullscreen, noBlur, opaque, workspace, monitor, width, height, opacity }]
+            property var userRules: []
+
+            // Запись экрана (gpu-screen-recorder)
+            property int recFps: 60
+            property string recCodec: "av1" // av1 | hevc | h264
+            property string recQuality: "very_high" // medium | high | very_high | ultra
+            property string recContainer: "mp4" // mp4 | mkv
+            property bool recCursor: true
+            property string recDir: root.home + "/Videos"
 
             // Ввод (Hyprland)
             property string kbLayout: "us,ru"

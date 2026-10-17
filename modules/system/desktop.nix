@@ -56,7 +56,13 @@ in {
 
   # Оболочке нужны: шрифт значков Material Symbols, ночной режим,
   # яркость, редактор соединений и микшер для «Настроек».
+  # Яркость внешних мониторов по DDC/CI (ddcutil): доступ к /dev/i2c-*
+  # для группы i2c, пользователь в ней (users.nix).
+  hardware.i2c.enable = true;
+
   environment.systemPackages = with pkgs; [
+    ddcutil
+    gtk3 # gtk-launch — запуск приложений из своих биндов
     hyprsunset
     brightnessctl
     networkmanagerapplet # nm-connection-editor

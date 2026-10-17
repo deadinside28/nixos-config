@@ -103,9 +103,13 @@ PanelWindow {
         x: bar.vertical ? (bar.width - width) / 2 : bar.width - width - 12
         y: bar.vertical ? bar.height - height - 12 : (bar.height - height) / 2
 
+        UpdatesPill {
+            Layout.alignment: Qt.AlignCenter
+            bar: bar
+        }
         Tray {
             Layout.alignment: Qt.AlignCenter
-            visible: Settings.data.showTray
+            visible: Settings.data.showTray && hasItems
             bar: bar
         }
         NotificationPill {

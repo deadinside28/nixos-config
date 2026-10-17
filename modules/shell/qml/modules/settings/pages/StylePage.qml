@@ -90,7 +90,8 @@ SettingsPage {
             anchors.fill: parent
             source: Wallpapers.image ? "file://" + Wallpapers.image : ""
             fillMode: Image.PreserveAspectCrop
-            sourceSize.width: 900
+            sourceSize.width: 1600
+            cache: false
             asynchronous: true
         }
         // мини-окно

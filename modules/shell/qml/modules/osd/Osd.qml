@@ -61,7 +61,7 @@ PanelWindow {
     }
     Connections {
         target: Brightness
-        function onValueChanged() {
+        function onChangedByUser() {
             root.show("brightness");
         }
     }

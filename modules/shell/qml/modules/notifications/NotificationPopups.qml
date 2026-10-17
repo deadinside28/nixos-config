@@ -15,7 +15,8 @@ PanelWindow {
     screen: Quickshell.screens.find(s => s.name === screenName) ?? Quickshell.screens[0]
     readonly property string pos: Settings.data.notifPosition !== "auto" ? Settings.data.notifPosition : (Bar.edge === "top" ? "top-" : "bottom-") + (Bar.edge === "left" ? "left" : "right")
     readonly property bool atTop: pos.startsWith("top")
-    visible: Notifs.popups.length > 0 && !Ui.locked && Ui.panel === ""
+    readonly property bool showUpdate: !SystemConfig.popupHidden && !SystemConfig.cardDismissed && !Ui.updateWindowOpen
+    visible: (Notifs.popups.length > 0 || showUpdate) && !Ui.locked && Ui.panel === ""
     // Угол со стороны «таблетки» статуса; место под панелью задач
     // слой отступит сам (ExclusionMode.Normal).
     anchors {
@@ -41,6 +42,14 @@ PanelWindow {
         id: column
         width: parent.width
         spacing: 8
+
+        // Прогресс обновления системы — у края экрана, над обычными
+        UpdateCard {
+            Layout.fillWidth: true
+            Layout.preferredHeight: implicitHeight
+            visible: root.showUpdate && root.atTop
+            cardColor: Theme.surfaceContainer
+        }
 
         Repeater {
             model: ScriptModel {
@@ -85,6 +94,12 @@ PanelWindow {
                     onTriggered: Notifs.dismissPopup(card.modelData)
                 }
             }
+        }
+
+        UpdateCard {
+            Layout.fillWidth: true
+            visible: root.showUpdate && !root.atTop
+            cardColor: Theme.surfaceContainer
         }
     }
 }

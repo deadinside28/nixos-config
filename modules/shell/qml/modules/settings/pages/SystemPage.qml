@@ -16,7 +16,6 @@ SettingsPage {
     property bool pkgSearching: false
     property var flatResults: []
     property bool flatSearching: false
-    property bool showLog: false
 
     Component.onCompleted: {
         tz.running = true;
@@ -124,54 +123,24 @@ SettingsPage {
                 }
             }
 
-            // полоса прогресса (неопределённая)
-            Rectangle {
+            // прогресс M3: сразу после нажатия — бегущая полоса, на сборке —
+            // реальный процент по событиям Nix
+            RowLayout {
                 Layout.fillWidth: true
-                visible: SystemConfig.status === "running"
-                height: 6
-                radius: 3
-                color: Theme.alpha(banner.fg, 0.2)
-                clip: true
-                Rectangle {
-                    id: bar
-                    width: parent.width * 0.3
-                    height: parent.height
-                    radius: 3
+                visible: SystemConfig.running
+                spacing: 12
+                LinearProgress {
+                    Layout.fillWidth: true
+                    thickness: 6
+                    value: SystemConfig.progress
                     color: banner.fg
-                    NumberAnimation on x {
-                        running: SystemConfig.status === "running"
-                        from: -bar.width
-                        to: bar.parent.width
-                        duration: 1400
-                        loops: Animation.Infinite
-                        easing.type: Easing.InOutQuad
-                    }
+                    trackColor: Theme.alpha(banner.fg, 0.2)
                 }
-            }
-
-            // журнал
-            Rectangle {
-                Layout.fillWidth: true
-                visible: page.showLog && SystemConfig.log.length > 0
-                implicitHeight: 260
-                radius: Theme.radius.l
-                color: Theme.alpha(Theme.scrim, 0.25)
-                ListView {
-                    id: logView
-                    anchors.fill: parent
-                    anchors.margins: 12
-                    clip: true
-                    model: SystemConfig.log
-                    onCountChanged: positionViewAtEnd()
-                    delegate: Text {
-                        required property string modelData
-                        width: logView.width
-                        text: modelData
-                        color: banner.fg
-                        font.family: Theme.monoFont
-                        font.pixelSize: 11
-                        wrapMode: Text.WrapAnywhere
-                    }
+                MText {
+                    visible: SystemConfig.progress >= 0
+                    text: Math.round(SystemConfig.progress * 100) + "%"
+                    color: banner.fg
+                    weight: Theme.strongWeight
                 }
             }
 
@@ -179,11 +148,11 @@ SettingsPage {
                 Layout.fillWidth: true
                 spacing: 8
                 Button {
-                    visible: SystemConfig.log.length > 0
+                    visible: SystemConfig.status !== "idle"
                     variant: "text"
-                    icon: page.showLog ? "expand_less" : "terminal"
-                    text: page.showLog ? "Скрыть журнал" : "Журнал"
-                    onClicked: page.showLog = !page.showLog
+                    icon: "terminal"
+                    text: "Подробности и лог"
+                    onClicked: Ui.updateWindowOpen = true
                 }
                 Item {
                     Layout.fillWidth: true

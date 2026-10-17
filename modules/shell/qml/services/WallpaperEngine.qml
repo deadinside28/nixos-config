@@ -37,6 +37,21 @@ Singleton {
     // Пока не знаем тип обоев (видео или сцена) — ничего не запускаем
     property bool scanned: false
 
+    // Кадры в полном качестве вместо мутного preview.gif:
+    //   сцена — снимок экрана от самого linux-wallpaperengine (--screenshot);
+    //   видео — кадр из файла через ffmpeg.
+    // { "<папка обоев>": "file:///…png?…" }
+    property var frames: ({})
+    readonly property string frameDir: (Quickshell.env("XDG_CACHE_HOME") || Settings.home + "/.cache") + "/pixel-shell/frames"
+    function frameFor(dir) {
+        return frames[dir] ?? "";
+    }
+    function setFrame(dir, path) {
+        const f = Object.assign({}, frames);
+        f[dir] = path;
+        frames = f;
+    }
+
     function refresh() {
         scan.running = true;
     }
@@ -156,6 +171,62 @@ $(sed -n 's/^[[:space:]]*"path"[[:space:]]*"\\(.*\\)"/\\1/p' "$vdf")"
         return ["linux-wallpaperengine", ...baseArgs, ...set, "--scaling", d.engineScaling, "--screen-root", screen, "--bg", dir];
     }
 
+    // Кадр из видеообоев — один раз на файл
+    function extractFrame(item) {
+        const out = frameDir + "/" + item.id + ".jpg";
+        if (frames[item.dir] || extracting.includes(item.id))
+            return;
+        extracting = [...extracting, item.id];
+        Quickshell.execDetached(["sh", "-c", `mkdir -p "$1"; [ -s "$2" ] || ffmpeg -loglevel error -y -ss 2 -i "$3" -frames:v 1 -q:v 2 "$2" || ffmpeg -loglevel error -y -i "$3" -frames:v 1 -q:v 2 "$2"`, "sh", frameDir, out, item.file]);
+        frameWait.createObject(root, {
+            dir: item.dir,
+            path: out
+        });
+    }
+    property var extracting: []
+    // Для видеообоев на экранах — достать кадр (не из привязки модели,
+    // чтобы побочные эффекты не пересчитывали список процессов)
+    onTargetsChanged: extractTimer.restart()
+    onItemsChanged: extractTimer.restart()
+    Timer {
+        id: extractTimer
+        interval: 100
+        onTriggered: {
+            for (const t of root.targets) {
+                const item = root.items.find(i => i.dir === t.dir);
+                if (item && item.type === "video" && item.file)
+                    root.extractFrame(item);
+            }
+        }
+    }
+    // Ждём файл кадра (ffmpeg или linux-wallpaperengine пишут его не сразу)
+    property Component frameWait: Component {
+        Timer {
+            id: waiter
+            property string dir
+            property string path
+            property int tries: 0
+            interval: 1500
+            repeat: true
+            running: true
+            onTriggered: {
+                tries++;
+                checker.running = true;
+            }
+            property Process checker: Process {
+                command: ["test", "-s", waiter.path]
+                onExited: code => {
+                    if (code === 0) {
+                        root.setFrame(waiter.dir, waiter.path);
+                        waiter.destroy();
+                    } else if (waiter.tries > 20) {
+                        waiter.destroy();
+                    }
+                }
+            }
+        }
+    }
+
     function setProp(dir, name, value) {
         const all = Object.assign({}, Settings.data.engineProps);
         all[dir] = Object.assign({}, all[dir] ?? {}, {
@@ -181,11 +252,28 @@ $(sed -n 's/^[[:space:]]*"path"[[:space:]]*"\\(.*\\)"/\\1/p' "$vdf")"
             id: inst
             required property string modelData
             readonly property var parts: JSON.parse(modelData)
+            // Имя снимка задаётся один раз при создании (не входит в ключ —
+            // иначе процессы перезапускались бы от любого пересчёта)
+            readonly property string shot: parts[1] === "linux-wallpaperengine" ? root.frameDir + "/scene-" + parts[0] + "-" + Date.now() + ".png" : ""
+
+            // У сцен кадр пишет сам linux-wallpaperengine — ждём его файл
+            Component.onCompleted: {
+                const cmd = inst.parts.slice(1);
+                if (inst.shot) {
+                    const shot = inst.shot;
+                    // старые снимки этого экрана больше не нужны
+                    Quickshell.execDetached(["sh", "-c", `mkdir -p "$1"; for f in "$1"/scene-"$2"-*.png; do [ "$f" = "$3" ] || rm -f "$f"; done`, "sh", root.frameDir, inst.parts[0], shot]);
+                    root.frameWait.createObject(root, {
+                        dir: cmd[cmd.length - 1],
+                        path: shot
+                    });
+                }
+            }
 
             Process {
                 id: proc
                 running: true
-                command: inst.parts.slice(1)
+                command: inst.shot ? [...inst.parts.slice(1), "--screenshot", inst.shot, "--screenshot-delay", "90"] : inst.parts.slice(1)
                 stderr: StdioCollector {
                     onStreamFinished: {
                         const t = text.trim().split("\n").filter(l => /error|fail|cannot|could not/i.test(l)).slice(-3).join("\n");

@@ -26,6 +26,7 @@ PanelWindow {
     readonly property string source: {
         const _ = Settings.data.screenWallpapers;
         const __ = Settings.data.wallpaper + Settings.data.wallpaperType + Settings.data.enginePreview;
+        const ___ = WallpaperEngine.frames;
         return Wallpapers.imageFor(modelData.name);
     }
 
