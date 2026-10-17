@@ -46,7 +46,8 @@ Item {
     AppIcon {
         id: icon
         anchors.centerIn: parent
-        anchors.verticalCenterOffset: -2
+        anchors.verticalCenterOffset: Bar.vertical ? 0 : (Bar.edge === "top" ? 2 : -2)
+        anchors.horizontalCenterOffset: Bar.vertical ? (Bar.edge === "left" ? 2 : -2) : 0
         size: 32
         icon: root.item.entry?.icon ?? root.item.appId ?? ""
         scale: state.pressed ? 0.88 : 1
@@ -58,17 +59,17 @@ Item {
         }
     }
 
-    // индикатор запущенного окна
+    // индикатор запущенного окна — у внешнего края панели
     Rectangle {
-        anchors.horizontalCenter: parent.horizontalCenter
-        anchors.bottom: parent.bottom
-        anchors.bottomMargin: 2
-        height: 4
+        property real len: root.focused ? 16 : (root.running ? 6 : 0)
+        x: Bar.vertical ? (Bar.edge === "left" ? 2 : parent.width - 6) : (parent.width - width) / 2
+        y: Bar.vertical ? (parent.height - height) / 2 : (Bar.edge === "top" ? 2 : parent.height - 6)
+        width: Bar.vertical ? 4 : len
+        height: Bar.vertical ? len : 4
         radius: 2
-        width: root.focused ? 16 : (root.running ? 6 : 0)
         opacity: root.running ? 1 : 0
         color: root.focused ? Theme.primary : Theme.fgSurfaceVariant
-        Behavior on width {
+        Behavior on len {
             NumberAnimation {
                 duration: Theme.anim.normal
                 easing.type: Easing.BezierSpline

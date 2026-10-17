@@ -55,7 +55,7 @@ RowLayout {
                 MText {
                     text: seg.modelData.label
                     size: Theme.type.labelL
-                    weight: Font.Medium
+                    weight: Theme.strongWeight
                     color: seg.active ? Theme.fgPrimary : Theme.fgSecondaryContainer
                 }
             }

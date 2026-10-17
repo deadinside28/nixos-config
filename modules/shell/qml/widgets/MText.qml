@@ -3,7 +3,7 @@ import qs.common
 
 Text {
     property int size: Theme.type.bodyM
-    property int weight: Font.Normal
+    property int weight: Theme.fontWeight
 
     color: Theme.fgSurface
     font.family: Theme.font

@@ -12,12 +12,21 @@ Item {
     implicitWidth: size
     implicitHeight: size
 
+    // Не нашлось в теме — пробуем варианты имени: org.gnome.Nautilus →
+    // nautilus, Google-chrome → google-chrome и т.п.
     readonly property string src: {
         if (!icon)
             return "";
         if (icon.startsWith("/") || icon.startsWith("file:") || icon.startsWith("image:"))
             return icon;
-        return Quickshell.iconPath(icon, true);
+        const tail = icon.split(".").pop();
+        const names = [icon, icon.toLowerCase(), tail, tail.toLowerCase(), icon.toLowerCase().replace(/[ _]/g, "-")];
+        for (const n of names) {
+            const p = Quickshell.iconPath(n, true);
+            if (p)
+                return p;
+        }
+        return "";
     }
 
     IconImage {

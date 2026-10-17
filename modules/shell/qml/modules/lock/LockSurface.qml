@@ -40,7 +40,7 @@ Rectangle {
             Layout.alignment: Qt.AlignHCenter
             text: Qt.formatTime(Time.now, "HH")
             size: 168
-            weight: Font.Medium
+            weight: Theme.strongWeight
             color: Theme.primaryFixedDim
         }
         MText {
@@ -48,7 +48,7 @@ Rectangle {
             Layout.topMargin: -60
             text: Qt.formatTime(Time.now, "mm")
             size: 168
-            weight: Font.Medium
+            weight: Theme.strongWeight
             color: Theme.primaryFixed
         }
         MText {

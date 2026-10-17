@@ -231,7 +231,7 @@ Item {
                                     }
                                     color: progress.width > chip.width / 2 ? Theme.fgPrimary : Theme.fgSurface
                                     font.pixelSize: 16
-                                    font.weight: Font.Medium
+                                    font.weight: Theme.strongWeight
                                 }
 
                                 Timer {

@@ -12,17 +12,20 @@ Rectangle {
     readonly property var list: Hypr.workspacesFor(screenName)
     readonly property int activeId: Hypr.activeWorkspaceFor(screenName)?.id ?? -1
 
-    implicitHeight: 32
-    implicitWidth: row.implicitWidth + 20
+    implicitHeight: vertical ? row.implicitHeight + 20 : 32
+    implicitWidth: vertical ? 32 : row.implicitWidth + 20
     radius: height / 2
     color: Theme.alpha(Theme.surfaceContainerHighest, 0.7)
     property bool shown: true
+    property bool vertical: false
     visible: shown && list.length > 1
 
-    RowLayout {
+    GridLayout {
         id: row
         anchors.centerIn: parent
-        spacing: 6
+        flow: root.vertical ? GridLayout.TopToBottom : GridLayout.LeftToRight
+        rowSpacing: 6
+        columnSpacing: 6
 
         Repeater {
             model: root.list
@@ -33,12 +36,13 @@ Rectangle {
                 readonly property bool active: modelData.id === root.activeId
                 readonly property bool occupied: (modelData.toplevels?.values?.length ?? 0) > 0
 
-                implicitWidth: active ? 24 : 8
-                implicitHeight: 8
+                property real len: active ? 24 : 8
+                implicitWidth: root.vertical ? 8 : len
+                implicitHeight: root.vertical ? len : 8
                 radius: 4
                 color: active ? Theme.primary : Theme.alpha(Theme.fgSurfaceVariant, occupied ? 0.75 : 0.3)
 
-                Behavior on implicitWidth {
+                Behavior on len {
                     NumberAnimation {
                         duration: Theme.anim.normal
                         easing.type: Easing.BezierSpline

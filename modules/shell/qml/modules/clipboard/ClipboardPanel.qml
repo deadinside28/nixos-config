@@ -32,8 +32,8 @@ Overlay {
     Card {
         width: 560
         height: Math.min(620, root.height - 160)
-        anchors.horizontalCenter: parent.horizontalCenter
-        y: root.height - 56 - 12 - height + (1 - root.progress) * 40
+        x: root.insetLeft + (root.width - root.insetLeft - root.insetRight - width) / 2
+        y: (Bar.edge === "top" ? root.insetTop + 12 : Bar.vertical ? (root.height - height) / 2 : root.height - root.insetBottom - 12 - height) + root.slideY((1 - root.progress) * 40)
         opacity: root.progress
         color: Theme.surfaceContainer
 

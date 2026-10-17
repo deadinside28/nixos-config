@@ -62,7 +62,7 @@ Rectangle {
             text: root.text
             color: root.fg
             size: Theme.type.labelL
-            weight: Font.Medium
+            weight: Theme.strongWeight
         }
     }
 

@@ -15,7 +15,7 @@ Overlay {
     open: Ui.panel === "quicksettings"
     onDismissed: Ui.close()
 
-    readonly property real slide: (1 - progress) * 40
+    property bool mixerOpen: false
 
     // Идёт ли запись экрана — проверяем, пока панель открыта.
     Process {
@@ -34,8 +34,9 @@ Overlay {
     ColumnLayout {
         id: stack
         width: 420
-        x: root.width - width - 12
-        y: root.height - 56 - 12 - height + root.slide
+        // У «таблетки» статуса: она в конце панели
+        x: (Bar.edge === "left" ? root.insetLeft + 12 : root.width - root.insetRight - 12 - width) + root.slideX((1 - root.progress) * 40)
+        y: (Bar.edge === "top" ? root.insetTop + 12 : root.height - root.insetBottom - 12 - height) + root.slideY((1 - root.progress) * 40)
         opacity: root.progress
         spacing: 12
 
@@ -60,7 +61,7 @@ Overlay {
                         Layout.fillWidth: true
                         text: "Уведомления"
                         size: Theme.type.titleM
-                        weight: Font.Medium
+                        weight: Theme.strongWeight
                     }
                     Button {
                         variant: "tonal"
@@ -168,8 +169,53 @@ Overlay {
                         implicitWidth: 52
                         implicitHeight: 52
                         variant: "tonal"
+                        checkable: true
+                        toggled: root.mixerOpen
                         icon: "tune"
-                        onClicked: Ui.openSettings("sound")
+                        onClicked: root.mixerOpen = !root.mixerOpen
+                    }
+                }
+
+                // Микшер: громкость каждого приложения, как в Windows
+                Rectangle {
+                    Layout.fillWidth: true
+                    visible: root.mixerOpen
+                    implicitHeight: mixCol.implicitHeight + 24
+                    radius: Theme.radius.xl * 0.8
+                    color: Theme.surfaceContainerHigh
+
+                    ColumnLayout {
+                        id: mixCol
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.top: parent.top
+                        anchors.margins: 12
+                        anchors.leftMargin: 16
+                        spacing: 4
+
+                        Repeater {
+                            model: Audio.apps
+                            AppVolumeRow {
+                                required property var modelData
+                                Layout.fillWidth: true
+                                compact: true
+                                app: modelData
+                            }
+                        }
+                        MText {
+                            visible: Audio.apps.length === 0
+                            Layout.topMargin: 4
+                            Layout.bottomMargin: 4
+                            text: "Сейчас ничего не играет"
+                            color: Theme.fgSurfaceVariant
+                        }
+                        Button {
+                            Layout.alignment: Qt.AlignRight
+                            variant: "text"
+                            icon: "settings"
+                            text: "Настройки звука"
+                            onClicked: Ui.openSettings("sound")
+                        }
                     }
                 }
                 PillSlider {

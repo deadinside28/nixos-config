@@ -18,9 +18,12 @@ PopupWindow {
 
     anchor.window: bar
     anchor.item: anchorItem
-    anchor.edges: Edges.Top
-    anchor.gravity: Edges.Top
-    anchor.margins.top: -6
+    anchor.edges: Bar.popupEdge
+    anchor.gravity: Bar.popupEdge
+    anchor.margins.top: Bar.edge === "bottom" ? -6 : 0
+    anchor.margins.bottom: Bar.edge === "top" ? -6 : 0
+    anchor.margins.left: Bar.edge === "right" ? -6 : 0
+    anchor.margins.right: Bar.edge === "left" ? -6 : 0
     implicitWidth: 260
     implicitHeight: col.implicitHeight + 16
     color: "transparent"
@@ -60,7 +63,7 @@ PopupWindow {
                     Layout.fillWidth: true
                     text: root.entry?.name ?? root.item.appId ?? ""
                     size: Theme.type.titleS
-                    weight: Font.Medium
+                    weight: Theme.strongWeight
                 }
             }
 

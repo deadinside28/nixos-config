@@ -50,7 +50,10 @@ Overlay {
     ColumnLayout {
         anchors.fill: parent
         anchors.margins: 40
-        anchors.bottomMargin: 56 + 40
+        anchors.topMargin: 40 + root.insetTop
+        anchors.bottomMargin: 40 + root.insetBottom
+        anchors.leftMargin: 40 + root.insetLeft
+        anchors.rightMargin: 40 + root.insetRight
         spacing: 32
         opacity: root.progress
         scale: 0.96 + 0.04 * root.progress

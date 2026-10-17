@@ -115,7 +115,7 @@ Overlay {
                         Layout.alignment: Qt.AlignHCenter
                         text: act.isArmed ? "Ещё раз" : act.modelData.label
                         color: act.isArmed ? Theme.error : Theme.fgSurface
-                        weight: Font.Medium
+                        weight: Theme.strongWeight
                     }
                 }
             }

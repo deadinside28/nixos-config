@@ -3,12 +3,94 @@ import QtQuick.Layouts
 import qs.common
 import qs.widgets
 import qs.services
+import Quickshell
 
 SettingsPage {
     title: "Рабочий стол и окна"
 
     Group {
         title: "Панель задач"
+
+        Rectangle {
+            readonly property bool groupItem: true
+            property bool first: true
+            property bool last: false
+            Layout.fillWidth: true
+            implicitHeight: 88
+            color: Theme.dark ? Theme.surfaceContainerHigh : Theme.surfaceContainerLowest
+            topLeftRadius: first ? 24 : 4
+            topRightRadius: first ? 24 : 4
+            bottomLeftRadius: last ? 24 : 4
+            bottomRightRadius: last ? 24 : 4
+            ColumnLayout {
+                anchors.fill: parent
+                anchors.margins: 12
+                anchors.leftMargin: 20
+                anchors.rightMargin: 20
+                spacing: 8
+                MText {
+                    text: "Положение"
+                    size: Theme.type.bodyL
+                }
+                SegmentedButtons {
+                    Layout.fillWidth: true
+                    options: [
+                        {
+                            value: "bottom",
+                            label: "Снизу",
+                            icon: "align_vertical_bottom"
+                        },
+                        {
+                            value: "top",
+                            label: "Сверху",
+                            icon: "align_vertical_top"
+                        },
+                        {
+                            value: "left",
+                            label: "Слева",
+                            icon: "align_horizontal_left"
+                        },
+                        {
+                            value: "right",
+                            label: "Справа",
+                            icon: "align_horizontal_right"
+                        }
+                    ]
+                    current: Settings.data.taskbarPosition
+                    onSelected: v => Settings.data.taskbarPosition = v
+                }
+            }
+        }
+
+        // На каких экранах: переключатель на каждый монитор
+        Repeater {
+            model: Quickshell.screens
+            SwitchItem {
+                id: scr
+                required property var modelData
+                readonly property var list: Settings.data.taskbarScreens
+                readonly property bool on: list.length === 0 || list.includes(modelData.name)
+                icon: "desktop_windows"
+                title: "Показывать на " + modelData.name
+                subtitle: (modelData.model || "") + " · " + modelData.width + "×" + modelData.height
+                checked: on
+                // последний включённый экран выключить нельзя
+                disabled: on && Quickshell.screens.filter(s => list.length === 0 || list.includes(s.name)).length <= 1
+                onToggled: v => {
+                    let names = list.length === 0 ? Quickshell.screens.map(s => s.name) : [...list];
+                    names = v ? [...new Set([...names, modelData.name])] : names.filter(n => n !== modelData.name);
+                    // все экраны — храним как «пусто», чтобы новые мониторы тоже получали панель
+                    Settings.data.taskbarScreens = names.length === Quickshell.screens.length ? [] : names;
+                }
+            }
+        }
+        SwitchItem {
+            icon: "keyboard"
+            title: "Раскладка клавиатуры"
+            subtitle: "Значок языка у часов; клик по нему — следующая раскладка"
+            checked: Settings.data.showKeyboardLayout
+            onToggled: v => Settings.data.showKeyboardLayout = v
+        }
         SwitchItem {
             icon: "align_horizontal_center"
             title: "Значки по центру"

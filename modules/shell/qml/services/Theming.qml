@@ -147,6 +147,10 @@ Singleton {
                     sed -i "/^\\[Settings\\]/a gtk-icon-theme-name=${name}" "$f"
                 fi
             done
+            # Значки самой оболочки (Qt) берутся при запуске — перезапускаем её.
+            printf 'QS_ICON_THEME=%s\\n' '${name}' > "${Settings.stateDir}/env"
+            sleep 0.5
+            systemctl --user restart pixel-shell
         `]);
     }
 }

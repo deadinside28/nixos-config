@@ -61,8 +61,19 @@ Singleton {
             property string iconTheme: ""
             property real animationScale: 1.0
 
+            // Шрифты всей системы (по умолчанию — из appearance во flake.nix)
+            property string uiFont: Nix.uiFont
+            property string uiFontWeight: Nix.uiFontStyle // Regular | Medium | Bold
+            property int uiFontSize: Nix.uiFontSize
+            property string monoFont: Nix.monoFont
+            property string monoFontWeight: Nix.monoFontStyle
+            property int monoFontSize: Nix.monoFontSize
+
             // Панель задач
             property bool taskbarCentered: true
+            property string taskbarPosition: "bottom" // bottom | top | left | right
+            property list<string> taskbarScreens: [] // пусто — на всех экранах
+            property bool showKeyboardLayout: true
             property bool showWorkspaces: true
             property bool showTray: true
             property list<string> pinnedApps: ["google-chrome", "nemo", "kitty", "org.telegram.desktop", "steam"]

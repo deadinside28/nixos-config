@@ -17,6 +17,8 @@
       # Цвета из обоев: файл пишет matugen оболочки. globinclude не
       # ругается, пока файла ещё нет (до первой смены обоев).
       globinclude pixel-theme.conf
+      # Моноширинный шрифт из «Настройки → Обои и стиль → Шрифт»
+      globinclude pixel-font.conf
       allow_remote_control yes
       listen_on unix:/tmp/kitty
     '';

@@ -17,8 +17,10 @@ PanelWindow {
 
     screen: Quickshell.screens.find(s => s.name === Ui.focusedScreen) ?? Quickshell.screens[0]
     visible: shown || pill.opacity > 0
-    anchors.bottom: true
+    anchors.bottom: Bar.edge !== "top"
+    anchors.top: Bar.edge === "top"
     margins.bottom: 24
+    margins.top: 24
     exclusionMode: ExclusionMode.Normal
     implicitWidth: 340
     implicitHeight: 64
@@ -118,7 +120,7 @@ PanelWindow {
                 horizontalAlignment: Text.AlignRight
                 text: Math.round(pill.value * 100)
                 size: Theme.type.labelL
-                weight: Font.Medium
+                weight: Theme.strongWeight
             }
         }
     }

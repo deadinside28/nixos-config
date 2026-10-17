@@ -12,13 +12,19 @@ PanelWindow {
 
     screen: Quickshell.screens.find(s => s.name === Ui.focusedScreen) ?? Quickshell.screens[0]
     visible: Notifs.popups.length > 0 && !Ui.locked && Ui.panel === ""
+    // Угол со стороны «таблетки» статуса; место под панелью задач
+    // слой отступит сам (ExclusionMode.Normal).
     anchors {
-        bottom: true
-        right: true
+        bottom: Bar.edge !== "top"
+        top: Bar.edge === "top"
+        right: Bar.edge !== "left"
+        left: Bar.edge === "left"
     }
     margins {
         bottom: 12
+        top: 12
         right: 12
+        left: 12
     }
     implicitWidth: 400
     implicitHeight: Math.max(1, column.implicitHeight)

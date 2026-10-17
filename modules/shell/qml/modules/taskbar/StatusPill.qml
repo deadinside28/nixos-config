@@ -1,5 +1,6 @@
-// «Таблетка» статуса: сеть, Bluetooth, звук, батарея, часы и дата.
-// Клик — быстрые настройки, колесо — громкость.
+// «Таблетка» статуса: раскладка, сеть, Bluetooth, звук, батарея, часы и
+// дата. Клик — быстрые настройки, колесо — громкость, клик по раскладке —
+// следующая раскладка. На боковой панели всё встаёт столбиком.
 import QtQuick
 import QtQuick.Layouts
 import qs.common
@@ -9,11 +10,12 @@ import qs.services
 Rectangle {
     id: root
     property string screenName
+    property bool vertical: false
     readonly property bool active: Ui.panel === "quicksettings"
 
-    implicitHeight: 40
-    implicitWidth: row.implicitWidth + 28
-    radius: height / 2
+    implicitHeight: vertical ? col.implicitHeight + 24 : 40
+    implicitWidth: vertical ? 44 : col.implicitWidth + 28
+    radius: vertical ? 22 : height / 2
     color: active ? Theme.primaryContainer : Theme.alpha(Theme.surfaceContainerHighest, 0.8)
     readonly property color fg: active ? Theme.fgPrimaryContainer : Theme.fgSurface
 
@@ -23,13 +25,47 @@ Rectangle {
         }
     }
 
-    RowLayout {
-        id: row
-        anchors.centerIn: parent
-        spacing: 10
+    StateLayer {
+        color: root.fg
+        onClicked: Ui.toggle("quicksettings", root.screenName)
+        onWheel: event => Audio.setVolume(Audio.volume + (event.angleDelta.y > 0 ? 0.05 : -0.05))
+    }
 
-        RowLayout {
-            spacing: 6
+    GridLayout {
+        id: col
+        anchors.centerIn: parent
+        flow: root.vertical ? GridLayout.TopToBottom : GridLayout.LeftToRight
+        rowSpacing: 8
+        columnSpacing: 10
+
+        // Раскладка: свой клик — переключить
+        Rectangle {
+            visible: Settings.data.showKeyboardLayout && Keyboard.code !== ""
+            Layout.alignment: Qt.AlignCenter
+            implicitWidth: kb.implicitWidth + 12
+            implicitHeight: 24
+            radius: Theme.radius.s
+            color: Theme.alpha(root.fg, 0.12)
+            MText {
+                id: kb
+                anchors.centerIn: parent
+                text: Keyboard.code
+                color: root.fg
+                size: Theme.type.labelM
+                weight: Font.Bold
+            }
+            MouseArea {
+                anchors.fill: parent
+                cursorShape: Qt.PointingHandCursor
+                onClicked: Keyboard.next()
+            }
+        }
+
+        GridLayout {
+            Layout.alignment: Qt.AlignCenter
+            flow: root.vertical ? GridLayout.TopToBottom : GridLayout.LeftToRight
+            rowSpacing: 6
+            columnSpacing: 6
             MIcon {
                 icon: Net.icon
                 size: 18
@@ -72,23 +108,21 @@ Rectangle {
         }
 
         MText {
-            visible: Settings.data.showDate
+            visible: Settings.data.showDate && !root.vertical
             text: Time.dateShort
             color: root.fg
             size: Theme.type.labelL
-            weight: Font.Medium
+            weight: Theme.strongWeight
         }
         MText {
-            text: Time.time
+            Layout.alignment: Qt.AlignCenter
+            horizontalAlignment: Text.AlignHCenter
+            // на боковой панели часы и минуты — друг под другом
+            text: root.vertical ? Time.time.replace(":", "\n").replace(/ (AM|PM)$/, "") : Time.time
             color: root.fg
             size: Theme.type.labelL
-            weight: Font.Medium
+            weight: Theme.strongWeight
+            lineHeight: 0.9
         }
-    }
-
-    StateLayer {
-        color: root.fg
-        onClicked: Ui.toggle("quicksettings", root.screenName)
-        onWheel: event => Audio.setVolume(Audio.volume + (event.angleDelta.y > 0 ? 0.05 : -0.05))
     }
 }

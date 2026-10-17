@@ -64,76 +64,83 @@ SettingsPage {
     }
 
     Group {
-        title: "Приложения"
-        visible: true
+        title: "Громкость приложений"
 
         Repeater {
-            model: Audio.playbackStreams
+            model: Audio.apps
             Rectangle {
-                id: stream
+                id: app
                 required property var modelData
                 readonly property bool groupItem: true
                 property bool first: true
                 property bool last: true
                 Layout.fillWidth: true
-                implicitHeight: 88
+                implicitHeight: col.implicitHeight + 24
                 color: Theme.dark ? Theme.surfaceContainerHigh : Theme.surfaceContainerLowest
                 topLeftRadius: first ? 24 : 4
                 topRightRadius: first ? 24 : 4
                 bottomLeftRadius: last ? 24 : 4
                 bottomRightRadius: last ? 24 : 4
 
-                RowLayout {
-                    anchors.fill: parent
+                ColumnLayout {
+                    id: col
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
                     anchors.leftMargin: 20
-                    anchors.rightMargin: 20
-                    spacing: 16
-                    AppIcon {
-                        size: 36
-                        icon: Audio.streamIcon(stream.modelData)
-                    }
-                    ColumnLayout {
+                    anchors.rightMargin: 12
+                    spacing: 4
+
+                    AppVolumeRow {
                         Layout.fillWidth: true
-                        spacing: 0
-                        MText {
-                            Layout.fillWidth: true
-                            text: Audio.streamName(stream.modelData)
-                            size: Theme.type.bodyL
+                        app: app.modelData
+                    }
+
+                    // Вывод на другое устройство — только когда их больше одного
+                    RowLayout {
+                        visible: Audio.sinks.length > 1
+                        Layout.leftMargin: 56
+                        spacing: 8
+                        MIcon {
+                            icon: "speaker"
+                            size: 18
+                            color: Theme.fgSurfaceVariant
                         }
-                        MSlider {
-                            Layout.fillWidth: true
-                            value: stream.modelData.audio?.volume ?? 0
-                            onMoved: v => {
-                                stream.modelData.audio.muted = false;
-                                stream.modelData.audio.volume = v;
+                        Repeater {
+                            model: Audio.sinks
+                            Rectangle {
+                                id: chip
+                                required property var modelData
+                                readonly property bool sel: Audio.appSinkId(app.modelData) === modelData.id
+                                implicitHeight: 32
+                                implicitWidth: chipText.implicitWidth + 24
+                                radius: Theme.radius.s
+                                color: sel ? Theme.secondaryContainer : "transparent"
+                                border.width: sel ? 0 : 1
+                                border.color: Theme.outlineVariant
+                                MText {
+                                    id: chipText
+                                    anchors.centerIn: parent
+                                    text: Audio.nodeName(chip.modelData)
+                                    size: Theme.type.labelL
+                                    color: chip.sel ? Theme.fgSecondaryContainer : Theme.fgSurfaceVariant
+                                    width: Math.min(implicitWidth, 220)
+                                }
+                                StateLayer {
+                                    onClicked: Audio.moveApp(app.modelData, chip.modelData)
+                                }
                             }
                         }
-                    }
-                    IconButton {
-                        icon: stream.modelData.audio?.muted ? "volume_off" : "volume_up"
-                        toggled: stream.modelData.audio?.muted ?? false
-                        onClicked: stream.modelData.audio.muted = !stream.modelData.audio.muted
                     }
                 }
             }
         }
 
         ListItem {
-            visible: Audio.playbackStreams.length === 0
+            visible: Audio.apps.length === 0
             icon: "music_off"
             title: "Сейчас ничего не воспроизводит звук"
             clickable: false
-        }
-    }
-
-    Group {
-        title: "Дополнительно"
-        ListItem {
-            icon: "equalizer"
-            title: "Микшер PipeWire"
-            subtitle: "Профили устройств, маршрутизация, каналы"
-            chevron: true
-            onClicked: Apps.run(["pavucontrol"])
         }
     }
 }

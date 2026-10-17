@@ -19,6 +19,19 @@ PanelWindow {
     default property alias content: container.data
     signal dismissed
 
+    // Место, которое занимает панель задач на этом экране, по сторонам
+    readonly property int insetTop: Bar.inset(screen?.name ?? "", "top")
+    readonly property int insetBottom: Bar.inset(screen?.name ?? "", "bottom")
+    readonly property int insetLeft: Bar.inset(screen?.name ?? "", "left")
+    readonly property int insetRight: Bar.inset(screen?.name ?? "", "right")
+    // Сдвиг для анимации появления: со стороны панели
+    function slideX(amount) {
+        return Bar.edge === "left" ? -amount : Bar.edge === "right" ? amount : 0;
+    }
+    function slideY(amount) {
+        return Bar.edge === "top" ? -amount : Bar.vertical ? 0 : amount;
+    }
+
     screen: Quickshell.screens.find(s => s.name === Ui.activeScreen) ?? Quickshell.screens[0]
     visible: open || progress > 0.001
     color: "transparent"

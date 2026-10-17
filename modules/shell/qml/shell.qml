@@ -29,7 +29,7 @@ ShellRoot {
 
     // Сервисы-синглтоны создаются при первом обращении. Эти должны
     // работать с самого старта, даже если на экране их никто не трогает.
-    readonly property var services: [Theming, HyprConf, Notifs, NightLight, WallpaperEngine]
+    readonly property var services: [Theming, HyprConf, Notifs, NightLight, WallpaperEngine, Fonts, Keyboard]
 
     Variants {
         model: Quickshell.screens
@@ -37,7 +37,7 @@ ShellRoot {
     }
 
     Variants {
-        model: Quickshell.screens
+        model: Quickshell.screens.filter(s => Bar.shownOn(s.name))
         Taskbar {}
     }
 

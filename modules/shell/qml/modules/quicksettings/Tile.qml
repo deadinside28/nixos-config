@@ -80,7 +80,7 @@ Rectangle {
                 text: root.label
                 color: root.fg
                 size: Theme.type.titleS
-                weight: Font.Medium
+                weight: Theme.strongWeight
             }
             MText {
                 Layout.fillWidth: true

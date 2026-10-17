@@ -61,7 +61,11 @@
     // Сгенерировано из modules/shell/default.nix.
     Singleton {
         readonly property string uiFont: "${appearance.uiFont}"
+        readonly property string uiFontStyle: "${appearance.uiFontStyle}"
+        readonly property int uiFontSize: ${toString appearance.uiFontSize}
         readonly property string monoFont: "${appearance.monoFont}"
+        readonly property string monoFontStyle: "${appearance.monoFontStyle}"
+        readonly property int monoFontSize: ${toString appearance.monoFontSize}
         readonly property string terminal: "kitty"
         readonly property string matugen: "${lib.getExe pkgs.matugen}"
         readonly property string matugenConfig: "${matugenFull}"
@@ -216,6 +220,8 @@ in {
       ExecStart = "${lib.getExe quickshell} -c pixel";
       Restart = "on-failure";
       RestartSec = 1;
+      # QS_ICON_THEME — тема значков из «Настройки → Обои и стиль»
+      EnvironmentFile = "-${stateDir}/env";
       # Приложения запускаются в своих scope (systemd-run), так что
       # перезапуск оболочки их не трогает.
       Environment = [

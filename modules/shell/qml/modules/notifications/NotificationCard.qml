@@ -149,7 +149,7 @@ Item {
                         Layout.fillWidth: true
                         text: root.notification.summary
                         size: Theme.type.titleS
-                        weight: Font.Medium
+                        weight: Theme.strongWeight
                         color: root.critical ? Theme.fgErrorContainer : Theme.fgSurface
                         wrapMode: Text.Wrap
                         maximumLineCount: 2

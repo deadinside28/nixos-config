@@ -7,10 +7,12 @@ import Quickshell.Widgets
 import qs.common
 import qs.widgets
 
-RowLayout {
+GridLayout {
     id: root
     required property var bar
-    spacing: 2
+    flow: bar.vertical ? GridLayout.TopToBottom : GridLayout.LeftToRight
+    rowSpacing: 2
+    columnSpacing: 2
 
     Repeater {
         model: SystemTray.items
@@ -46,8 +48,10 @@ RowLayout {
                     else if (event.button === Qt.MiddleButton)
                         item.secondaryActivate();
                     else if (item.hasMenu) {
-                        const p = trayItem.mapToItem(root.bar.contentItem, 0, 0);
-                        item.display(root.bar, p.x, p.y - 4);
+                        // меню — со стороны рабочего стола
+                        const e = Bar.edge;
+                        const p = trayItem.mapToItem(root.bar.contentItem, e === "left" ? trayItem.width : 0, e === "top" ? trayItem.height : 0);
+                        item.display(root.bar, p.x, p.y);
                     }
                 }
                 onWheel: event => trayItem.modelData.scroll(event.angleDelta.y, false)

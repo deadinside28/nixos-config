@@ -187,7 +187,7 @@ SettingsPage {
                     MText {
                         Layout.alignment: Qt.AlignHCenter
                         text: box.modelData.m.model || box.modelData.m.name
-                        weight: Font.Medium
+                        weight: Theme.strongWeight
                         color: box.isSel ? Theme.fgPrimaryContainer : Theme.fgSurface
                     }
                     MText {

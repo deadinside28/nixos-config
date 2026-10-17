@@ -11,8 +11,8 @@ Item {
     id: root
     required property var bar
 
-    implicitWidth: row.implicitWidth
-    implicitHeight: 48
+    implicitWidth: bar.vertical ? 48 : row.implicitWidth
+    implicitHeight: bar.vertical ? row.implicitHeight : 48
 
     readonly property var toplevels: ToplevelManager.toplevels.values
 
@@ -60,10 +60,12 @@ Item {
         return result;
     }
 
-    RowLayout {
+    GridLayout {
         id: row
-        anchors.verticalCenter: parent.verticalCenter
-        spacing: 4
+        anchors.centerIn: parent
+        flow: root.bar.vertical ? GridLayout.TopToBottom : GridLayout.LeftToRight
+        rowSpacing: 4
+        columnSpacing: 4
 
         Repeater {
             model: ScriptModel {

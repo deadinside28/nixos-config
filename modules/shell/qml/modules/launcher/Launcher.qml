@@ -73,12 +73,13 @@ Overlay {
     Card {
         id: card
         width: 660
-        height: Math.min(720, root.height - 56 - 24)
-        x: 12
-        y: root.height - 56 - 12 - height + (1 - root.progress) * 40
+        height: Math.min(720, root.height - root.insetTop - root.insetBottom - 24)
+        // Рядом с кнопкой лаунчера: она в начале панели
+        x: (Bar.edge === "right" ? root.width - root.insetRight - 12 - width : root.insetLeft + 12) + root.slideX((1 - root.progress) * 40)
+        y: (Bar.edge === "bottom" ? root.height - root.insetBottom - 12 - height : root.insetTop + 12) + root.slideY((1 - root.progress) * 40)
         opacity: root.progress
         scale: 0.94 + 0.06 * root.progress
-        transformOrigin: Item.BottomLeft
+        transformOrigin: Bar.edge === "bottom" ? (Bar.vertical ? Item.TopLeft : Item.BottomLeft) : Bar.edge === "right" ? Item.TopRight : Item.TopLeft
         color: Theme.surfaceContainer
 
         ColumnLayout {
@@ -157,7 +158,7 @@ Overlay {
                     text: "Часто используемые"
                     color: Theme.fgSurfaceVariant
                     size: Theme.type.labelL
-                    weight: Font.Medium
+                    weight: Theme.strongWeight
                     Layout.leftMargin: 8
                 }
                 RowLayout {

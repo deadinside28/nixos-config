@@ -210,26 +210,36 @@ Singleton {
 
     // --- типографика -------------------------------------------------------
 
-    readonly property string font: Nix.uiFont
-    readonly property string monoFont: Nix.monoFont
+    readonly property string font: Settings.data.uiFont || Nix.uiFont
+    readonly property string monoFont: Settings.data.monoFont || Nix.monoFont
+    // Начертание обычного текста оболочки — как во всей системе
+    readonly property int fontWeight: ({
+            Regular: Font.Normal,
+            Medium: Font.Medium,
+            Bold: Font.Bold
+        })[Settings.data.uiFontWeight] ?? Font.Medium
+    // Выделенный текст (заголовки, кнопки) — на ступень жирнее обычного
+    readonly property int strongWeight: Math.min(Font.Black, Math.max(Font.Medium, fontWeight + 100))
+    // Размер из настроек масштабирует всю типографику оболочки (12 — как задумано)
+    readonly property real textScale: Math.max(0.75, Math.min(1.5, (Settings.data.uiFontSize || 12) / 12))
     readonly property string iconFont: "Material Symbols Rounded"
 
     readonly property QtObject type: QtObject {
-        readonly property int displayL: 57
-        readonly property int displayM: 45
-        readonly property int displayS: 36
-        readonly property int headlineL: 32
-        readonly property int headlineM: 28
-        readonly property int headlineS: 24
-        readonly property int titleL: 22
-        readonly property int titleM: 16
-        readonly property int titleS: 14
-        readonly property int bodyL: 16
-        readonly property int bodyM: 14
-        readonly property int bodyS: 12
-        readonly property int labelL: 14
-        readonly property int labelM: 12
-        readonly property int labelS: 11
+        readonly property int displayL: Math.round(57 * root.textScale)
+        readonly property int displayM: Math.round(45 * root.textScale)
+        readonly property int displayS: Math.round(36 * root.textScale)
+        readonly property int headlineL: Math.round(32 * root.textScale)
+        readonly property int headlineM: Math.round(28 * root.textScale)
+        readonly property int headlineS: Math.round(24 * root.textScale)
+        readonly property int titleL: Math.round(22 * root.textScale)
+        readonly property int titleM: Math.round(16 * root.textScale)
+        readonly property int titleS: Math.round(14 * root.textScale)
+        readonly property int bodyL: Math.round(16 * root.textScale)
+        readonly property int bodyM: Math.round(14 * root.textScale)
+        readonly property int bodyS: Math.round(12 * root.textScale)
+        readonly property int labelL: Math.round(14 * root.textScale)
+        readonly property int labelM: Math.round(12 * root.textScale)
+        readonly property int labelS: Math.round(11 * root.textScale)
     }
 
     // --- форма -------------------------------------------------------------

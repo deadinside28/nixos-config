@@ -13,9 +13,12 @@ PopupWindow {
 
     anchor.window: bar
     anchor.item: target
-    anchor.edges: Edges.Top
-    anchor.gravity: Edges.Top
-    anchor.margins.top: -8
+    anchor.edges: Bar.popupEdge
+    anchor.gravity: Bar.popupEdge
+    anchor.margins.top: Bar.edge === "bottom" ? -8 : 0
+    anchor.margins.bottom: Bar.edge === "top" ? -8 : 0
+    anchor.margins.left: Bar.edge === "right" ? -8 : 0
+    anchor.margins.right: Bar.edge === "left" ? -8 : 0
     implicitWidth: label.implicitWidth + 24
     implicitHeight: 32
     color: "transparent"

@@ -19,6 +19,7 @@ SettingsPage {
     Component.onCompleted: {
         Wallpapers.refresh();
         WallpaperEngine.refresh();
+        Fonts.refresh();
         previews.running = true;
         icons.running = true;
     }
@@ -635,7 +636,7 @@ SettingsPage {
                     text: "Стиль палитры"
                     color: Theme.fgSurfaceVariant
                     size: Theme.type.labelL
-                    weight: Font.Medium
+                    weight: Theme.strongWeight
                 }
 
                 // Схемы палитры — кружки-образцы, как на Pixel
@@ -718,6 +719,118 @@ SettingsPage {
         title: "Свой цвет"
         selectedColor: Settings.data.presetColor
         onAccepted: Settings.data.presetColor = selectedColor.toString()
+    }
+
+    Group {
+        title: "Шрифт"
+
+        // Превью: как будет выглядеть текст
+        Rectangle {
+            readonly property bool groupItem: true
+            property bool first: true
+            property bool last: false
+            Layout.fillWidth: true
+            implicitHeight: prev.implicitHeight + 40
+            color: Theme.dark ? Theme.surfaceContainerHigh : Theme.surfaceContainerLowest
+            topLeftRadius: first ? 24 : 4
+            topRightRadius: first ? 24 : 4
+            bottomLeftRadius: last ? 24 : 4
+            bottomRightRadius: last ? 24 : 4
+            ColumnLayout {
+                id: prev
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                anchors.leftMargin: 20
+                anchors.rightMargin: 20
+                spacing: 6
+                MText {
+                    text: "Съешь же ещё этих мягких французских булок"
+                    size: Theme.type.headlineS
+                    Layout.fillWidth: true
+                }
+                MText {
+                    text: "Аа Бб Вв · Aa Bb Cc · 0123456789 — так будет выглядеть текст во всей системе"
+                    color: Theme.fgSurfaceVariant
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                }
+                Text {
+                    text: "fn main() { println!(\"моноширинный\"); }"
+                    font.family: Settings.data.monoFont
+                    font.pixelSize: Theme.type.bodyM
+                    color: Theme.tertiary
+                }
+            }
+        }
+        ChoiceItem {
+            icon: "font_download"
+            title: "Шрифт интерфейса"
+            maxVisible: 8
+            options: {
+                // Шрифты Pixel и похожие — первыми, дальше все установленные
+                const top = ["Google Sans", "Google Sans Text", "Google Sans Flex", "Roboto", "Inter", "Noto Sans"].filter(f => Fonts.families.includes(f));
+                return [...top, ...Fonts.families.filter(f => !top.includes(f))];
+            }
+            current: Settings.data.uiFont
+            onSelected: v => Settings.data.uiFont = v
+        }
+        Rectangle {
+            readonly property bool groupItem: true
+            property bool first: false
+            property bool last: false
+            Layout.fillWidth: true
+            implicitHeight: 88
+            color: Theme.dark ? Theme.surfaceContainerHigh : Theme.surfaceContainerLowest
+            topLeftRadius: first ? 24 : 4
+            topRightRadius: first ? 24 : 4
+            bottomLeftRadius: last ? 24 : 4
+            bottomRightRadius: last ? 24 : 4
+            ColumnLayout {
+                anchors.fill: parent
+                anchors.margins: 12
+                anchors.leftMargin: 20
+                anchors.rightMargin: 20
+                spacing: 8
+                MText {
+                    text: "Начертание"
+                    size: Theme.type.bodyL
+                }
+                SegmentedButtons {
+                    Layout.fillWidth: true
+                    options: Fonts.weights
+                    current: Settings.data.uiFontWeight
+                    onSelected: v => Settings.data.uiFontWeight = v
+                }
+            }
+        }
+        SliderItem {
+            icon: "format_size"
+            title: "Размер"
+            valueText: Settings.data.uiFontSize + " pt"
+            from: 9
+            to: 16
+            stepSize: 1
+            value: Settings.data.uiFontSize
+            onMoved: v => Settings.data.uiFontSize = Math.round(v)
+        }
+        ChoiceItem {
+            icon: "code"
+            title: "Моноширинный шрифт"
+            maxVisible: 8
+            options: {
+                const mono = Fonts.families.filter(f => /mono|code|courier|consol|hack|fira|iosevka|cascadia|source code/i.test(f));
+                return mono.length ? mono : Fonts.families;
+            }
+            current: Settings.data.monoFont
+            onSelected: v => Settings.data.monoFont = v
+        }
+        ListItem {
+            icon: "info"
+            title: "Открытые приложения подхватят шрифт после перезапуска"
+            subtitle: "Оболочка, GTK-приложения и терминал меняют его сразу"
+            clickable: false
+        }
     }
 
     Group {

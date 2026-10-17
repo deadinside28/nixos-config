@@ -112,7 +112,7 @@ SettingsPage {
                         Layout.fillWidth: true
                         text: SystemConfig.status === "running" ? SystemConfig.task : SystemConfig.status === "failed" ? SystemConfig.task + ": не получилось" : SystemConfig.status === "success" && !SystemConfig.pending ? SystemConfig.task + ": готово" : "Есть неприменённые изменения"
                         size: Theme.type.titleM
-                        weight: Font.Medium
+                        weight: Theme.strongWeight
                         color: banner.fg
                     }
                     MText {

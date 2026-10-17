@@ -32,11 +32,17 @@ ClippingRectangle {
         blurEnabled: true
         blur: 0.6
         blurMax: 48
-        brightness: Theme.dark ? -0.35 : -0.2
-        saturation: 0.2
+        saturation: 0.3
+    }
+    // Слой цвета поверхности поверх размытой обложки: текст читается
+    // на любой картинке, а оттенок обложки остаётся.
+    Rectangle {
+        anchors.fill: parent
+        color: Theme.surfaceContainerHighest
+        opacity: art.status === Image.Ready ? 0.72 : 0
     }
 
-    readonly property color fg: art.status === Image.Ready ? "white" : Theme.fgSurface
+    readonly property color fg: Theme.fgSurface
 
     // позиция обновляется только пока карточка видна
     Timer {
@@ -81,7 +87,7 @@ ClippingRectangle {
                 text: root.player?.trackTitle || "Ничего не играет"
                 color: root.fg
                 size: Theme.type.titleM
-                weight: Font.Medium
+                weight: Theme.strongWeight
             }
             MText {
                 Layout.fillWidth: true

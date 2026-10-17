@@ -20,7 +20,7 @@ ColumnLayout {
         text: root.title
         color: Theme.primary
         size: Theme.type.labelL
-        weight: Font.Medium
+        weight: Theme.strongWeight
     }
 
     ColumnLayout {
