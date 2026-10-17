@@ -242,6 +242,7 @@ in {
           cliphist
           brightnessctl
           hyprsunset
+          mpvpaper # видеообои Wallpaper Engine
           xdg-utils
           flatpak
           matugen

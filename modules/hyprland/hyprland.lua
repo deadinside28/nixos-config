@@ -169,6 +169,9 @@ hl.animation({ leaf = "zoomFactor",       enabled = true, speed = 3, spring = "m
 -- анимация, и она выглядит дёшево.
 hl.layer_rule({ match = { namespace = "^(quickshell)$" }, no_anim = true })
 hl.layer_rule({ match = { namespace = "^pixel-shell:.*" }, no_anim = true })
+-- Живые обои (mpvpaper, linux-wallpaperengine) появляются без затухания:
+-- иначе при смене обоев экран мигает.
+hl.layer_rule({ match = { namespace = "^(mpvpaper|linux-wallpaperengine.*|wallpaperengine.*)$" }, no_anim = true })
 -- Матовое стекло под панелью задач, лаунчером и быстрыми настройками.
 -- ignore_alpha — не размывать полностью прозрачные части поверхностей
 -- (оверлеи панелей занимают весь экран, но видна только карточка).

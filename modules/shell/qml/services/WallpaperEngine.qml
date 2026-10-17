@@ -34,6 +34,8 @@ Singleton {
     readonly property bool active: targets.length > 0
     readonly property var current: items.find(i => i.dir === Wallpapers.current.engine) ?? null
     property string lastError: ""
+    // Пока не знаем тип обоев (видео или сцена) — ничего не запускаем
+    property bool scanned: false
 
     function refresh() {
         scan.running = true;
@@ -59,7 +61,7 @@ $(sed -n 's/^[[:space:]]*"path"[[:space:]]*"\\(.*\\)"/\\1/p' "$vdf")"
                 for d in "$lib"/steamapps/workshop/content/431960/*/; do
                     [ -f "$d/project.json" ] || continue
                     d=\${d%/}
-                    jq -r --arg d "$d" '["item", $d, (.title // ""), ((.type // "") | ascii_downcase), (.preview // "")] | @tsv' "$d/project.json" 2>/dev/null
+                    jq -r --arg d "$d" '["item", $d, (.title // ""), ((.type // "") | ascii_downcase), (.preview // ""), (.file // "")] | @tsv' "$d/project.json" 2>/dev/null
                 done
             done
         `]
@@ -84,10 +86,13 @@ $(sed -n 's/^[[:space:]]*"path"[[:space:]]*"\\(.*\\)"/\\1/p' "$vdf")"
                         id: f[1].split("/").pop(),
                         title: f[2] || f[1].split("/").pop(),
                         type: f[3] || "scene",
-                        preview: f[4] ? f[1] + "/" + f[4] : ""
+                        preview: f[4] ? f[1] + "/" + f[4] : "",
+                        // сам видеофайл обоев (для type = video)
+                        file: f[5] ? f[1] + "/" + f[5] : ""
                     });
                 }
                 root.items = list.sort((a, b) => a.title.localeCompare(b.title));
+                root.scanned = true;
             }
         }
     }
@@ -117,13 +122,36 @@ $(sed -n 's/^[[:space:]]*"path"[[:space:]]*"\\(.*\\)"/\\1/p' "$vdf")"
         return a;
     }
 
+    // Как показывать обои на экране:
+    //   video — сам видеофайл через mpvpaper (mpv, аппаратное декодирование,
+    //           без перекодированных превью и с честным качеством);
+    //   scene / web — linux-wallpaperengine.
+    function commandFor(screen, dir) {
+        const d = Settings.data;
+        const item = items.find(i => i.dir === dir);
+        if (item && item.type === "video" && item.file) {
+            const opts = ["loop", "hwdec=auto", "keep-open=yes"];
+            opts.push(d.engineSilent ? "no-audio" : "volume=" + d.engineVolume);
+            if (d.engineScaling === "fill")
+                opts.push("panscan=1.0");
+            else if (d.engineScaling === "stretch")
+                opts.push("keepaspect=no");
+            const cmd = ["mpvpaper", "-l", "bottom", "-p"];
+            if (d.enginePauseFullscreen)
+                cmd.push("-a", "full");
+            cmd.push("-o", opts.join(" "), screen, item.file);
+            return cmd;
+        }
+        return ["linux-wallpaperengine", ...baseArgs, "--scaling", d.engineScaling, "--screen-root", screen, "--bg", dir];
+    }
+
     // Отдельный процесс на каждый монитор: смена обоев на одном экране не
     // перезапускает другой, а разные обои на разных экранах в одном процессе
     // linux-wallpaperengine показывает с ошибками.
     Variants {
-        // Строка-ключ: экран + обои + параметры. Изменилась — пересоздаётся
-        // только процесс этого экрана.
-        model: root.targets.map(t => JSON.stringify([t.screen, t.dir, ...root.baseArgs, "--scaling", Settings.data.engineScaling]))
+        // Ключ — готовая команда: изменилась — пересоздаётся только процесс
+        // этого экрана.
+        model: root.scanned ? root.targets.map(t => JSON.stringify([t.screen, ...root.commandFor(t.screen, t.dir)])) : []
 
         Scope {
             id: inst
@@ -133,7 +161,7 @@ $(sed -n 's/^[[:space:]]*"path"[[:space:]]*"\\(.*\\)"/\\1/p' "$vdf")"
             Process {
                 id: proc
                 running: true
-                command: ["linux-wallpaperengine", ...inst.parts.slice(2), "--screen-root", inst.parts[0], "--bg", inst.parts[1]]
+                command: inst.parts.slice(1)
                 stderr: StdioCollector {
                     onStreamFinished: {
                         const t = text.trim().split("\n").filter(l => /error|fail|cannot|could not/i.test(l)).slice(-3).join("\n");
