@@ -4,6 +4,12 @@ pragma Singleton
 // обычный файл, который оболочка пишет сама при каждом изменении в
 // «Настройках». Конфиг Nix сюда не лезет: что выбрал мышкой, то и
 // остаётся после пересборки.
+//
+// Запись атомарная (FileView.atomicWrites). Рядом лежит settings.json.bak —
+// последняя читаемая копия. Если settings.json не разбирается (правили
+// руками, сбой диска), оболочка не затирает его значениями по умолчанию:
+// повреждённый файл откладывается в settings.json.broken-<время>, а
+// настройки восстанавливаются из копии.
 
 import QtQuick
 import Quickshell
@@ -20,19 +26,51 @@ Singleton {
     property alias data: adapter
     readonly property bool loaded: file.loaded
 
+    // Версия формата settings.json. Растёт, когда ключ переименовывается
+    // или меняет смысл; перевод старых значений — в migrate().
+    readonly property int schemaVersion: 1
+    function migrate() {
+        if (adapter.schemaVersion >= schemaVersion)
+            return;
+        // if (adapter.schemaVersion < 2) { … перенос значений … }
+        adapter.schemaVersion = schemaVersion;
+    }
+
+    // settings.json не разобрался — пока он не восстановлен, не пишем
+    property bool broken: false
+    readonly property string path: stateDir + "/settings.json"
+    readonly property string backupPath: path + ".bak"
+
     FileView {
         id: file
-        path: root.stateDir + "/settings.json"
+        path: root.path
         watchChanges: true
         printErrors: false
         property bool loaded: false
 
         onFileChanged: reload()
-        onAdapterUpdated: writeAdapter()
-        onLoaded: loaded = true
+        onAdapterUpdated: if (!root.broken)
+            writeAdapter()
+        onLoaded: {
+            let ok = false;
+            try {
+                const j = JSON.parse(text());
+                ok = j !== null && typeof j === "object" && !Array.isArray(j);
+            } catch (e) {}
+            if (!ok) {
+                root.restore();
+                return;
+            }
+            root.broken = false;
+            loaded = true;
+            root.migrate();
+            if (text() !== backup.text())
+                backup.setText(text());
+        }
         onLoadFailed: error => {
             loaded = true;
             if (error === FileViewError.FileNotFound) {
+                root.broken = false;
                 Quickshell.execDetached(["mkdir", "-p", root.stateDir, root.hyprDir]);
                 writeAdapter();
             }
@@ -40,6 +78,8 @@ Singleton {
 
         JsonAdapter {
             id: adapter
+
+            property int schemaVersion: 1
 
             // Тема
             property bool darkMode: true
@@ -202,6 +242,27 @@ Singleton {
             property var appUsage: ({})
             property string searchEngine: "https://www.google.com/search?q="
         }
+    }
+
+    FileView {
+        id: backup
+        path: root.backupPath
+        printErrors: false
+        blockLoading: true
+    }
+    function restore() {
+        if (broken)
+            return;
+        broken = true;
+        console.warn("settings.json не разбирается — восстанавливаю из", backupPath);
+        // Копии нет — убираем файл, и оболочка создаст его заново (onLoadFailed)
+        Quickshell.execDetached(["sh", "-c", `
+            f="$1"; bak="$2"; keep="$f.broken-$(date +%Y%m%d-%H%M%S)"
+            cp -f -- "$f" "$keep"
+            if [ -s "$bak" ]; then cp -f -- "$bak" "$f.tmp" && mv -f -- "$f.tmp" "$f"; what="восстановлены из резервной копии"
+            else rm -f -- "$f"; what="сброшены: резервной копии нет"; fi
+            notify-send -a "Pixel Shell" -u critical -i dialog-warning "Настройки оболочки повреждены" "Настройки $what. Повреждённый файл: $keep"
+        `, "sh", path, backupPath]);
     }
 
     function pin(id) {

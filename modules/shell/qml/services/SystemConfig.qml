@@ -21,6 +21,9 @@ Singleton {
 
     readonly property string path: Nix.flake + "/system.json"
     property var data: ({})
+    // system.json не разбирается — правок не пишем, чтобы не затереть его
+    // одним изменённым ключом; ошибка видна в «Настройках → Система»
+    property string parseError: ""
     property var applied: ({})
     readonly property bool loaded: Object.keys(data).length > 0
     readonly property bool pending: loaded && norm(data) !== norm(applied)
@@ -61,8 +64,13 @@ Singleton {
         onFileChanged: reload()
         onLoaded: {
             try {
-                root.data = JSON.parse(text());
+                const d = JSON.parse(text());
+                if (d === null || typeof d !== "object" || Array.isArray(d))
+                    throw new Error("ожидался объект");
+                root.data = d;
+                root.parseError = "";
             } catch (e) {
+                root.parseError = String(e.message ?? e);
                 console.warn("system.json не читается:", e);
             }
         }
@@ -90,6 +98,8 @@ Singleton {
         return v ?? fallback;
     }
     function set(keyPath, value) {
+        if (parseError)
+            return;
         const d = JSON.parse(JSON.stringify(data));
         const keys = keyPath.split(".");
         let o = d;
@@ -108,6 +118,8 @@ Singleton {
         set(keyPath, get(keyPath, []).filter(v => v !== value));
     }
     function revert() {
+        if (parseError)
+            return;
         data = JSON.parse(JSON.stringify(applied));
         file.setText(JSON.stringify(data, null, 2) + "\n");
     }

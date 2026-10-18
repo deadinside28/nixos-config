@@ -69,6 +69,37 @@ SettingsPage {
         }
     }
 
+    // system.json не разобрался — правки отключены, пока файл не исправлен
+    Rectangle {
+        Layout.fillWidth: true
+        visible: SystemConfig.parseError !== ""
+        implicitHeight: parseCol.implicitHeight + 40
+        radius: Theme.radius.xl
+        color: Theme.errorContainer
+        ColumnLayout {
+            id: parseCol
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: parent.top
+            anchors.margins: 20
+            spacing: 4
+            MText {
+                Layout.fillWidth: true
+                text: "system.json не читается — изменения здесь не сохраняются"
+                size: Theme.type.titleS
+                weight: Theme.strongWeight
+                color: Theme.fgErrorContainer
+                wrapMode: Text.Wrap
+            }
+            MText {
+                Layout.fillWidth: true
+                text: SystemConfig.path + ": " + SystemConfig.parseError
+                color: Theme.fgErrorContainer
+                wrapMode: Text.Wrap
+            }
+        }
+    }
+
     // --- Состояние: изменения / сборка ------------------------------------
     Rectangle {
         Layout.fillWidth: true
