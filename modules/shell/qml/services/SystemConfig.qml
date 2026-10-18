@@ -5,6 +5,12 @@ pragma Singleton
 // Nix читает его через lib.importJSON. Здесь мы этот файл правим, а
 // «Применить» собирает систему от пользователя и переключает её через
 // pkexec (пароль спросит наш агент polkit).
+//
+// Пересборка идёт в отдельной службе systemd --user (pixel-rebuild.service,
+// systemd-run), а не дочерним процессом оболочки: переключение системы
+// перезапускает саму оболочку, и вместе с ней убило бы сборку. Вывод
+// пишется в журнал в stateDir; оболочка читает его и после перезапуска
+// подключается к идущей задаче или показывает её итог.
 import QtQuick
 import Quickshell
 import Quickshell.Io
@@ -108,9 +114,12 @@ Singleton {
 
     // --- Пересборка и обслуживание --------------------------------------
 
-    function run(name, cmd) {
-        if (proc.running)
-            return;
+    readonly property string unit: "pixel-rebuild.service"
+    readonly property string logPath: Settings.stateDir + "/rebuild.log"
+    // Итог показан и закрыт — после перезапуска оболочки снова не всплывает
+    readonly property string seenPath: Settings.stateDir + "/rebuild.seen"
+
+    function reset(name) {
         task = name;
         status = "running";
         stage = "Запуск…";
@@ -123,9 +132,30 @@ Singleton {
         startedAt = new Date();
         popupHidden = false;
         cardDismissed = false;
+        unitGone = false;
+    }
+    function run(name, cmd) {
+        if (running || starter.running)
+            return;
+        reset(name);
         lastRun = [name, cmd];
-        proc.command = cmd;
-        proc.running = true;
+        // Первая строка журнала — что запущено (для повтора после
+        // перезапуска оболочки), последняя — «::exit <код>».
+        // trap: TERM при отмене получает и обёртка — она дожидается
+        // pixel-rebuild и всё равно пишет код выхода.
+        starter.command = ["sh", "-c", `
+            log="$1"; seen="$2"; task="$3"; shift 3
+            mkdir -p "$(dirname -- "$log")"
+            rm -f -- "$log" "$seen"
+            exec systemd-run --user --unit=pixel-rebuild --collect --quiet \
+                --description="Pixel Shell: пересборка системы" --setenv=PATH="$PATH" \
+                sh -c 'log="$1"; task="$2"; shift 2; exec >>"$log" 2>&1; trap : TERM
+                       printf "::task %s\\n" "$task"; "$@"; printf "::exit %s\\n" "$?"' sh "$log" "$task" "$@"
+        `, "sh", logPath, seenPath, JSON.stringify({
+                name,
+                cmd
+            }), ...cmd];
+        starter.running = true;
     }
     function rebuild(mode) {
         run(mode === "build" ? "Проверка сборки" : "Применение настроек", ["pixel-rebuild", mode ?? "switch"]);
@@ -145,7 +175,7 @@ Singleton {
             run(lastRun[0], lastRun[1]);
     }
     function cancel() {
-        proc.signal(15);
+        Quickshell.execDetached(["systemctl", "--user", "kill", "--signal=TERM", unit]);
     }
 
     // --- Разбор вывода ----------------------------------------------------
@@ -246,26 +276,80 @@ Singleton {
     }
 
     Process {
-        id: proc
-        stdout: SplitParser {
-            onRead: line => root.pushLog(line)
-        }
-        stderr: SplitParser {
-            onRead: line => root.pushLog(line)
+        id: starter
+        stderr: StdioCollector {
+            id: starterErr
         }
         onExited: code => {
-            flush.triggered();
-            root.status = code === 0 ? "success" : "failed";
-            root.stage = code === 0 ? "Готово" : code === 143 || code === 15 ? "Остановлено" : "Ошибка (код " + code + ")";
-            root.progress = code === 0 ? 1 : root.progress;
-            root.current = "";
-            root.finishedAt = new Date();
-            root.popupHidden = false;
-            popupTimer.restart();
-            appliedFile.reload();
-            root.refreshGenerations();
-            Updates.refresh();
+            if (code === 0) {
+                follow.running = true;
+                return;
+            }
+            // Служба не запустилась (например, pixel-rebuild.service уже идёт)
+            root.pushLog(starterErr.text.trim());
+            root.finish(code);
         }
+    }
+    // Чтение журнала службы. При старте оболочки — тоже: если задача ещё
+    // идёт или её итог не закрыт, они появятся в интерфейсе.
+    Process {
+        id: follow
+        command: ["sh", "-c", 'if [ "$3" = attach ]; then [ -e "$1" ] && [ ! -e "$2" ] || exit 0; fi; exec tail -n +1 -F -- "$1" 2>/dev/null', "sh", root.logPath, root.seenPath, root.running ? "run" : "attach"]
+        stdout: SplitParser {
+            onRead: line => {
+                if (line.startsWith("::task ")) {
+                    try {
+                        const t = JSON.parse(line.slice(7));
+                        if (!root.running)
+                            root.reset(t.name);
+                        root.task = t.name;
+                        root.lastRun = [t.name, t.cmd];
+                    } catch (e) {}
+                } else if (line.startsWith("::exit ")) {
+                    root.finish(parseInt(line.slice(7)));
+                    follow.running = false;
+                } else if (root.running) {
+                    root.pushLog(line);
+                }
+            }
+        }
+    }
+    Component.onCompleted: follow.running = true
+    // Служба пропала, не написав код выхода (убита, OOM) — не висеть вечно
+    property bool unitGone: false
+    Timer {
+        running: root.running && follow.running
+        interval: 2000
+        repeat: true
+        onTriggered: unitCheck.running = true
+    }
+    Process {
+        id: unitCheck
+        command: ["systemctl", "--user", "is-active", "--quiet", root.unit]
+        onExited: code => {
+            if (code === 0 || !root.running) {
+                root.unitGone = false;
+            } else if (!root.unitGone) {
+                root.unitGone = true; // ещё раз: дать tail дочитать журнал
+            } else {
+                follow.running = false;
+                root.pushLog("Служба пересборки завершилась без кода выхода");
+                root.finish(-1);
+            }
+        }
+    }
+    function finish(code) {
+        flush.triggered();
+        status = code === 0 ? "success" : "failed";
+        stage = code === 0 ? "Готово" : code === 143 || code === 15 ? "Остановлено" : code < 0 ? "Прервано" : "Ошибка (код " + code + ")";
+        progress = code === 0 ? 1 : progress;
+        current = "";
+        finishedAt = new Date();
+        popupHidden = false;
+        popupTimer.restart();
+        appliedFile.reload();
+        refreshGenerations();
+        Updates.refresh();
     }
     // Итог висит во всплывашке несколько секунд, дальше — только в шторке
     Timer {
@@ -280,6 +364,7 @@ Singleton {
         else {
             cardDismissed = true;
             popupHidden = true;
+            Quickshell.execDetached(["touch", "--", seenPath]);
             if (status !== "running")
                 status = "idle";
         }
