@@ -69,7 +69,7 @@ The same host GTK file chooser opens everywhere, through xdg-desktop-portal:
 * **Nix** for system packages, **Home Manager** for user settings.
 * **Flatpak** declaratively via `nix-flatpak`, with weekly auto-updates.
 * **[cpak](https://github.com/Containerpak/cpak)** — containerized apps, with one shared policy for all of them.
-* **AppImages** launched from Files, shortcuts and Gear Lever go through `appimage-run` (a shim in `modules/system/appimage.nix` over the stock `pkgs.appimage-run`): the image is extracted to the `~/.cache/appimage-run` cache and runs in an FHS environment. The executable bit is set automatically. Running one by hand (`./image.AppImage`) works too — the loader comes from `nix-ld` and the runtime mounts itself over FUSE; missing libraries go into `programs.nix-ld.libraries` (find them with `nix-locate`).
+* **AppImages** run directly, the way they do on any ordinary distro: `chmod +x` and `./image.AppImage` — or double-click in Files, which sets the executable bit itself. The loader comes from `nix-ld`, and the runtime mounts itself over FUSE. Nothing is extracted or cached. The libraries images expect from the host are the same set the stock `appimage-run` provides. If an image is still missing a library, add it to `programs.nix-ld.libraries` (find it with `nix-locate`).
 * **Distrobox and Docker** (including for WinBoat).
 
 ### 🗂 Applications
@@ -215,7 +215,7 @@ modules/system/
   google-sans.nix         Google Sans font from google/fonts
   fhs-compat.nix          /usr/share/{fonts,icons,themes} for foreign software
   nemo.nix                Nemo, previews and the AppImage menu
-  appimage.nix            AppImage support and the appimage-run shim
+  appimage.nix            direct AppImage launch and the appimage-run shim
   nix-ld.nix              libraries for third-party binaries
   gaming.nix              Steam, Gamescope, Sunshine, LACT
   packages.nix            system packages

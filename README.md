@@ -69,7 +69,7 @@ appearance = {
 * **Nix** — системные пакеты, **Home Manager** — пользовательские настройки.
 * **Flatpak** декларативно через `nix-flatpak`, с еженедельным автообновлением.
 * **[cpak](https://github.com/Containerpak/cpak)** — приложения в контейнерах, с общей политикой для всех.
-* **AppImage** запускаются из «Файлов», ярлыков и Gear Lever через `appimage-run` (шим в `modules/system/appimage.nix` над штатным `pkgs.appimage-run`): образ распаковывается в кэш `~/.cache/appimage-run` и работает в FHS-окружении. Права на выполнение выставляются сами. Запуск руками (`./образ.AppImage`) тоже работает — загрузчик даёт `nix-ld`, рантайм монтирует себя через FUSE; недостающие библиотеки дописываются в `programs.nix-ld.libraries` (найти можно через `nix-locate`).
+* **AppImage** запускаются напрямую, как на любом обычном дистрибутиве: `chmod +x` и `./образ.AppImage` — или двойным щелчком в «Файлах», права выставятся сами. Загрузчик даёт `nix-ld`, рантайм монтирует себя через FUSE. Ничего не распаковывается и не кэшируется. Библиотеки, которые образы ожидают от системы, — тот же набор, что даёт штатный `appimage-run`. Если образу всё же чего-то не хватает, библиотеку дописывают в `programs.nix-ld.libraries` (найти можно через `nix-locate`).
 * **Distrobox и Docker** (в том числе для WinBoat).
 
 ### 🗂 Приложения
@@ -234,7 +234,7 @@ modules/system/
   google-sans.nix         шрифт Google Sans из google/fonts
   fhs-compat.nix          /usr/share/{fonts,icons,themes} для чужого софта
   nemo.nix                Nemo, превью и меню для AppImage
-  appimage.nix            поддержка AppImage и шим appimage-run
+  appimage.nix            прямой запуск AppImage и шим appimage-run
   nix-ld.nix              библиотеки для сторонних бинарников
   gaming.nix              Steam, Gamescope, Sunshine, LACT
   packages.nix            системные пакеты

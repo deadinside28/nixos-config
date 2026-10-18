@@ -9,123 +9,132 @@
 # подключён в flake.nix) и дописываешь его сюда. Это ровно тот же цикл,
 # что `pacman -S` на Arch, только с пересборкой и перезаходом в сессию —
 # NIX_LD_LIBRARY_PATH подхватывается при старте сессии.
+#
+# База — тот же набор, что штатный appimage-run даёт образам в своём
+# FHS-окружении (appimageTools.defaultFhsEnvArgs.multiPkgs — список
+# библиотек, которые AppImage по стандарту ожидает от системы, см.
+# excludelist pkg2appimage). Поэтому образ, который работал через
+# appimage-run, должен работать и напрямую — без распаковки и песочницы.
 {pkgs, ...}: {
   nix.settings.experimental-features = ["nix-command" "flakes"];
 
   programs.nix-ld = {
     enable = true;
-    libraries = with pkgs; [
-      # Базовые системные библиотеки
-      stdenv.cc.cc.lib
-      glibc
-      zlib
-      openssl
-      fuse # нужен рантайму AppImage (libfuse.so.2)
-      fuse3
-      icu
-      libuuid
-      libxml2
-      libsecret
-      harfbuzz
-      freetype
-      fontconfig
-      fribidi
-      libgcrypt
-      libgpg-error
-      keyutils.lib
-      curl
+    libraries =
+      pkgs.appimageTools.defaultFhsEnvArgs.multiPkgs pkgs
+      ++ (with pkgs; [
+        # Базовые системные библиотеки
+        stdenv.cc.cc.lib
+        glibc
+        zlib
+        openssl
+        fuse # нужен рантайму AppImage (libfuse.so.2)
+        fuse3
+        icu
+        libuuid
+        libxml2
+        libsecret
+        harfbuzz
+        freetype
+        fontconfig
+        fribidi
+        libgcrypt
+        libgpg-error
+        keyutils.lib
+        curl
 
-      # Графика и UI-тулкиты
-      mesa
-      libgbm # Electron/Chromium: libgbm.so.1, отделён от mesa
-      libGL
-      libGLU
-      libepoxy
-      libdrm
-      libva
-      vulkan-loader
-      gtk3
-      gtk4
-      libadwaita
-      pango
-      cairo
-      atk
-      at-spi2-atk
-      gdk-pixbuf
-      glib
-      pciutils
+        # Графика и UI-тулкиты
+        mesa
+        libgbm # Electron/Chromium: libgbm.so.1, отделён от mesa
+        libGL
+        libGLU
+        libepoxy
+        libdrm
+        libva
+        vulkan-loader
+        gtk3
+        gtk4
+        libadwaita
+        pango
+        cairo
+        atk
+        at-spi2-atk
+        gdk-pixbuf
+        glib
+        pciutils
 
-      # X11 и Wayland
-      wayland
-      libX11
-      libXext
-      libXrender
-      libXfixes
-      libXcomposite
-      libXdamage
-      libXcursor
-      libXi
-      libXrandr
-      libXScrnSaver
-      libXtst
-      libxcb
-      libxkbcommon
-      libsm
-      libice
+        # X11 и Wayland
+        wayland
+        libX11
+        libXext
+        libXrender
+        libXfixes
+        libXcomposite
+        libXdamage
+        libXcursor
+        libXi
+        libXrandr
+        libXScrnSaver
+        libXtst
+        libxcb
+        libxkbcommon
+        libsm
+        libice
 
-      # Хелперы xcb. Их dlopen'ит платформенный плагин `xcb` из Qt —
-      # в том числе Qt, который образ принёс с собой. Без них вылезает
-      # классическое "Could not load the Qt platform plugin xcb".
-      # Сам Qt сюда класть НЕ надо: почти все образы несут его внутри,
-      # а хостовый libQt6Core из LD_LIBRARY_PATH даст конфликт версий.
-      # Если Qt-образ всё же чудит — попробуй `env -u QT_PLUGIN_PATH ./образ`.
-      libxcb-util
-      libxcb-wm
-      libxcb-image
-      libxcb-keysyms
-      libxcb-render-util
-      libxcb-cursor
+        # Хелперы xcb. Их dlopen'ит платформенный плагин `xcb` из Qt —
+        # в том числе Qt, который образ принёс с собой. Без них вылезает
+        # классическое "Could not load the Qt platform plugin xcb".
+        # Сам Qt сюда класть НЕ надо: почти все образы несут его внутри,
+        # а хостовый libQt6Core из LD_LIBRARY_PATH даст конфликт версий.
+        # Если Qt-образ всё же чудит — попробуй `env -u QT_PLUGIN_PATH ./образ`.
+        libxcb-util
+        libxcb-wm
+        libxcb-image
+        libxcb-keysyms
+        libxcb-render-util
+        libxcb-cursor
 
-      # Звук и медиа
-      alsa-lib
-      libpulseaudio
-      pipewire
-      cups
-      ffmpeg
+        # Звук и медиа
+        alsa-lib
+        libpulseaudio
+        pipewire
+        cups
+        ffmpeg
 
-      # Electron и браузерные движки
-      nss
-      nspr
-      expat
-      dbus
-      at-spi2-core
+        # Electron и браузерные движки
+        nss
+        nspr
+        expat
+        dbus
+        at-spi2-core
 
-      # Аудио, ввод и легаси-стек для эмуляторов
-      openal
-      libjack2
-      sndio
-      SDL2
-      libevdev
-      e2fsprogs
-      libedit
-      libpng
-      libjpeg
-      libtiff
+        # Аудио, ввод и легаси-стек для эмуляторов
+        openal
+        libjack2
+        sndio
+        SDL2
+        libevdev
+        e2fsprogs
+        libedit
+        libpng
+        libjpeg
+        libtiff
 
-      # Математика и компрессия
-      gmp
-      nettle
-      libtasn1
-      p11-kit
-      bzip2
-      xz
-      zstd
-      brotli
-      libffi
+        # Математика и компрессия
+        gmp
+        nettle
+        libtasn1
+        p11-kit
+        bzip2
+        xz
+        zstd
+        brotli
+        libffi
 
-      # Прочее
-      udev
-      libnotify
-    ];
+        # Прочее
+        udev
+        libnotify
+        krb5 # из targetPkgs appimage-run: libgssapi_krb5 для сетевых клиентов
+      ]);
   };
 }
