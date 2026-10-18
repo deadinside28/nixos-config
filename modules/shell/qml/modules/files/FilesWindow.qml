@@ -1470,6 +1470,18 @@ FloatingWindow {
         property string kind
         property real iconSize: 48
         readonly property bool media: kind === "image" || kind === "video"
+        // Видео: кадр из кеша; нет его — встаём в очередь Thumbs
+        readonly property string key: kind === "video" ? Thumbs.keyFor(item.path, item.modified) : ""
+        property int rev: 0
+        Connections {
+            target: th.kind === "video" ? Thumbs : null
+            function onReady(k) {
+                if (k === th.key)
+                    th.rev++;
+            }
+        }
+        Component.onDestruction: if (key)
+            Thumbs.cancel(key)
         Image {
             id: thImg
             anchors.fill: parent
@@ -1478,9 +1490,9 @@ FloatingWindow {
             cache: true
             fillMode: Image.PreserveAspectCrop
             sourceSize: Qt.size(320, 320)
-            source: th.kind === "image" ? "file://" + encodeURI(th.item.path) : th.kind === "video" ? Thumbs.urlFor(th.item.path, Thumbs.revision) : ""
-            onStatusChanged: if (status === Image.Error && th.kind === "video")
-                Thumbs.make(th.item.path)
+            source: th.kind === "image" ? "file://" + encodeURI(th.item.path) : th.key ? Thumbs.urlFor(th.key) + (th.rev ? "?r=" + th.rev : "") : ""
+            onStatusChanged: if (status === Image.Error && th.key)
+                Thumbs.make(th.item.path, th.key)
         }
         AppIcon {
             anchors.centerIn: parent
