@@ -946,54 +946,98 @@ FloatingWindow {
                         }
                     }
 
-                    // Сетка: группа папок и группа файлов
-                    GridView {
+                    // Сетка: группа папок и группа файлов. Это ListView из рядов
+                    // (подпись, ряд папок, ряд файлов): создаются только видимые
+                    // ряды — и для папок тоже, а не все сразу.
+                    ListView {
                         id: grid
                         anchors.fill: parent
                         visible: win.view === "grid"
                         clip: true
                         boundsBehavior: Flickable.StopAtBounds
-                        readonly property int cols: Math.max(1, Math.floor(width / 176))
-                        cellWidth: Math.floor(width / cols)
-                        cellHeight: 196
-                        model: win.view === "grid" ? win.shownFiles : []
-                        header: ColumnLayout {
-                            width: grid.width
-                            spacing: 8
-                            SectionLabel {
-                                visible: win.shownDirs.length > 0
-                                text: "Папки"
+                        readonly property int dirCols: Math.max(1, Math.floor(width / 220))
+                        readonly property int fileCols: Math.max(1, Math.floor(width / 176))
+                        readonly property real dirWidth: (width - (dirCols - 1) * 8) / dirCols
+                        readonly property real fileCell: Math.floor(width / fileCols)
+                        // { label } | { dirs: true|false, start, items }
+                        readonly property var rows: {
+                            if (win.view !== "grid")
+                                return [];
+                            const out = [];
+                            const d = win.shownDirs, f = win.shownFiles;
+                            if (d.length) {
+                                out.push({
+                                    label: "Папки"
+                                });
+                                for (let i = 0; i < d.length; i += dirCols)
+                                    out.push({
+                                        dirs: true,
+                                        start: i,
+                                        items: d.slice(i, i + dirCols)
+                                    });
                             }
-                            GridLayout {
-                                Layout.fillWidth: true
-                                Layout.bottomMargin: 8
-                                visible: win.shownDirs.length > 0
-                                columns: Math.max(1, Math.floor(grid.width / 220))
-                                rowSpacing: 8
-                                columnSpacing: 8
+                            if (f.length) {
+                                out.push({
+                                    label: "Файлы"
+                                });
+                                for (let i = 0; i < f.length; i += fileCols)
+                                    out.push({
+                                        dirs: false,
+                                        start: d.length + i,
+                                        items: f.slice(i, i + fileCols)
+                                    });
+                            }
+                            return out;
+                        }
+                        model: rows
+                        readonly property int cellHeight: 196
+                        delegate: Item {
+                            id: gridRow
+                            required property var modelData
+                            readonly property bool isLabel: modelData.label !== undefined
+                            width: grid.width
+                            height: isLabel ? rowLabel.implicitHeight + 12 : modelData.dirs ? 64 : grid.cellHeight
+                            SectionLabel {
+                                id: rowLabel
+                                x: 8
+                                y: 4
+                                visible: gridRow.isLabel
+                                text: gridRow.modelData.label ?? ""
+                            }
+                            Row {
+                                spacing: 8
+                                visible: !gridRow.isLabel && gridRow.modelData.dirs
                                 Repeater {
-                                    model: win.view === "grid" ? win.shownDirs : []
+                                    model: !gridRow.isLabel && gridRow.modelData.dirs ? gridRow.modelData.items : []
                                     FolderTile {
                                         required property var modelData
                                         required property int index
-                                        Layout.fillWidth: true
+                                        width: grid.dirWidth
+                                        height: 56
                                         item: modelData
-                                        idx: index
+                                        idx: gridRow.modelData.start + index
                                     }
                                 }
                             }
-                            SectionLabel {
-                                visible: win.shownFiles.length > 0
-                                text: "Файлы"
+                            Row {
+                                visible: !gridRow.isLabel && !gridRow.modelData.dirs
+                                Repeater {
+                                    model: !gridRow.isLabel && !gridRow.modelData.dirs ? gridRow.modelData.items : []
+                                    Item {
+                                        id: fileSlot
+                                        required property var modelData
+                                        required property int index
+                                        width: grid.fileCell
+                                        height: grid.cellHeight
+                                        FileCard {
+                                            width: fileSlot.width - 8
+                                            height: fileSlot.height - 8
+                                            item: fileSlot.modelData
+                                            idx: gridRow.modelData.start + fileSlot.index
+                                        }
+                                    }
+                                }
                             }
-                        }
-                        delegate: FileCard {
-                            required property var modelData
-                            required property int index
-                            width: grid.cellWidth - 8
-                            height: grid.cellHeight - 8
-                            item: modelData
-                            idx: win.shownDirs.length + index
                         }
                     }
 
