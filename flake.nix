@@ -100,5 +100,17 @@
       };
   in {
     nixosConfigurations = lib.genAttrs hostNames mkHost;
+
+    # nix flake check: файловые операции «Файлов» со сбоями
+    # (modules/shell/fileops-test.sh)
+    checks.x86_64-linux.fileops = let
+      pkgs = nixpkgs.legacyPackages.x86_64-linux;
+    in
+      pkgs.runCommand "pixel-fileops-test" {
+        nativeBuildInputs = with pkgs; [bash coreutils findutils gnused gnugrep libarchive];
+      } ''
+        bash ${./modules/shell/fileops-test.sh} ${./modules/shell/fileops.sh}
+        touch $out
+      '';
   };
 }

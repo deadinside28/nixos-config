@@ -285,6 +285,9 @@ Singleton {
             cmd,
             dir: dir ?? ""
         });
+        // Новая операция — старую ошибку убираем. Успех не стирает ошибку
+        // параллельной операции: иначе она пропала бы, не успев показаться.
+        lastError = "";
         busy++;
         p.running = true;
     }
@@ -300,7 +303,13 @@ Singleton {
             }
             onExited: code => {
                 root.busy--;
-                root.lastError = code === 0 ? "" : err.text.trim().split("\n").pop();
+                if (code !== 0) {
+                    root.lastError = err.text.trim().split("\n").pop() || "Операция не удалась";
+                    // Окна «Файлов» нет (например, распаковали из архиватора
+                    // и закрыли его) — ошибка не должна пройти незамеченной
+                    if (root.windows.length === 0)
+                        Quickshell.execDetached(["notify-send", "-a", "Файлы", "-i", "dialog-error", "Операция с файлами не удалась", root.lastError]);
+                }
                 root.changed(op.dir);
                 op.destroy();
             }
@@ -339,47 +348,11 @@ Singleton {
     // Вставка. Источник — системный буфер: файлы (text/uri-list — из «Файлов»,
     // Nemo, браузера…) копируются, картинка (скриншот) сохраняется файлом.
     // Вырезанное в «Файлах» — перемещается. Совпали имена — «имя (2).ext».
+    // Сами операции — в pixel-fileops (modules/shell/fileops.sh): ошибка
+    // любого файла видна, даже если следующие скопировались.
     function paste(dir) {
         const cut = clipboard.mode === "cut" && clipboard.paths.length > 0;
-        run(["sh", "-c", `
-            dest="$1"; mode="$2"; shift 2
-            unique() {
-                base=$(basename -- "$1"); target="$dest/$base"; n=2
-                while [ -e "$target" ]; do
-                    case "$base" in
-                        ?*.*) target="$dest/\${base%.*} ($n).\${base##*.}" ;;
-                        *) target="$dest/$base ($n)" ;;
-                    esac
-                    n=$((n + 1))
-                done
-                printf '%s' "$target"
-            }
-            if [ "$mode" != cut ]; then
-                types=$(wl-paste --list-types 2>/dev/null || true)
-                if printf '%s\\n' "$types" | grep -qx 'text/uri-list'; then
-                    list=$(mktemp)
-                    wl-paste --type text/uri-list 2>/dev/null | tr -d '\\r' | sed -n 's|^file://||p' > "$list"
-                    set --
-                    while IFS= read -r u; do
-                        set -- "$@" "$(printf '%b' "$(printf '%s' "$u" | sed 's/%/\\\\x/g')")"
-                    done < "$list"
-                    rm -f "$list"
-                else
-                    img=$(printf '%s\\n' "$types" | grep -m1 '^image/' || true)
-                    [ -n "$img" ] || exit 0
-                    ext=\${img#image/}; [ "$ext" = jpeg ] && ext=jpg
-                    f=$(unique "$dest/Снимок экрана $(date '+%Y-%m-%d %H-%M-%S').$ext")
-                    wl-paste --type "$img" > "$f"
-                    exit 0
-                fi
-            fi
-            for src in "$@"; do
-                [ -e "$src" ] || continue
-                if [ "$mode" = cut ] && [ "$(dirname -- "$src")" = "$dest" ]; then continue; fi
-                target=$(unique "$src")
-                if [ "$mode" = cut ]; then mv -- "$src" "$target"; else cp -a -- "$src" "$target"; fi
-            done
-        `, "sh", dir, cut ? "cut" : "copy", ...(cut ? clipboard.paths : [])], dir);
+        run([Nix.fileops, "paste", cut ? "cut" : "copy", dir, ...(cut ? clipboard.paths : [])], dir);
         if (cut)
             clipboard = {
                 mode: "",
@@ -388,19 +361,7 @@ Singleton {
     }
     // Копирование или перемещение конкретных путей (перетаскивание)
     function transfer(paths, dir, move) {
-        run(["sh", "-c", `
-            dest="$1"; mode="$2"; shift 2
-            for src in "$@"; do
-                [ -e "$src" ] || continue
-                if [ "$mode" = move ] && [ "$(dirname -- "$src")" = "$dest" ]; then continue; fi
-                b=$(basename -- "$src"); t="$dest/$b"; n=2
-                while [ -e "$t" ]; do
-                    case "$b" in ?*.*) t="$dest/\${b%.*} ($n).\${b##*.}" ;; *) t="$dest/$b ($n)" ;; esac
-                    n=$((n + 1))
-                done
-                if [ "$mode" = move ]; then mv -- "$src" "$t"; else cp -a -- "$src" "$t"; fi
-            done
-        `, "sh", dir, move ? "move" : "copy", ...paths], dir);
+        run([Nix.fileops, "transfer", move ? "move" : "copy", dir, ...paths], dir);
     }
 
     // --- Архивы: внутрь как в папку, распаковка, сжатие (bsdtar) ---------------
@@ -441,7 +402,8 @@ Singleton {
             }
             onExited: code => {
                 root.busy--;
-                root.lastError = code === 0 ? "" : "Не удалось открыть архив: " + arErr.text.trim().split("\n").pop();
+                if (code !== 0)
+                    root.lastError = "Не удалось открыть архив: " + arErr.text.trim().split("\n").pop();
                 arp.done(code === 0, arp.dir);
                 arp.destroy();
             }
@@ -451,36 +413,19 @@ Singleton {
     // архив заново в том же формате (bsdtar выбирает его по расширению)
     function addToArchive(archive, rootDir, dir, paths) {
         const suffix = archive.split("/").pop().slice(archiveBase(archive.split("/").pop()).length);
-        run(["sh", "-c", `
-            archive="$1"; root="$2"; dir="$3"; suffix="$4"; shift 4
-            cp -a -- "$@" "$dir"/ || exit 1
-            tmp="$(dirname -- "$archive")/.pixel-repack-$$$suffix"
-            (cd "$root" && find . -mindepth 1 -maxdepth 1 ! -name .pixel-done -printf '%P\\0' | xargs -0 bsdtar -a -cf "$tmp") || { rm -f "$tmp"; exit 1; }
-            mv -f -- "$tmp" "$archive"
-            touch "$root/.pixel-done"
-        `, "sh", archive, rootDir, dir, suffix, ...paths], dir);
+        run([Nix.fileops, "add-to-archive", archive, rootDir, dir, suffix, ...paths], dir);
     }
 
     // Распаковать рядом: в папку с именем архива (если внутри один каталог —
-    // просто его), как на ChromeOS
+    // просто его), как на ChromeOS. Если перенести результат не удалось,
+    // распакованное остаётся во временной папке, путь — в ошибке.
     function extract(path, destDir) {
         const dir = destDir || path.slice(0, path.lastIndexOf("/"));
-        run(["sh", "-c", `
-            src="$1"; dest="$2"; name="$3"
-            tmp=$(mktemp -d "$dest/.pixel-extract.XXXXXX") || exit 1
-            if ! bsdtar -xf "$src" -C "$tmp"; then rm -rf "$tmp"; exit 1; fi
-            items=0; one=""
-            for f in "$tmp"/* "$tmp"/.[!.]*; do [ -e "$f" ] && { items=$((items + 1)); one="$f"; }; done
-            if [ "$items" -eq 1 ] && [ -d "$one" ]; then from="$one"; name=$(basename -- "$one"); else from="$tmp"; fi
-            target="$dest/$name"; n=2
-            while [ -e "$target" ]; do target="$dest/$name ($n)"; n=$((n + 1)); done
-            mv -- "$from" "$target"
-            rm -rf "$tmp"
-        `, "sh", path, dir, archiveBase(path.split("/").pop())], dir);
+        run([Nix.fileops, "extract", path, dir, archiveBase(path.split("/").pop())], dir);
     }
     function compress(paths, dir) {
         const name = paths.length === 1 ? archiveBase(paths[0].split("/").pop()) || paths[0].split("/").pop() : "Архив";
-        run(["sh", "-c", 'dir="$1"; name="$2"; shift 2; cd "$dir" || exit 1; t="$name.zip"; i=2; while [ -e "$t" ]; do t="$name ($i).zip"; i=$((i+1)); done; bsdtar -a -cf "$t" -- "$@"', "sh", dir, name, ...paths.map(p => p.split("/").pop())], dir);
+        run([Nix.fileops, "compress", dir, name, ...paths.map(p => p.split("/").pop())], dir);
     }
 
     // --- Программы и скрипты ---------------------------------------------------

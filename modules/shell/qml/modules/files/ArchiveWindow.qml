@@ -46,6 +46,15 @@ FloatingWindow {
         });
     }
     Component.onCompleted: load()
+    // Добавление не удалось — копия в кеше могла разойтись с архивом:
+    // pixel-fileops снял отметку распаковки, перечитываем архив заново
+    Connections {
+        target: Files
+        function onChanged(dir) {
+            if (dir === win.path && Files.lastError !== "")
+                win.load();
+        }
+    }
 
     FolderListModel {
         id: model
@@ -192,6 +201,14 @@ FloatingWindow {
                     Layout.fillWidth: true
                     visible: Files.busy > 0 || (!win.root && !win.failed)
                     value: -1
+                }
+                MText {
+                    Layout.fillWidth: true
+                    visible: Files.lastError !== ""
+                    text: Files.lastError
+                    color: Theme.error
+                    size: Theme.type.bodyS
+                    wrapMode: Text.Wrap
                 }
 
                 ListView {

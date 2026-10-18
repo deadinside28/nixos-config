@@ -68,6 +68,7 @@
         readonly property int monoFontSize: ${toString appearance.monoFontSize}
         readonly property string terminal: "kitty"
         readonly property string matugen: "${lib.getExe pkgs.matugen}"
+        readonly property string fileops: "${lib.getExe pixel-fileops}"
         readonly property string matugenConfig: "${matugenFull}"
         readonly property string matugenShellConfig: "${matugenShell}"
         readonly property string flake: "${flake}"
@@ -95,6 +96,14 @@
     fi
     exec ${lib.getExe quickshell} -c pixel ipc call "$@"
   '';
+
+  # Файловые операции «Файлов» и архиватора (вставка, перенос, распаковка,
+  # сжатие). Отдельным скриптом, чтобы проверять сбои: fileops-test.sh.
+  pixel-fileops = pkgs.writeShellApplication {
+    name = "pixel-fileops";
+    runtimeInputs = with pkgs; [coreutils findutils gnused gnugrep libarchive wl-clipboard];
+    text = builtins.readFile ./fileops.sh;
+  };
 
   # Скриншоты: area | full | window. Картинка — в буфер и в уведомление.
   pixel-screenshot = pkgs.writeShellApplication {
