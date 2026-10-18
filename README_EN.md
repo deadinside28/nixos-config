@@ -49,6 +49,7 @@ Change one line, rebuild, and the font or cursor changes in GTK, Qt, Flatpak, cp
 ### 🪟 Desktop
 * **[Hyprland](https://hyprland.org/) 0.56** with a Lua config and the `scrolling` layout: windows line up on a horizontal tape that you scroll through.
 * **Window modes without logging out:** Scrolling, Dwindle, Master, Mixed (tiling, but chosen apps float) and Floating — one for all workspaces plus a per-workspace override. Switch them in Settings → Windows, with the "Windows" quick-settings tile, or `Super + Shift + Space` (current workspace). Already open windows are rearranged right away.
+* **App menu editor** (Settings → App menu): launcher folders, custom names and icons, hiding without uninstalling, extra keywords, arguments, environment variables, working directory, run-in-terminal and custom commands. Edits sit on top of the `.desktop` files and survive package updates; same-named apps from different sources (Nix, Flatpak, AppImage…) are labelled with their source.
 * **Pixel Shell** (`modules/shell`), a custom [Quickshell](https://quickshell.org) shell: taskbar, launcher, quick settings, notifications, overview, clipboard, lock screen, polkit agent and a Settings app (see below). Login is greetd with autologin.
 * **Material 3 Expressive animations, like on a Pixel:** the springs are converted from Android's own tokens (`ExpressiveMotionTokens`). Windows open without any jitter at the end, and workspaces slide vertically.
 * **Drag files between workspaces** (the shell's `dndSpring` module; see below).

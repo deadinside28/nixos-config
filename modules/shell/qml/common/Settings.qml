@@ -243,8 +243,14 @@ Singleton {
             property bool filesSortDesc: false
             property var netPlaces: [] // сохранённые сетевые папки: [{ uri, user }]
 
-            // Лаунчер
+            // Лаунчер и меню приложений (services/Apps.qml)
             property var appUsage: ({})
+            property var appOverrides: ({}) // правки поверх .desktop: { id: { name, icon, folder, … } }
+            property var customApps: [] // свои команды: [{ id, name, icon, command, … }]
+            property string launcherSort: "name" // name | usage
+            property int launcherColumns: 6
+            property int launcherIconSize: 48
+            property bool launcherLabels: true
             property string searchEngine: "https://www.google.com/search?q="
         }
     }

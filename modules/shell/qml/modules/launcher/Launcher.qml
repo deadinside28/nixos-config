@@ -17,20 +17,24 @@ Overlay {
     onDismissed: Ui.close()
 
     property string query: ""
-    readonly property var results: Apps.search(query)
     readonly property bool searching: query.trim() !== ""
-    readonly property int columns: 6
+    // Открытая папка меню («Настройки → Приложения → Меню приложений»)
+    property string folder: ""
+    readonly property var results: searching ? Apps.search(query) : Apps.launcherItems(folder)
+    readonly property int columns: Math.max(3, Math.min(10, Settings.data.launcherColumns))
     property int current: 0
 
     onOpenChanged: {
         if (open) {
             query = "";
             search.text = "";
+            folder = "";
             current = 0;
             search.forceFocus();
         }
     }
     onQueryChanged: current = 0
+    onFolderChanged: current = 0
 
     // Калькулятор: только цифры, скобки и операторы — ничего не исполняем.
     readonly property string calc: {
@@ -46,10 +50,14 @@ Overlay {
     }
 
     function activate(i) {
-        if (i < results.length) {
-            Apps.launch(results[i]);
-            Ui.close();
+        if (i >= results.length)
+            return;
+        if (results[i].isFolder) {
+            folder = results[i].folder;
+            return;
         }
+        Apps.launch(results[i]);
+        Ui.close();
     }
     function runQuery() {
         const q = query.trim();
@@ -96,8 +104,14 @@ Overlay {
                 fieldColor: Theme.surfaceContainerHighest
                 onTextChanged: root.query = text
                 onAccepted: root.runQuery()
-                onEscapePressed: Ui.close()
+                onEscapePressed: root.folder !== "" ? root.folder = "" : Ui.close()
                 input.Keys.onPressed: event => {
+                    // Backspace в пустом поиске — из папки наверх
+                    if (event.key === Qt.Key_Backspace && search.text === "" && root.folder !== "") {
+                        root.folder = "";
+                        event.accepted = true;
+                        return;
+                    }
                     const n = root.results.length;
                     if (n === 0)
                         return;
@@ -150,9 +164,31 @@ Overlay {
                 onClicked: root.runQuery()
             }
 
+            // Открытая папка: заголовок и возврат
+            RowLayout {
+                visible: !root.searching && root.folder !== ""
+                Layout.fillWidth: true
+                spacing: 8
+                IconButton {
+                    icon: "arrow_back"
+                    onClicked: root.folder = ""
+                }
+                MIcon {
+                    icon: "folder"
+                    fill: 1
+                    color: Theme.primary
+                }
+                MText {
+                    Layout.fillWidth: true
+                    text: root.folder
+                    size: Theme.type.titleM
+                    weight: Theme.strongWeight
+                }
+            }
+
             // Частые — только без поиска
             ColumnLayout {
-                visible: !root.searching && Apps.frequent.length > 0
+                visible: !root.searching && root.folder === "" && Apps.frequent.length > 0
                 Layout.fillWidth: true
                 spacing: 8
                 MText {
@@ -171,7 +207,10 @@ Overlay {
                             required property var modelData
                             Layout.fillWidth: true
                             app: modelData
-                            onLaunch: root.activate(root.results.indexOf(modelData))
+                            onLaunch: {
+                                Apps.launch(modelData);
+                                Ui.close();
+                            }
                         }
                     }
                 }
@@ -194,7 +233,7 @@ Overlay {
                     visible: !root.searching
                     clip: true
                     cellWidth: width / root.columns
-                    cellHeight: 108
+                    cellHeight: Settings.data.launcherIconSize + (Settings.data.launcherLabels ? 60 : 24)
                     model: root.searching ? [] : root.results
                     currentIndex: root.current
                     boundsBehavior: Flickable.StopAtBounds
