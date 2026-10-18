@@ -71,6 +71,7 @@
         readonly property string matugen: "${lib.getExe pkgs.matugen}"
         readonly property string fileops: "${lib.getExe pixel-fileops}"
         readonly property string storage: "${lib.getExe pixel-storage}"
+        readonly property string store: "${lib.getExe pixel-store}"
         readonly property string matugenConfig: "${matugenFull}"
         readonly property string matugenShellConfig: "${matugenShell}"
         readonly property string flake: "${flake}"
@@ -113,6 +114,14 @@
     name = "pixel-storage";
     runtimeInputs = with pkgs; [coreutils findutils gawk gnugrep gnused procps];
     text = builtins.readFile ./storage.sh;
+  };
+
+  # Каталог «Магазина»: индекс пакетов Nix из ревизий flake.lock и поиск
+  # Flatpak. nix и flatpak — системные (из PATH).
+  pixel-store = pkgs.writeShellApplication {
+    name = "pixel-store";
+    runtimeInputs = with pkgs; [coreutils gawk gnugrep jq];
+    text = builtins.readFile ./store.sh;
   };
 
   # Скриншоты: area | full | window. Картинка — в буфер и в уведомление.
@@ -432,6 +441,16 @@ in {
     icon = "preferences-system";
     exec = "pixel-shell settings toggle";
     categories = ["Settings" "System"];
+    settings.StartupWMClass = "pixel-shell";
+  };
+
+  xdg.desktopEntries.pixel-shell-store = {
+    name = "Магазин";
+    genericName = "Установка приложений";
+    comment = "Приложения из Nixpkgs, Chaotic-Nyx и Flatpak";
+    icon = "system-software-install";
+    exec = "pixel-shell store open";
+    categories = ["System" "PackageManager"];
     settings.StartupWMClass = "pixel-shell";
   };
 

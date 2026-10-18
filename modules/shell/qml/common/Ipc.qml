@@ -50,6 +50,16 @@ Scope {
         }
     }
     IpcHandler {
+        target: "store"
+        function open(): void {
+            Ui.storeOpen = true;
+        }
+        function search(query: string): void {
+            Ui.storeOpen = true;
+            Store.search(query);
+        }
+    }
+    IpcHandler {
         target: "windows"
         // Режим текущего стола по кругу (Super+Shift+Пробел)
         function cycle(): void {

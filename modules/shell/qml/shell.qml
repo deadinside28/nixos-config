@@ -28,6 +28,7 @@ import qs.modules.frame
 import qs.modules.files
 import qs.modules.record
 import qs.modules.lens
+import qs.modules.store
 
 ShellRoot {
     id: root
@@ -72,6 +73,7 @@ ShellRoot {
     SettingsWindow {}
     UpdateWindow {}
     FilesWindows {}
+    StoreWindow {}
     DndSpring {}
 
     Ipc {}
