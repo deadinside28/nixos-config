@@ -70,6 +70,7 @@
         readonly property string terminal: "kitty"
         readonly property string matugen: "${lib.getExe pkgs.matugen}"
         readonly property string fileops: "${lib.getExe pixel-fileops}"
+        readonly property string storage: "${lib.getExe pixel-storage}"
         readonly property string matugenConfig: "${matugenFull}"
         readonly property string matugenShellConfig: "${matugenShell}"
         readonly property string flake: "${flake}"
@@ -104,6 +105,14 @@
     name = "pixel-fileops";
     runtimeInputs = with pkgs; [coreutils findutils gnused gnugrep libarchive wl-clipboard];
     text = builtins.readFile ./fileops.sh;
+  };
+
+  # Раздел «Память»: размеры и очистка данных приложений. nix и flatpak —
+  # системные (из PATH), чтобы версия совпадала с демоном и установкой.
+  pixel-storage = pkgs.writeShellApplication {
+    name = "pixel-storage";
+    runtimeInputs = with pkgs; [coreutils findutils gawk gnugrep gnused procps];
+    text = builtins.readFile ./storage.sh;
   };
 
   # Скриншоты: area | full | window. Картинка — в буфер и в уведомление.

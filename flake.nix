@@ -106,16 +106,18 @@
   in {
     nixosConfigurations = lib.genAttrs hostNames mkHost;
 
-    # nix flake check: файловые операции «Файлов» со сбоями
-    # (modules/shell/fileops-test.sh)
-    checks.x86_64-linux.fileops = let
+    # nix flake check: файловые операции «Файлов» со сбоями и очистка
+    # данных в разделе «Память» (modules/shell/*-test.sh)
+    checks.x86_64-linux = let
       pkgs = nixpkgs.legacyPackages.x86_64-linux;
-    in
-      pkgs.runCommand "pixel-fileops-test" {
-        nativeBuildInputs = with pkgs; [bash coreutils findutils gnused gnugrep libarchive];
-      } ''
-        bash ${./modules/shell/fileops-test.sh} ${./modules/shell/fileops.sh}
-        touch $out
-      '';
+      test = name: deps:
+        pkgs.runCommand "pixel-${name}-test" {nativeBuildInputs = deps;} ''
+          bash ${./modules/shell}/${name}-test.sh ${./modules/shell}/${name}.sh
+          touch $out
+        '';
+    in {
+      fileops = test "fileops" (with pkgs; [bash coreutils findutils gnused gnugrep libarchive]);
+      storage = test "storage" (with pkgs; [bash coreutils findutils gnused gnugrep gawk]);
+    };
   };
 }

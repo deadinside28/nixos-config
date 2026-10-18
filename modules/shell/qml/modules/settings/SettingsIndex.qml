@@ -90,6 +90,15 @@ Singleton {
             keywords: "приложения по умолчанию браузер файловый менеджер терминал автозапуск закреплённые"
         },
         {
+            page: "storage",
+            file: "StoragePage",
+            icon: "hard_drive",
+            title: "Память",
+            subtitle: "Чем занят диск, кеш и данные приложений",
+            accent: 3,
+            keywords: "память диск место хранилище кеш данные сбросить очистить удалить приложение размер flatpak nix поколения корзина"
+        },
+        {
             page: "menu",
             file: "MenuPage",
             icon: "grid_view",
