@@ -153,7 +153,7 @@
   # Скриншоты: area | full | window. Картинка — в буфер и в уведомление.
   pixel-screenshot = pkgs.writeShellApplication {
     name = "pixel-screenshot";
-    runtimeInputs = with pkgs; [grim slurp wl-clipboard libnotify hyprpicker jq hyprland coreutils];
+    runtimeInputs = with pkgs; [grim slurp wl-clipboard libnotify hyprpicker jq hyprland coreutils] ++ [pixel-shell];
     text = ''
       f="''${XDG_RUNTIME_DIR:-/tmp}/screenshot.png"
       case "''${1:-area}" in
@@ -173,7 +173,16 @@
       mkdir -p "$HOME/Pictures/Screenshots"
       saved="$HOME/Pictures/Screenshots/$(date +%F_%H-%M-%S).png"
       cp "$f" "$saved"
-      notify-send -a "Скриншот" -i "$saved" "$what" "Скопирован в буфер обмена и сохранён в Pictures/Screenshots"
+      body="Скопирован в буфер обмена и сохранён в Pictures/Screenshots"
+      # Служба Quick Share запущена — кнопка «Отправить на телефон»
+      if [ -S "''${XDG_RUNTIME_DIR:-/tmp}/pixel-quickshare.sock" ]; then
+        (
+          act=$(notify-send -a "Скриншот" -i "$saved" --action=share="Отправить через Quick Share" --wait "$what" "$body")
+          if [ "$act" = share ]; then pixel-shell quickshare send "$saved"; fi
+        ) &
+      else
+        notify-send -a "Скриншот" -i "$saved" "$what" "$body"
+      fi
     '';
   };
 
