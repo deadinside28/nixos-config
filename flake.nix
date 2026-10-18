@@ -148,6 +148,29 @@
           bash ${./modules/shell/load-test.sh} ${pkgs.quickshell}/bin/quickshell ${pkgs.sway-unwrapped}/bin/sway ${cfg}
           touch $out
         '';
+      # Свой диалог файлов из Qt-приложения целиком: тема xdgdesktopportal
+      # с плагином «hyprland» → xdg-desktop-portal → pixel-portal → путь
+      # возвращается в приложение (modules/shell/portal/qt-e2e.sh)
+      portal-qt = let
+        portalPkg = pkgs.callPackage ./modules/shell/portal/package.nix {inherit username;};
+        theme = pkgs.callPackage ./modules/shell/qt-portal-theme/package.nix {};
+        qtPlugins = pkgs.lib.makeSearchPath "lib/qt-6/plugins" (with pkgs.qt6; [qtbase qtwayland qtdeclarative]);
+        dataDirs = pkgs.lib.concatStringsSep ":" [
+          "${pkgs.gsettings-desktop-schemas}/share/gsettings-schemas/${pkgs.gsettings-desktop-schemas.name}"
+          "${pkgs.gtk3}/share/gsettings-schemas/${pkgs.gtk3.name}"
+        ];
+      in
+        pkgs.runCommand "pixel-portal-qt-test" {
+          nativeBuildInputs = with pkgs; [bash coreutils gnugrep dbus python3];
+        } ''
+          sed "s|<listen>.*</listen>|<listen>unix:tmpdir=$TMPDIR</listen>|" \
+            ${pkgs.dbus}/share/dbus-1/session.conf > bus.conf
+          dbus-run-session --config-file=bus.conf -- bash ${./modules/shell/portal/qt-e2e.sh} \
+            ${pkgs.sway-unwrapped}/bin/sway ${pkgs.xdg-desktop-portal}/libexec/xdg-desktop-portal \
+            ${portalPkg} ${pkgs.qt6.qtdeclarative}/bin/qml ${qtPlugins} \
+            ${pkgs.qt6.qtdeclarative}/lib/qt-6/qml ${dataDirs} ${theme}/lib/qt-6/plugins
+          touch $out
+        '';
       calendar = pkgs.runCommand "pixel-calendar-test" {nativeBuildInputs = [pkgs.nodejs];} ''
         TZ=Europe/Berlin node ${./modules/shell/calendar-test.js} ${./modules/shell/qml/services/calendar.js}
         touch $out

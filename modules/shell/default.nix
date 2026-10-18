@@ -329,7 +329,7 @@
     # Команды для pkexec намеренно в одинарных кавычках: $1 раскрывает
     # уже bash под root, а не этот скрипт.
     excludeShellChecks = ["SC2016"];
-    runtimeInputs = with pkgs; [coreutils git];
+    runtimeInputs = with pkgs; [coreutils git systemd];
     text = ''
       mode=''${1:-switch}
       flake="${flake}"
@@ -374,8 +374,19 @@
         exit 0
       fi
 
+      # Настройка порталов до переключения: xdg-desktop-portal — служба
+      # systemd --user, switch её не перезапускает, и она жила бы со старой
+      # (например, без своего диалога выбора файлов)
+      portals() { cat /etc/xdg/xdg-desktop-portal/*.conf /run/current-system/sw/share/xdg-desktop-portal/portals/*.portal 2>/dev/null | sha256sum; }
+      before=$(portals)
+
       echo "::stage Жду подтверждения…"
       sudo_sh '/run/current-system/sw/bin/nix-env -p /nix/var/nix/profiles/system --set "$1" && "$1/bin/switch-to-configuration" "$2"' "$out" "$mode"
+
+      if [ "$mode" = switch ] && [ "$(portals)" != "$before" ]; then
+        echo "Настройка порталов изменилась — перезапускаю xdg-desktop-portal"
+        systemctl --user try-restart xdg-desktop-portal.service || true
+      fi
       echo "::stage Готово"
     '';
   };

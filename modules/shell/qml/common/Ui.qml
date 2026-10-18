@@ -43,7 +43,19 @@ Singleton {
     property bool notesOpen: false // «Заметки» (modules/notes)
     property bool calendarOpen: false // «Календарь» (modules/calendar)
 
+    // Раздел «Настроек»; пункт «Магазин» открывает отдельное окно магазина
+    function goSettings(page) {
+        if (page === "store")
+            storeOpen = true;
+        else if (page)
+            settingsPage = page;
+    }
     function openSettings(page) {
+        if (page === "store") {
+            storeOpen = true;
+            close();
+            return;
+        }
         if (page)
             settingsPage = page;
         settingsOpen = true;

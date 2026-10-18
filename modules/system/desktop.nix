@@ -13,11 +13,15 @@
   # Чей диалог выбора файлов: gtk — хостовый GTK, pixel — свой диалог
   # оболочки (pixel-portal), «Настройки → Система». pixel без оболочки сам
   # передаёт запрос GTK, так что диалог не пропадает.
+  pixelChooser = config.pixel.system.desktop.fileChooser == "pixel";
   chooser =
-    if config.pixel.system.desktop.fileChooser == "pixel"
+    if pixelChooser
     then ["pixel" "gtk"]
     else ["gtk"];
   pixel-portal = pkgs.callPackage ../shell/portal/package.nix {inherit username;};
+  # Тема Qt «hyprland» = gtk3: с ней xdgdesktopportal берёт оформление у
+  # GTK, а файловые диалоги отдаёт порталу (modules/shell/qt-portal-theme)
+  qt-hyprland-theme = pkgs.callPackage ../shell/qt-portal-theme/package.nix {};
 in {
   programs.hyprland.enable = true;
   programs.dconf.enable = true;
@@ -32,9 +36,18 @@ in {
     GST_PLUGIN_SYSTEM_PATH_1_0 = "/run/current-system/sw/lib/gstreamer-1.0";
 
     # Qt-приложения (включая саму оболочку на Quickshell) ходят за шрифтом,
-    # иконками, палитрой и файловыми диалогами в GTK. Плагин qgtk3 в
-    # nixpkgs собирается всегда, ставить qt6ct не нужно.
-    QT_QPA_PLATFORMTHEME = "gtk3";
+    # иконками и палитрой в GTK. Плагин qgtk3 в nixpkgs собирается всегда,
+    # ставить qt6ct не нужно.
+    #
+    # Файловый диалог qgtk3 рисует у себя в процессе, мимо портала. Поэтому
+    # со своим диалогом оболочки тема — xdgdesktopportal: диалоги идут в
+    # портал, а оформление она берёт у базовой темы рабочего стола
+    # «hyprland», которую даёт плагин qt-hyprland-theme (= gtk3).
+    QT_QPA_PLATFORMTHEME =
+      if pixelChooser
+      then "xdgdesktopportal"
+      else "gtk3";
+    QT_PLUGIN_PATH = lib.mkIf pixelChooser "${qt-hyprland-theme}/lib/qt-6/plugins";
 
     XCURSOR_THEME = appearance.cursorTheme;
     XCURSOR_SIZE = toString appearance.cursorSize;

@@ -16,8 +16,11 @@
 - Окно: `modules/shell/qml/modules/filechooser/FileChooserWindow.qml`, запросы — `services/FileChooser.qml`.
 - Включение: «Настройки → Система → Рабочий стол → Свой диалог выбора файлов», то есть `desktop.fileChooser = "pixel"` в `system.json`, затем «Применить». По умолчанию стоит `gtk`.
 - **Запасной путь:** если оболочка не ответила на запрос (не запущена или перезапускается), `pixel-portal` передаёт запрос целиком бэкенду GTK. Диалог открывается всегда.
+- **Qt-приложения** (Telegram, qBittorrent…) с темой `gtk3` рисуют GTK-диалог в своём процессе, и портал не участвует. Поэтому, когда включён свой диалог, у Qt тема `xdgdesktopportal`: она отправляет диалоги в портал, а оформление берёт у базовой темы рабочего стола. Для `XDG_CURRENT_DESKTOP=Hyprland` такой темы в Qt нет, и базовой была бы голая `generic`. Плагин `modules/shell/qt-portal-theme` — это тема «hyprland», которая возвращает `gtk3`, так что оформление остаётся GTK. Действует после «Применить» и повторного входа в сессию.
+- После `switch` `pixel-rebuild` перезапускает `xdg-desktop-portal`, если настройка порталов изменилась: это служба systemd --user, и сама она новую настройку не подхватывает.
+- GTK3-приложения, которые создают `GtkFileChooserDialog` напрямую, а не `GtkFileChooserNative`, рисуют диалог сами — портал их не касается.
 - Права Flatpak-приложениям на выбранные файлы выдаёт сам xdg-desktop-portal (document portal). Широкие права на папки для этого не нужны.
-- Проверка: `modules/shell/portal/test_portal.py` запускает портал на настоящей шине с заглушками оболочки и GTK (`nix flake check`, проверка `portal`).
+- Проверки в `nix flake check`: `portal` — портал на настоящей шине с заглушками оболочки и GTK; `portal-qt` — сквозная: QML `FileDialog` с темой `xdgdesktopportal` и плагином → настоящий xdg-desktop-portal → pixel-portal → выбранный файл возвращается в приложение.
 
 ### Что поддержано
 

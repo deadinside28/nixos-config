@@ -1,0 +1,7 @@
+cmake_minimum_required(VERSION 3.16)
+project(pixel-qt-hyprland-theme LANGUAGES CXX)
+find_package(Qt6 REQUIRED COMPONENTS Gui GuiPrivate)
+set(CMAKE_AUTOMOC ON)
+qt_add_plugin(hyprlandtheme SHARED CLASS_NAME PixelHyprlandThemePlugin plugin.cpp)
+target_link_libraries(hyprlandtheme PRIVATE Qt6::Gui Qt6::GuiPrivate)
+install(TARGETS hyprlandtheme LIBRARY DESTINATION ${QT6_INSTALL_PLUGINS}/platformthemes)

@@ -335,7 +335,7 @@ SettingsPage {
         SwitchItem {
             icon: "folder_open"
             title: "Свой диалог выбора файлов (экспериментально)"
-            subtitle: "Окно открытия и сохранения в стиле «Файлов» для приложений через портал (GTK4, Flatpak, Chrome, Qt). Если оболочка не отвечает, откроется обычный GTK-диалог"
+            subtitle: "Окно открытия и сохранения в стиле «Файлов» для GTK4, Qt (Telegram, qBittorrent…), Flatpak и Chrome. Для Qt-приложений — после «Применить» и повторного входа в сессию. Если оболочка не отвечает, откроется обычный GTK-диалог"
             checked: SystemConfig.get("desktop.fileChooser", "gtk") === "pixel"
             onToggled: v => SystemConfig.set("desktop.fileChooser", v ? "pixel" : "gtk")
         }

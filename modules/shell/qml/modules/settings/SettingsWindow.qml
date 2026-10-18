@@ -68,7 +68,7 @@ Scope {
                         onAccepted: {
                             const r = SettingsIndex.search(win.query);
                             if (r.length) {
-                                Ui.settingsPage = r[0].page;
+                                Ui.goSettings(r[0].page);
                                 text = "";
                             }
                         }
@@ -140,7 +140,7 @@ Scope {
 
                             StateLayer {
                                 onClicked: {
-                                    Ui.settingsPage = item.modelData.page;
+                                    Ui.goSettings(item.modelData.page);
                                     if (!item.isPage)
                                         search.text = "";
                                 }

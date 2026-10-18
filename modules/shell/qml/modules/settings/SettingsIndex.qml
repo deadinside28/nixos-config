@@ -90,6 +90,16 @@ Singleton {
             keywords: "приложения по умолчанию браузер файловый менеджер терминал автозапуск закреплённые"
         },
         {
+            // Не страница: открывает окно «Магазина» (Ui.goSettings)
+            page: "store",
+            file: "AppsPage",
+            icon: "storefront",
+            title: "Магазин приложений",
+            subtitle: "Nixpkgs, Chaotic-Nyx и Flatpak — откроется отдельным окном",
+            accent: 1,
+            keywords: "магазин установить приложение программа пакет flatpak nixpkgs nyx chaotic обновления удалить каталог store"
+        },
+        {
             page: "storage",
             file: "StoragePage",
             icon: "hard_drive",
