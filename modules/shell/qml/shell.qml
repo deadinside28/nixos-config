@@ -85,4 +85,5 @@ ShellRoot {
     DndSpring {}
 
     Ipc {}
+    ThemeBridge {}
 }

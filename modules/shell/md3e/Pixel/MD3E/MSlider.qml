@@ -1,7 +1,6 @@
 // Слайдер M3 Expressive (Android 16): толстый трек, вертикальная ручка
 // с зазором по бокам, точка-ограничитель в конце неактивной части.
 import QtQuick
-import qs.common
 
 Item {
     id: root

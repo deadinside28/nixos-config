@@ -7,6 +7,7 @@ pragma Singleton
 // 100×100 и масштабируются под размер значка.
 import QtQuick
 import Quickshell
+import Pixel.MD3E
 
 Singleton {
     id: root

@@ -1,7 +1,6 @@
 // Пункт со слайдером под заголовком.
 import QtQuick
 import QtQuick.Layouts
-import qs.common
 
 Rectangle {
     id: root

@@ -4,6 +4,7 @@ import qs.common
 import qs.widgets
 import qs.services
 import Quickshell
+import Pixel.MD3E
 
 SettingsPage {
     title: "Рабочий стол и окна"
@@ -135,7 +136,7 @@ SettingsPage {
         title: "Закреплённые приложения"
         Repeater {
             model: Settings.data.pinnedApps
-            ListItem {
+            AppListItem {
                 id: pin
                 required property string modelData
                 required property int index

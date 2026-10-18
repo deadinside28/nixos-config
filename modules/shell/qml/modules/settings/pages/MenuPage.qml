@@ -4,6 +4,7 @@ import Quickshell
 import qs.common
 import qs.widgets
 import qs.services
+import Pixel.MD3E
 
 // Меню приложений: вид лаунчера и правки отдельных записей. Правки ложатся
 // поверх .desktop (services/Apps.qml) и переживают обновление пакетов.
@@ -136,7 +137,7 @@ SettingsPage {
                 Layout.fillWidth: true
                 spacing: 2
 
-                ListItem {
+                AppListItem {
                     first: row.index === 0
                     last: row.index === page.shown.length - 1 && !row.open
                     appIcon: row.app.icon || "application-x-executable"

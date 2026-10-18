@@ -6,6 +6,7 @@ import Quickshell
 import Quickshell.Services.Polkit
 import qs.common
 import qs.widgets
+import Pixel.MD3E
 
 Scope {
     id: root

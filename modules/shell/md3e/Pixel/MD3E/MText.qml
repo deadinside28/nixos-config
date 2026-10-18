@@ -1,5 +1,4 @@
 import QtQuick
-import qs.common
 
 Text {
     property int size: Theme.type.bodyM

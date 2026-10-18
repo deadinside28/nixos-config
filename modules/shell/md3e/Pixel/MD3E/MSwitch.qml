@@ -1,6 +1,5 @@
 // Переключатель M3: трек 52×32, бегунок растёт при включении и несёт галочку.
 import QtQuick
-import qs.common
 
 Item {
     id: root

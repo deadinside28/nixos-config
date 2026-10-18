@@ -8,6 +8,7 @@ import Quickshell.Io
 import qs.common
 import qs.widgets
 import qs.services
+import Pixel.MD3E
 
 Scope {
     LazyLoader {

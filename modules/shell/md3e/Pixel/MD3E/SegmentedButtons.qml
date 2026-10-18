@@ -2,7 +2,6 @@
 // сильнее, остальные — тональные.
 import QtQuick
 import QtQuick.Layouts
-import qs.common
 
 RowLayout {
     id: root

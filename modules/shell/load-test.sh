@@ -1,10 +1,11 @@
 # Проверка загрузки оболочки: настоящий Quickshell под headless sway, все
 # окна и страницы настроек открываются через IPC. Падает, если в журнале
 # есть ошибки QML (ReferenceError, TypeError, неизвестные свойства и т. п.).
-#   bash load-test.sh <quickshell> <sway> <каталог конфигурации pixel>
+#   bash load-test.sh <quickshell> <sway> <каталог конфигурации pixel> <путь QML к Pixel.MD3E>
 # Окружения нет (Hyprland, D-Bus, PipeWire) — эти предупреждения не в счёт.
 set -u
 qs=$1 sway=$2 cfg=$3/shell.qml
+export QML_IMPORT_PATH=$4
 work=$(mktemp -d)
 export HOME="$work/home" XDG_RUNTIME_DIR="$work/run" LANG=C.UTF-8
 export WLR_BACKENDS=headless WLR_LIBINPUT_NO_DEVICES=1 WLR_RENDERER=pixman

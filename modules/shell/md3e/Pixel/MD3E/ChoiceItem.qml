@@ -3,7 +3,6 @@
 // только без диалога).
 import QtQuick
 import QtQuick.Layouts
-import qs.common
 
 Rectangle {
     id: root

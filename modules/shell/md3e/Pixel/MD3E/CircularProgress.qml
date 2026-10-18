@@ -2,7 +2,6 @@
 // value < 0 — неопределённый: дуга растёт, сжимается и вращается.
 import QtQuick
 import QtQuick.Shapes
-import qs.common
 
 Item {
     id: root

@@ -8,6 +8,7 @@ import qs.common
 import qs.widgets
 import qs.services
 import "pages"
+import Pixel.MD3E
 
 Scope {
     id: root

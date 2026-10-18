@@ -3,6 +3,7 @@ import QtQuick
 import Quickshell
 import qs.common
 import qs.widgets
+import Pixel.MD3E
 
 PopupWindow {
     id: root

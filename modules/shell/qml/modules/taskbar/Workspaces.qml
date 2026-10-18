@@ -5,6 +5,7 @@ import QtQuick.Layouts
 import Quickshell.Hyprland
 import qs.common
 import qs.services
+import Pixel.MD3E
 
 Rectangle {
     id: root

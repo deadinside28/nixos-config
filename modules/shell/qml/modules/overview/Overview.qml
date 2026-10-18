@@ -9,6 +9,7 @@ import Quickshell.Hyprland
 import qs.common
 import qs.widgets
 import qs.services
+import Pixel.MD3E
 
 Overlay {
     id: root

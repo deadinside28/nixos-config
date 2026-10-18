@@ -5,6 +5,7 @@ import Quickshell.Services.Pipewire
 import qs.common
 import qs.widgets
 import qs.services
+import Pixel.MD3E
 
 SettingsPage {
     id: page

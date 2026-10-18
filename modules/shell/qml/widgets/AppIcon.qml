@@ -6,6 +6,7 @@ import QtQuick.Shapes
 import Quickshell
 import Quickshell.Widgets
 import qs.common
+import Pixel.MD3E
 
 Item {
     id: root

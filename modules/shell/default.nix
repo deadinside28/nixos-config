@@ -140,6 +140,10 @@
   '';
 
   # Напоминания календаря — своей службой, независимо от оболочки
+  # Тема и виджеты MD3E — отдельная библиотека (md3e/), оболочка
+  # подключает её через QML_IMPORT_PATH
+  md3e = pkgs.callPackage ./md3e/package.nix {};
+
   pixel-reminders = pkgs.writeShellApplication {
     name = "pixel-reminders";
     runtimeInputs = with pkgs; [coreutils gnugrep jq libnotify];
@@ -393,6 +397,9 @@
     '';
   };
 in {
+  # `import Pixel.MD3E` в своих QML-приложениях и `qs -c pixel` из терминала
+  home.sessionVariables.QML_IMPORT_PATH = "${md3e}/${md3e.qmlPath}";
+
   home.packages = [
     quickshell
     pixel-shell
@@ -418,7 +425,7 @@ in {
       Description = "Pixel Shell (Quickshell)";
       PartOf = ["graphical-session.target"];
       After = ["graphical-session.target"];
-      X-Restart-Triggers = ["${./qml}" "${matugenFull}" "${shaders}"];
+      X-Restart-Triggers = ["${./qml}" "${md3e}" "${matugenFull}" "${shaders}"];
     };
     Service = {
       ExecStart = "${lib.getExe quickshell} -c pixel";
@@ -430,6 +437,7 @@ in {
       # перезапуск оболочки их не трогает.
       Environment = [
         "QT_QPA_PLATFORM=wayland"
+        "QML_IMPORT_PATH=${md3e}/${md3e.qmlPath}"
         "PATH=${lib.makeBinPath (with pkgs; [
           coreutils
           findutils

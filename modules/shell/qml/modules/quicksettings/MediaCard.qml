@@ -7,6 +7,7 @@ import Quickshell.Services.Mpris
 import qs.common
 import qs.widgets
 import qs.services
+import Pixel.MD3E
 
 ClippingRectangle {
     id: root

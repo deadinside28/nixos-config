@@ -1,0 +1,21 @@
+module Pixel.MD3E
+singleton Theme 1.0 Theme.qml
+Button 1.0 Button.qml
+Card 1.0 Card.qml
+ChoiceItem 1.0 ChoiceItem.qml
+CircularProgress 1.0 CircularProgress.qml
+Group 1.0 Group.qml
+IconButton 1.0 IconButton.qml
+LinearProgress 1.0 LinearProgress.qml
+ListItem 1.0 ListItem.qml
+MIcon 1.0 MIcon.qml
+MSlider 1.0 MSlider.qml
+MSwitch 1.0 MSwitch.qml
+MText 1.0 MText.qml
+PillSlider 1.0 PillSlider.qml
+SegmentedButtons 1.0 SegmentedButtons.qml
+SliderItem 1.0 SliderItem.qml
+StateLayer 1.0 StateLayer.qml
+SwitchItem 1.0 SwitchItem.qml
+TextField 1.0 TextField.qml
+ThemeFile 1.0 ThemeFile.qml

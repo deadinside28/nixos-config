@@ -6,6 +6,7 @@ import Quickshell
 import Quickshell.Wayland
 import qs.common
 import qs.services
+import Pixel.MD3E
 
 PanelWindow {
     id: root

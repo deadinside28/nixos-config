@@ -1,7 +1,6 @@
 // Поле ввода в виде «таблетки», как строка поиска на Pixel.
 import QtQuick
 import QtQuick.Layouts
-import qs.common
 
 Rectangle {
     id: root

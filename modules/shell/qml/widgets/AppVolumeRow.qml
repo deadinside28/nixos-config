@@ -4,6 +4,7 @@ import QtQuick
 import QtQuick.Layouts
 import qs.common
 import qs.services
+import Pixel.MD3E
 
 RowLayout {
     id: root

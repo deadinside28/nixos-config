@@ -8,6 +8,7 @@ import Quickshell.Services.Notifications
 import qs.common
 import qs.widgets
 import qs.services
+import Pixel.MD3E
 
 Item {
     id: root

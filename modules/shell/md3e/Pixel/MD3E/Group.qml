@@ -3,7 +3,6 @@
 // Дети расставляют свои углы сами (см. ListItem.first/last).
 import QtQuick
 import QtQuick.Layouts
-import qs.common
 
 ColumnLayout {
     id: root

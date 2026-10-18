@@ -5,6 +5,7 @@ import Quickshell.Services.SystemTray
 import Quickshell.Widgets
 import qs.common
 import qs.widgets
+import Pixel.MD3E
 
 Rectangle {
     id: root

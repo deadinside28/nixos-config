@@ -2,7 +2,6 @@
 // трек и точка-ограничитель в конце. value < 0 — неопределённый режим
 // (две полосы бегут по треку).
 import QtQuick
-import qs.common
 
 Item {
     id: root

@@ -5,6 +5,7 @@ import qs.common
 import qs.widgets
 import qs.services
 import Quickshell.Networking
+import Pixel.MD3E
 
 SettingsPage {
     id: page

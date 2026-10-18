@@ -8,6 +8,7 @@ import qs.common
 import qs.widgets
 import qs.services
 import qs.modules.notifications
+import Pixel.MD3E
 
 Overlay {
     id: root

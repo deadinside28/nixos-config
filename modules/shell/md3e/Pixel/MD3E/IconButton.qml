@@ -1,6 +1,5 @@
 // Кнопка-значок M3. Варианты: standard | filled | tonal | outlined.
 import QtQuick
-import qs.common
 
 Rectangle {
     id: root

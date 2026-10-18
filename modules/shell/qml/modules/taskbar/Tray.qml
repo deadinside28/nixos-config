@@ -8,6 +8,7 @@ import Quickshell.Hyprland
 import Quickshell.Services.SystemTray
 import qs.common
 import qs.widgets
+import Pixel.MD3E
 
 // Видимые значки — в общей «таблетке», как остальные блоки панели.
 Rectangle {

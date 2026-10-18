@@ -3,6 +3,7 @@ import QtQuick
 import QtQuick.Layouts
 import qs.common
 import qs.widgets
+import Pixel.MD3E
 
 Flickable {
     id: root

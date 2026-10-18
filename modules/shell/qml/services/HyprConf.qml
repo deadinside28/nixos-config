@@ -7,6 +7,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import qs.common
+import Pixel.MD3E
 
 Singleton {
     id: root

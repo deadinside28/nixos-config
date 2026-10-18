@@ -1,6 +1,5 @@
 // Пункт с переключателем: клик по всей строке переключает.
 import QtQuick
-import qs.common
 
 ListItem {
     id: root

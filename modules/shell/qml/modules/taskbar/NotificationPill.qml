@@ -3,6 +3,7 @@ import QtQuick
 import qs.common
 import qs.widgets
 import qs.services
+import Pixel.MD3E
 
 Rectangle {
     id: root

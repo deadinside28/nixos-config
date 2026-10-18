@@ -1,7 +1,6 @@
 // Значок Material Symbols Rounded. Имя — лигатура: "wifi", "settings"…
 // fill — заливка (0…1), у M3 активные значки залитые.
 import QtQuick
-import qs.common
 
 Text {
     property string icon: ""

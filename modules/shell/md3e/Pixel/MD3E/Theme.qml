@@ -1,20 +1,31 @@
 pragma Singleton
 
-// Material 3: цветовые роли, шрифты, скругления и движение.
+// Material 3 Expressive: цветовые роли, шрифты, скругления и движение.
+// Часть библиотеки Pixel.MD3E — чистый Qt Quick, без Quickshell: её же
+// используют самостоятельные приложения.
 //
-// Цвета приходят из matugen (services/Theming.qml пишет colors.json рядом
-// с настройками): в файле сразу обе схемы, тёмная и светлая, поэтому
-// переключение темы в оболочке мгновенное. Пока файла нет — базовая
-// палитра Google Blue, чтобы оболочка не стартовала чёрно-белой.
+// Входы задаёт хозяин: Pixel Shell — мостом common/ThemeBridge.qml,
+// отдельное приложение — элементом ThemeFile (читает те же файлы
+// оболочки). Цвета — из matugen: в colors.json сразу обе схемы, тёмная и
+// светлая, поэтому переключение темы мгновенное. Пока схемы нет — базовая
+// палитра Google Blue.
 
 import QtQuick
-import Quickshell
-import Quickshell.Io
 
-Singleton {
+QtObject {
     id: root
 
-    readonly property bool dark: Settings.data.darkMode
+    // --- входы -------------------------------------------------------------
+
+    property bool dark: true
+    property var scheme: ({}) // colors.json matugen: {source, dark: {…}, light: {…}}
+    property string font: "Google Sans"
+    property string monoFont: "JetBrainsMono Nerd Font"
+    property string fontWeightName: "Medium" // Regular | Medium | Bold
+    property real fontSize: 12 // 12 — как задумано; масштабирует всю типографику
+    property real animationScale: 1
+    property real panelOpacity: 1 // фон выезжающих панелей (под ним размытие)
+    property color frame: surfaceContainer // рамка экрана оболочки
 
     // --- палитра -----------------------------------------------------------
 
@@ -122,10 +133,11 @@ Singleton {
             scrim: "#000000"
         })
 
-    property var scheme: ({})
+    // Недостающие в схеме роли берутся из базовой палитры
     readonly property var p: {
         const s = dark ? scheme.dark : scheme.light;
-        return s && s.primary ? s : (dark ? fallbackDark : fallbackLight);
+        const base = dark ? fallbackDark : fallbackLight;
+        return s && s.primary ? Object.assign({}, base, s) : base;
     }
     readonly property color sourceColor: scheme.source ?? "#4285f4"
 
@@ -199,10 +211,7 @@ Singleton {
 
     // Фон выезжающих панелей: полупрозрачный, чтобы под ним было видно
     // размытие Hyprland (матовое стекло). Прозрачность — в «Рабочий стол и окна».
-    readonly property color panel: alpha(surfaceContainer, Settings.data.blur ? Settings.data.panelOpacity : 1)
-    // Рамка экрана лежит поверх краёв окон, поэтому она непрозрачная; панель
-    // задач на экране с рамкой красится так же — получается одна деталь.
-    readonly property color frame: Settings.data.frameColor === "black" ? "#000000" : surfaceContainer
+    readonly property color panel: alpha(surfaceContainer, panelOpacity)
 
     function alpha(c, a) {
         return Qt.rgba(c.r, c.g, c.b, a);
@@ -217,18 +226,16 @@ Singleton {
 
     // --- типографика -------------------------------------------------------
 
-    readonly property string font: Settings.data.uiFont || Nix.uiFont
-    readonly property string monoFont: Settings.data.monoFont || Nix.monoFont
     // Начертание обычного текста оболочки — как во всей системе
     readonly property int fontWeight: ({
             Regular: Font.Normal,
             Medium: Font.Medium,
             Bold: Font.Bold
-        })[Settings.data.uiFontWeight] ?? Font.Medium
+        })[fontWeightName] ?? Font.Medium
     // Выделенный текст (заголовки, кнопки) — на ступень жирнее обычного
     readonly property int strongWeight: Math.min(Font.Black, Math.max(Font.Medium, fontWeight + 100))
     // Размер из настроек масштабирует всю типографику оболочки (12 — как задумано)
-    readonly property real textScale: Math.max(0.75, Math.min(1.5, (Settings.data.uiFontSize || 12) / 12))
+    readonly property real textScale: Math.max(0.75, Math.min(1.5, (fontSize || 12) / 12))
     readonly property string iconFont: "Material Symbols Rounded"
 
     readonly property QtObject type: QtObject {
@@ -264,7 +271,7 @@ Singleton {
     // --- движение (M3 Expressive) ------------------------------------------
 
     readonly property QtObject anim: QtObject {
-        readonly property real scale: Settings.data.animationScale
+        readonly property real scale: root.animationScale
         readonly property int fast: 150 * scale
         readonly property int normal: 300 * scale
         readonly property int slow: 450 * scale
@@ -277,21 +284,5 @@ Singleton {
         // «пружина» с лёгким перелётом — для раскрытия панелей
         readonly property var expressiveSpatial: [0.38, 1.21, 0.22, 1, 1, 1]
         readonly property var expressiveEffects: [0.34, 0.8, 0.34, 1, 1, 1]
-    }
-
-    // --- загрузка colors.json ---------------------------------------------
-
-    FileView {
-        path: Settings.stateDir + "/colors.json"
-        watchChanges: true
-        onFileChanged: reload()
-        onLoaded: {
-            try {
-                root.scheme = JSON.parse(text());
-            } catch (e) {
-                console.warn("theme: colors.json не читается:", e);
-            }
-        }
-        onLoadFailed: root.scheme = {}
     }
 }

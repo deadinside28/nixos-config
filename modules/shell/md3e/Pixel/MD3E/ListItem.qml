@@ -2,7 +2,6 @@
 // (переключатель, стрелка, значение). Кладётся в Group.
 import QtQuick
 import QtQuick.Layouts
-import qs.common
 
 Rectangle {
     id: root
@@ -12,7 +11,8 @@ Rectangle {
     property bool last: true
 
     property string icon: ""
-    property string appIcon: ""
+    // Что-то своё слева вместо значка (например, значок приложения оболочки)
+    property Component leading: null
     property bool iconTinted: false
     property color iconBg: Theme.secondaryContainer
     property color iconFg: Theme.fgSecondaryContainer
@@ -60,10 +60,10 @@ Rectangle {
         anchors.rightMargin: 20
         spacing: 16
 
-        AppIcon {
-            visible: root.appIcon !== ""
-            size: 32
-            icon: root.appIcon
+        Loader {
+            active: root.leading !== null
+            visible: active
+            sourceComponent: root.leading
         }
 
         Rectangle {

@@ -4,6 +4,7 @@ import Quickshell
 import qs.common
 import qs.widgets
 import qs.services
+import Pixel.MD3E
 
 // «Память»: место на диске. Подсчёт — services/Storage.qml.
 SettingsPage {
@@ -175,7 +176,7 @@ SettingsPage {
                 Layout.fillWidth: true
                 spacing: 2
 
-                ListItem {
+                AppListItem {
                     first: row.index === 0
                     last: row.last && !row.isOpen
                     appIcon: row.app.icon || "application-x-executable"

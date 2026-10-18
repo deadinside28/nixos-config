@@ -5,6 +5,7 @@ import Quickshell.Io
 import qs.common
 import qs.widgets
 import qs.services
+import Pixel.MD3E
 
 SettingsPage {
     id: page
@@ -176,7 +177,12 @@ SettingsPage {
             SwitchItem {
                 id: as
                 required property var modelData
-                appIcon: modelData.icon || "application-x-executable"
+                leading: Component {
+                    AppIcon {
+                        size: 32
+                        icon: as.modelData.icon || "application-x-executable"
+                    }
+                }
                 title: modelData.name
                 subtitle: modelData.file.replace(Settings.home, "~")
                 checked: modelData.enabled

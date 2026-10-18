@@ -134,6 +134,7 @@
       # Оболочка целиком: настоящий Quickshell под headless sway, все окна
       # и страницы настроек открываются через IPC, ошибки QML — провал
       shell-load = let
+        md3e = pkgs.callPackage ./modules/shell/md3e/package.nix {};
         hm = self.nixosConfigurations.${builtins.head hostNames}.config.home-manager.users.${username};
         nixQml = pkgs.writeText "Nix.qml" hm.xdg.configFile."quickshell/pixel/common/Nix.qml".text;
         cfg = pkgs.runCommand "pixel-shell-qml" {} ''
@@ -145,7 +146,7 @@
         pkgs.runCommand "pixel-shell-load-test" {
           nativeBuildInputs = with pkgs; [bash coreutils gnugrep gnused];
         } ''
-          bash ${./modules/shell/load-test.sh} ${pkgs.quickshell}/bin/quickshell ${pkgs.sway-unwrapped}/bin/sway ${cfg}
+          bash ${./modules/shell/load-test.sh} ${pkgs.quickshell}/bin/quickshell ${pkgs.sway-unwrapped}/bin/sway ${cfg} ${md3e}/${md3e.qmlPath}
           touch $out
         '';
       # Свой диалог файлов из Qt-приложения целиком: тема xdgdesktopportal
@@ -169,6 +170,23 @@
             ${pkgs.sway-unwrapped}/bin/sway ${pkgs.xdg-desktop-portal}/libexec/xdg-desktop-portal \
             ${portalPkg} ${pkgs.qt6.qtdeclarative}/bin/qml ${qtPlugins} \
             ${pkgs.qt6.qtdeclarative}/lib/qt-6/qml ${dataDirs} ${theme}/lib/qt-6/plugins
+          touch $out
+        '';
+      # Библиотека MD3E без Quickshell: витрина запускается обычным `qml`,
+      # тема читается из файлов оболочки, предупреждения QML — провал
+      md3e = let
+        lib' = pkgs.callPackage ./modules/shell/md3e/package.nix {};
+        qt = pkgs.qt6;
+      in
+        pkgs.runCommand "pixel-md3e-test" {} ''
+          mkdir -p state/pixel-shell
+          echo '{"darkMode": false, "uiFontSize": 13}' > state/pixel-shell/settings.json
+          export LANG=C.UTF-8 HOME=$PWD XDG_STATE_HOME=$PWD/state QT_QPA_PLATFORM=offscreen \
+            QT_PLUGIN_PATH=${qt.qtbase}/lib/qt-6/plugins QML_XHR_ALLOW_FILE_READ=1 QT_FORCE_STDERR_LOGGING=1 \
+            QML_IMPORT_PATH=${qt.qtdeclarative}/lib/qt-6/qml:${lib'}/${lib'.qmlPath}
+          ${qt.qtdeclarative}/bin/qml ${lib'}/share/pixel-md3e/gallery.qml -- --quit --shot=$PWD/shot.png 2>&1 | tee log
+          test -s shot.png
+          if grep -v "^$" log; then echo "md3e: предупреждения QML"; exit 1; fi
           touch $out
         '';
       # Служба Quick Share собирается (сквозной тест — e2e.py, нужен root)

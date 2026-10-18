@@ -1,7 +1,6 @@
 // Поверхность панели: скруглённая, с мягкой тенью M3.
 import QtQuick
 import QtQuick.Effects
-import qs.common
 
 Item {
     id: root

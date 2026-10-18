@@ -1,7 +1,6 @@
 // Кнопка M3 с текстом. Варианты: filled | tonal | outlined | text | danger.
 import QtQuick
 import QtQuick.Layouts
-import qs.common
 
 Rectangle {
     id: root

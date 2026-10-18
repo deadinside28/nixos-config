@@ -6,6 +6,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Wayland
 import qs.common
+import Pixel.MD3E
 
 PanelWindow {
     id: root
