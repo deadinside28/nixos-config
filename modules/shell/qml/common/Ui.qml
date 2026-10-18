@@ -17,6 +17,9 @@ Singleton {
     property string panelScreen: ""
 
     property bool locked: false
+    // Композитор подтвердил блокировку (WlSessionLock.secure, ставит Lock.qml):
+    // только тогда экран действительно закрыт и можно засыпать
+    property bool lockSecure: false
     property bool caffeine: false
     property bool recording: false
     // Идёт ли запись экрана (gpu-screen-recorder запускает pixel-record)
