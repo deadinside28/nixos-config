@@ -18,6 +18,7 @@ Everything is declarative: **Flakes** + **Home Manager**, with the Hyprland conf
 Everything that can differ is defined in one place and passed into every module:
 
 * `username` in `flake.nix` — the user name isn't hardcoded anywhere else;
+* `configDir` in `flake.nix` — where this flake lives (`~/nixos-config` by default); the shell edits and rebuilds it from there;
 * `appearance` in `flake.nix` — the UI font and its weight, the monospace font, sizes, and the cursor;
 * `hosts/<name>/host.nix` — what's specific to one machine: monitors and their workspaces, AMD GPU, undervolt. The folder name is the host name.
 
@@ -241,7 +242,7 @@ modules/
 
 ## 📦 How to Apply
 
-> **Your own machine.** All hardware lives in `hosts/<name>/`. Copy `hosts/nixos` to a folder named after your host, put your own `hardware-configuration.nix` there (`nixos-generate-config --show-hardware-config`), adjust or empty `disks.nix`, and describe your monitors, GPU and undervolt in `host.nix` (better to disable the undervolt: `undervolt = null;` — the offset is tuned per CPU). Change `username` in `flake.nix`. Build with `.#<folder name>`.
+> **Your own machine.** All hardware lives in `hosts/<name>/`. Copy `hosts/nixos` to a folder named after your host, put your own `hardware-configuration.nix` there (`nixos-generate-config --show-hardware-config`), adjust or empty `disks.nix`, and describe your monitors, GPU and undervolt in `host.nix` (better to disable the undervolt: `undervolt = null;` — the offset is tuned per CPU). Change `username` in `flake.nix` (and `configDir` if you cloned somewhere other than `~/nixos-config`). Build with `.#<folder name>`.
 
 The config lives in the home directory as a regular git repository:
 

@@ -14,9 +14,10 @@
   lib,
   appearance,
   hostname,
+  configDir,
   ...
 }: let
-  flake = "${config.home.homeDirectory}/nixos-config";
+  flake = configDir;
   stateDir = "${config.xdg.stateHome}/pixel-shell";
   configHome = config.xdg.configHome;
 

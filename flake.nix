@@ -37,6 +37,11 @@
     # модули через specialArgs, чтобы имя не было зашито по конфигу.
     username = "deadinside";
 
+    # Где лежит этот flake на машине. Его правит и пересобирает оболочка
+    # («Настройки → Система», обновления). Клонировал в другое место —
+    # поменяй здесь.
+    configDir = "/home/${username}/nixos-config";
+
     # Вторая точка правды — внешний вид. Один и тот же набор значений
     # уезжает и в системные модули, и в home-manager, и в оверрайды
     # Flatpak, чтобы шрифт с курсором совпадали везде, а не в трёх местах
@@ -74,7 +79,7 @@
       host = import ./hosts/${hostname}/host.nix;
     in
       lib.nixosSystem {
-        specialArgs = {inherit username hostname host appearance sys;};
+        specialArgs = {inherit username configDir hostname host appearance sys;};
         modules = [
           chaotic.nixosModules.default
           ({pkgs, ...}: {
@@ -93,7 +98,7 @@
             home-manager.useGlobalPkgs = true;
             home-manager.useUserPackages = true;
             home-manager.backupFileExtension = "backup";
-            home-manager.extraSpecialArgs = {inherit username hostname host appearance sys;};
+            home-manager.extraSpecialArgs = {inherit username configDir hostname host appearance sys;};
             home-manager.users.${username} = import ./home.nix;
           }
         ];
