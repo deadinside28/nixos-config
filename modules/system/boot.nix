@@ -43,14 +43,20 @@
   boot.blacklistedKernelModules = [];
 
   # Андервольт CPU. Скрипт лежит в scripts/ и подтягивается декларативно.
-  systemd.services.ryzen-undervolt = lib.mkIf (host.undervolt != null) {
-    description = "AMD Ryzen 7 5700X3D Undervolt";
-    wantedBy = ["multi-user.target" "post-resume.target"];
-    after = ["suspend.target"];
-    serviceConfig = {
-      Type = "oneshot";
-      ExecStart = "${pkgs.python3}/bin/python ${../../scripts/ruv.py} -c ${toString host.undervolt.cores} -o ${toString host.undervolt.offset}";
-      RemainAfterExit = true;
+  # Curve Optimizer сбрасывается и при загрузке, и после сна — запускаемся
+  # в обоих случаях. Без RemainAfterExit: иначе после загрузки юнит
+  # оставался бы «active», и запуск после пробуждения ничего не делал бы.
+  # Список сна — как у штатного post-resume.service в NixOS.
+  systemd.services.ryzen-undervolt = let
+    sleepTargets = ["suspend.target" "hibernate.target" "hybrid-sleep.target" "suspend-then-hibernate.target"];
+  in
+    lib.mkIf (host.undervolt != null) {
+      description = "AMD Ryzen 7 5700X3D Undervolt";
+      wantedBy = ["multi-user.target"] ++ sleepTargets;
+      after = sleepTargets;
+      serviceConfig = {
+        Type = "oneshot";
+        ExecStart = "${pkgs.python3}/bin/python ${../../scripts/ruv.py} -c ${toString host.undervolt.cores} -o ${toString host.undervolt.offset}";
+      };
     };
-  };
 }
