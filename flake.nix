@@ -23,6 +23,7 @@
   };
 
   outputs = {
+    self,
     nixpkgs,
     chaotic,
     home-manager,
@@ -130,6 +131,23 @@
         dbus-run-session --config-file=bus.conf -- python3 ${./modules/shell/portal/test_portal.py} ${./modules/shell/portal/pixel-portal.py}
         touch $out
       '';
+      # Оболочка целиком: настоящий Quickshell под headless sway, все окна
+      # и страницы настроек открываются через IPC, ошибки QML — провал
+      shell-load = let
+        hm = self.nixosConfigurations.${builtins.head hostNames}.config.home-manager.users.${username};
+        nixQml = pkgs.writeText "Nix.qml" hm.xdg.configFile."quickshell/pixel/common/Nix.qml".text;
+        cfg = pkgs.runCommand "pixel-shell-qml" {} ''
+          cp -r ${./modules/shell/qml} $out
+          chmod -R u+w $out
+          cp ${nixQml} $out/common/Nix.qml
+        '';
+      in
+        pkgs.runCommand "pixel-shell-load-test" {
+          nativeBuildInputs = with pkgs; [bash coreutils gnugrep gnused];
+        } ''
+          bash ${./modules/shell/load-test.sh} ${pkgs.quickshell}/bin/quickshell ${pkgs.sway-unwrapped}/bin/sway ${cfg}
+          touch $out
+        '';
       calendar = pkgs.runCommand "pixel-calendar-test" {nativeBuildInputs = [pkgs.nodejs];} ''
         TZ=Europe/Berlin node ${./modules/shell/calendar-test.js} ${./modules/shell/qml/services/calendar.js}
         touch $out
