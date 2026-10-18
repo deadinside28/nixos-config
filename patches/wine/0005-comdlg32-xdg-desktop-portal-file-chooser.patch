@@ -1,0 +1,1373 @@
+From: 5sick <213179368+5sick@users.noreply.github.com>
+Subject: [PATCH] comdlg32: Optionally use the xdg-desktop-portal file chooser.
+
+If HKCU\Software\Wine\FileDialog "HostFileChooser" is "Y", IFileDialog::Show()
+(IFileOpenDialog / IFileSaveDialog without custom controls) and
+GetOpenFileNameW() / GetSaveFileNameW() (without hooks or templates) ask
+org.freedesktop.portal.FileChooser over the session bus (libdbus is loaded
+at runtime by a new comdlg32 unixlib) and return the picked files. The
+Windows filters, the initial folder and file name, multiple selection and
+folder picking are passed on; the parent is given as "x11:<XID>".
+
+Picked Unix paths below the target of a known folder that is a symlink in
+the prefix (Downloads, Documents, ...) are returned through that folder.
+Other folders the prefix can't reach (e.g. without a Z: drive) are linked
+into C:\Linux\ (a symlink per picked folder, reused and kept so remembered
+paths stay valid) and returned through that link, for opening, saving and
+folder picking alike. Only if linking fails, files to open are copied to
+%TEMP%\host-files\. If no portal is available, Wine's own dialog is shown.
+---
+diff --git a/dlls/comdlg32/Makefile.in b/dlls/comdlg32/Makefile.in
+index c298c08..de7862e 100644
+--- a/dlls/comdlg32/Makefile.in
++++ b/dlls/comdlg32/Makefile.in
+@@ -1,8 +1,10 @@
+ EXTRADEFS = -D_COMDLG32_
+ MODULE    = comdlg32.dll
++UNIXLIB   = comdlg32.so
+ IMPORTLIB = comdlg32
+ IMPORTS   = uuid shell32 shlwapi comctl32 user32 gdi32 advapi32
+ DELAYIMPORTS = ole32 winspool
++UNIX_CFLAGS  = $(DBUS_CFLAGS)
+ 
+ SOURCES = \
+ 	cdlg32.c \
+@@ -14,9 +16,11 @@ SOURCES = \
+ 	filedlgbrowser.c \
+ 	finddlg.c \
+ 	fontdlg.c \
++	hostdlg.c \
+ 	itemdlg.c \
+ 	pd32_collate.svg \
+ 	pd32_landscape.svg \
+ 	pd32_nocollate.svg \
+ 	pd32_portrait.svg \
++	portal.c \
+ 	printdlg.c
+diff --git a/dlls/comdlg32/cdlg.h b/dlls/comdlg32/cdlg.h
+index 79c951d..11bd8d5 100644
+--- a/dlls/comdlg32/cdlg.h
++++ b/dlls/comdlg32/cdlg.h
+@@ -182,6 +182,22 @@ void FILEDLG95_OnOpenMessage(HWND hwnd, int idCaption, int idText);
+ extern BOOL GetFileName31A( OPENFILENAMEA *lpofn, UINT dlgType );
+ extern BOOL GetFileName31W( OPENFILENAMEW *lpofn, UINT dlgType );
+ 
++/* Host file chooser (hostdlg.c) */
++struct host_file_chooser
++{
++    HWND owner;
++    BOOL save, multiple, directory;
++    const WCHAR *title;
++    const WCHAR *filters;       /* "name\0spec\0...\0" like OPENFILENAME.lpstrFilter */
++    UINT filter_index;          /* 0-based, updated with the filter the user chose */
++    const WCHAR *file_name;     /* initial name for save */
++    const WCHAR *folder;        /* initial folder */
++};
++
++extern BOOL host_file_chooser_enabled(void);
++extern HRESULT host_file_chooser(struct host_file_chooser *dlg, WCHAR **files);
++extern BOOL host_get_file_name(OPENFILENAMEW *ofn, BOOL save, BOOL *ret);
++
+ #define ONOPEN_BROWSE 1
+ #define ONOPEN_OPEN   2
+ #define ONOPEN_SEARCH 3
+diff --git a/dlls/comdlg32/filedlg.c b/dlls/comdlg32/filedlg.c
+index 9d57375..7ab7be7 100644
+--- a/dlls/comdlg32/filedlg.c
++++ b/dlls/comdlg32/filedlg.c
+@@ -4183,6 +4183,10 @@ BOOL WINAPI GetOpenFileNameW(OPENFILENAMEW *ofn)
+     else
+     {
+         FileOpenDlgInfos info;
++        BOOL ret;
++
++        if (host_get_file_name(ofn, FALSE, &ret))
++            return ret;
+ 
+         init_filedlg_infoW(ofn, &info);
+         return GetFileDialog95(&info, OPEN_DIALOG);
+@@ -4243,6 +4247,10 @@ BOOL WINAPI GetSaveFileNameW(
+     else
+     {
+         FileOpenDlgInfos info;
++        BOOL ret;
++
++        if (host_get_file_name(ofn, TRUE, &ret))
++            return ret;
+ 
+         init_filedlg_infoW(ofn, &info);
+         return GetFileDialog95(&info, SAVE_DIALOG);
+diff --git a/dlls/comdlg32/hostdlg.c b/dlls/comdlg32/hostdlg.c
+new file mode 100644
+index 0000000..11e529c
+--- /dev/null
++++ b/dlls/comdlg32/hostdlg.c
+@@ -0,0 +1,443 @@
++/*
++ * Host file chooser (xdg-desktop-portal) for the common file dialogs
++ *
++ * This library is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ *
++ * This library is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with this library; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
++ */
++
++#include <stdarg.h>
++#include <stdlib.h>
++
++#include "ntstatus.h"
++#define WIN32_NO_STATUS
++#include "windef.h"
++#include "winbase.h"
++#include "winternl.h"
++#include "winreg.h"
++#include "winuser.h"
++#include "shlobj.h"
++#include "shlwapi.h"
++#include "commdlg.h"
++#include "cderr.h"
++#include "cdlg.h"
++#include "unixlib.h"
++#include "wine/debug.h"
++
++WINE_DEFAULT_DEBUG_CHANNEL(commdlg);
++
++#define RESULT_SIZE 0x40000
++
++static BOOL init_unixlib(void)
++{
++    static INIT_ONCE once = INIT_ONCE_STATIC_INIT;
++    static BOOL loaded;
++    BOOL pending;
++
++    if (InitOnceBeginInitialize(&once, 0, &pending, NULL) && pending)
++    {
++        loaded = !__wine_init_unix_call();
++        InitOnceComplete(&once, 0, NULL);
++    }
++    return loaded;
++}
++
++/* HKCU\Software\Wine\FileDialog "HostFileChooser" = "Y" enables the host file chooser */
++BOOL host_file_chooser_enabled(void)
++{
++    WCHAR value[8];
++    DWORD size = sizeof(value);
++
++    if (RegGetValueW(HKEY_CURRENT_USER, L"Software\\Wine\\FileDialog", L"HostFileChooser",
++                     RRF_RT_REG_SZ, NULL, value, &size))
++        return FALSE;
++    return value[0] == 'y' || value[0] == 'Y' || value[0] == 't' || value[0] == 'T' || value[0] == '1';
++}
++
++static UINT32 add_string(struct file_chooser_params *params, UINT32 *pos, const WCHAR *str, BOOL unix_path)
++{
++    UINT32 offset = *pos;
++    char *unix_name;
++    int len;
++
++    if (!str) return ~0u;
++    if (unix_path)
++    {
++        if (!(unix_name = wine_get_unix_file_name(str))) return ~0u;
++        len = strlen(unix_name) + 1;
++        if (offset + len > params->size) len = 0;
++        else memcpy(params->data + offset, unix_name, len);
++        HeapFree(GetProcessHeap(), 0, unix_name);
++    }
++    else len = WideCharToMultiByte(CP_UTF8, 0, str, -1, params->data + offset, params->size - offset, NULL, NULL);
++
++    if (!len) return ~0u;
++    *pos += len;
++    return offset;
++}
++
++/* list of the known folders a sandboxed prefix links to host directories */
++static UINT32 add_shared_dirs(struct file_chooser_params *params, UINT32 *pos)
++{
++    static const KNOWNFOLDERID *folders[] =
++    {
++        &FOLDERID_Desktop, &FOLDERID_Documents, &FOLDERID_Downloads,
++        &FOLDERID_Music, &FOLDERID_Pictures, &FOLDERID_Videos,
++    };
++    UINT32 offset = *pos;
++    WCHAR *path;
++    UINT i;
++
++    for (i = 0; i < ARRAY_SIZE(folders); i++)
++    {
++        if (FAILED(SHGetKnownFolderPath(folders[i], KF_FLAG_DONT_VERIFY, NULL, &path))) continue;
++        add_string(params, pos, path, TRUE);
++        CoTaskMemFree(path);
++    }
++    if (*pos >= params->size) return ~0u;
++    params->data[(*pos)++] = 0;
++    return offset;
++}
++
++static UINT32 add_filters(struct file_chooser_params *params, UINT32 *pos, const WCHAR *filters)
++{
++    UINT32 offset = *pos;
++
++    if (!filters || !*filters) return ~0u;
++    while (*filters && filters[wcslen(filters) + 1])
++    {
++        if (add_string(params, pos, filters, FALSE) == ~0u) return ~0u;
++        filters += wcslen(filters) + 1;
++        if (add_string(params, pos, filters, FALSE) == ~0u) return ~0u;
++        filters += wcslen(filters) + 1;
++    }
++    if (*pos >= params->size) return ~0u;
++    params->data[(*pos)++] = 0;
++    return offset;
++}
++
++static DWORD WINAPI file_chooser_thread(void *params)
++{
++    return WINE_UNIX_CALL(unix_file_chooser, params);
++}
++
++/* run the request on another thread and keep the caller's windows responsive */
++static NTSTATUS run_file_chooser(struct file_chooser_params *params, HWND owner)
++{
++    BOOL enabled = FALSE, quit = FALSE;
++    WPARAM quit_code = 0;
++    HANDLE thread;
++    DWORD status;
++    MSG msg;
++
++    if (!(thread = CreateThread(NULL, 0, file_chooser_thread, params, 0, NULL)))
++        return STATUS_NOT_SUPPORTED;
++
++    if (owner) enabled = !EnableWindow(owner, FALSE);
++    while (MsgWaitForMultipleObjects(1, &thread, FALSE, INFINITE, QS_ALLINPUT) == WAIT_OBJECT_0 + 1)
++    {
++        while (PeekMessageW(&msg, 0, 0, 0, PM_REMOVE))
++        {
++            if (msg.message == WM_QUIT)
++            {
++                quit = TRUE;
++                quit_code = msg.wParam;
++                continue;
++            }
++            TranslateMessage(&msg);
++            DispatchMessageW(&msg);
++        }
++    }
++    if (enabled)
++    {
++        EnableWindow(owner, TRUE);
++        SetForegroundWindow(owner);
++    }
++    if (quit) PostQuitMessage(quit_code);
++
++    GetExitCodeThread(thread, &status);
++    CloseHandle(thread);
++    return status;
++}
++
++/* Files the prefix can't reach (outside the shared folders, no Z: drive) are
++ * copied to %TEMP%\host-files\<unique>\ so the application can read them. */
++static WCHAR *copy_to_temp(const WCHAR *unix_name, WCHAR *dir)
++{
++    const WCHAR *name = PathFindFileNameW(unix_name);
++    WCHAR *dest;
++
++    if (!dir[0])
++    {
++        static LONG counter;
++        WCHAR temp[MAX_PATH];
++
++        if (!GetTempPathW(ARRAY_SIZE(temp), temp)) return NULL;
++        wcscat(temp, L"host-files");
++        CreateDirectoryW(temp, NULL);
++        swprintf(dir, MAX_PATH, L"%s\\%lx-%lx", temp, GetCurrentProcessId(), InterlockedIncrement(&counter));
++        if (!CreateDirectoryW(dir, NULL) && GetLastError() != ERROR_ALREADY_EXISTS) return NULL;
++    }
++    if (!(dest = HeapAlloc(GetProcessHeap(), 0, (wcslen(dir) + wcslen(name) + 2) * sizeof(WCHAR))))
++        return NULL;
++    swprintf(dest, wcslen(dir) + wcslen(name) + 2, L"%s\\%s", dir, name);
++    TRACE("copying %s to %s\n", debugstr_w(unix_name), debugstr_w(dest));
++    if (!CopyFileW(unix_name, dest, FALSE))
++    {
++        WARN("failed to copy %s: %lu\n", debugstr_w(unix_name), GetLastError());
++        HeapFree(GetProcessHeap(), 0, dest);
++        return NULL;
++    }
++    return dest;
++}
++
++/* A picked Unix path the prefix can't reach (outside the shared folders, no Z:
++ * drive) is made reachable by linking its folder (or the picked folder itself)
++ * into C:\Linux\. The user picked it, so exposing just that folder is fine, and
++ * the link is kept so that remembered paths (e.g. a download folder) stay valid. */
++static WCHAR *link_host_folder(const char *path, BOOL is_dir)
++{
++    struct link_folder_params *params;
++    const char *slash = strrchr(path, '/');
++    char *root, *dir = NULL, *link_path = NULL;
++    WCHAR *ret = NULL;
++    size_t len;
++
++    if (!CreateDirectoryW(L"C:\\Linux", NULL) && GetLastError() != ERROR_ALREADY_EXISTS) return NULL;
++    if (!(root = wine_get_unix_file_name(L"C:\\Linux"))) return NULL;
++    if (!(params = calloc(1, sizeof(*params)))) goto done;
++    params->size = sizeof(params->data);
++
++    if (is_dir) dir = strdup(path);
++    else if (slash && slash != path)
++    {
++        if ((dir = malloc(slash - path + 1)))
++        {
++            memcpy(dir, path, slash - path);
++            dir[slash - path] = 0;
++        }
++    }
++    else dir = strdup("/");
++    if (!dir || strlen(root) + strlen(dir) + 2 > sizeof(params->data)) goto done;
++    strcpy(params->data, root);
++    strcpy(params->data + strlen(root) + 1, dir);
++
++    if (WINE_UNIX_CALL(unix_link_folder, params)) goto done;
++    len = strlen(params->data) + (is_dir ? 0 : strlen(slash)) + 1;
++    if (!(link_path = malloc(len))) goto done;
++    strcpy(link_path, params->data);
++    if (!is_dir) strcat(link_path, slash);
++
++    ret = wine_get_dos_file_name(link_path);
++    TRACE("%s -> %s\n", debugstr_a(path), debugstr_w(ret));
++    if (ret && !wcsncmp(ret, L"\\\\?\\unix\\", 9))
++    {
++        HeapFree(GetProcessHeap(), 0, ret);
++        ret = NULL;
++    }
++
++done:
++    free(link_path);
++    free(dir);
++    free(params);
++    HeapFree(GetProcessHeap(), 0, root);
++    return ret;
++}
++
++/* Show the host file chooser. On success *files receives the picked DOS paths as
++ * a double null terminated list (free with free()). Returns S_OK,
++ * HRESULT_FROM_WIN32(ERROR_CANCELLED), or a failure if Wine's dialog should be
++ * used instead. */
++HRESULT host_file_chooser(struct host_file_chooser *dlg, WCHAR **files)
++{
++    struct file_chooser_params *params;
++    WCHAR temp_dir[MAX_PATH] = L"", *result = NULL, *dos_name, *tmp;
++    UINT32 pos = 0;
++    size_t len = 0, size;
++    HWND owner = NULL;
++    NTSTATUS status;
++    const char *path;
++    HRESULT hr = E_FAIL;
++
++    if (!init_unixlib()) return E_NOTIMPL;
++    if (!(params = calloc(1, sizeof(*params) + RESULT_SIZE))) return E_OUTOFMEMORY;
++    params->size = RESULT_SIZE;
++
++    if (dlg->save) params->flags |= FILE_CHOOSER_SAVE;
++    if (dlg->multiple) params->flags |= FILE_CHOOSER_MULTIPLE;
++    if (dlg->directory) params->flags |= FILE_CHOOSER_DIRECTORY;
++    params->filter_index = dlg->filter_index;
++    params->title = add_string(params, &pos, dlg->title, FALSE);
++    params->current_name = add_string(params, &pos, dlg->file_name, FALSE);
++    params->current_folder = add_string(params, &pos, dlg->folder, TRUE);
++    params->filters = add_filters(params, &pos, dlg->filters);
++    params->shared_dirs = add_shared_dirs(params, &pos);
++    if (dlg->owner && (owner = GetAncestor(dlg->owner, GA_ROOT)))
++        params->parent = (ULONG_PTR)GetPropW(owner, L"__wine_x11_whole_window");
++
++    status = run_file_chooser(params, owner);
++    TRACE("status %#lx\n", status);
++    if (status == STATUS_CANCELLED) hr = HRESULT_FROM_WIN32(ERROR_CANCELLED);
++    if (status) goto done;
++
++    dlg->filter_index = params->filter_index;
++    for (path = params->data; *path; path += strlen(path) + 1)
++    {
++        if (!(dos_name = wine_get_dos_file_name(path))) goto done;
++        TRACE("%s -> %s\n", debugstr_a(path), debugstr_w(dos_name));
++        if (!wcsncmp(dos_name, L"\\\\?\\unix\\", 9))
++        {
++            if (!(tmp = link_host_folder(path, dlg->directory)))
++            {
++                /* last resort for reading; a new file can't be saved to a copy */
++                if (dlg->save || dlg->directory || !(tmp = copy_to_temp(dos_name, temp_dir)))
++                {
++                    HeapFree(GetProcessHeap(), 0, dos_name);
++                    goto done;
++                }
++            }
++            HeapFree(GetProcessHeap(), 0, dos_name);
++            dos_name = tmp;
++        }
++        size = wcslen(dos_name) + 1;
++        if (!(tmp = realloc(result, (len + size + 1) * sizeof(WCHAR))))
++        {
++            HeapFree(GetProcessHeap(), 0, dos_name);
++            goto done;
++        }
++        result = tmp;
++        memcpy(result + len, dos_name, size * sizeof(WCHAR));
++        len += size;
++        result[len] = 0;
++        HeapFree(GetProcessHeap(), 0, dos_name);
++    }
++    if (result)
++    {
++        *files = result;
++        result = NULL;
++        hr = S_OK;
++    }
++
++done:
++    free(result);
++    free(params);
++    return hr;
++}
++
++/* GetOpenFileNameW / GetSaveFileNameW through the host file chooser.
++ * Returns FALSE if Wine's dialog should be used instead. */
++BOOL host_get_file_name(OPENFILENAMEW *ofn, BOOL save, BOOL *ret)
++{
++    struct host_file_chooser dlg = { 0 };
++    WCHAR folder[MAX_PATH], *files, *p, *name;
++    DWORD needed, count, dir_len;
++    HRESULT hr;
++
++    if (!host_file_chooser_enabled()) return FALSE;
++    if (ofn->Flags & (OFN_ENABLEHOOK | OFN_ENABLETEMPLATE | OFN_ENABLETEMPLATEHANDLE)) return FALSE;
++    if ((ofn->Flags & OFN_ALLOWMULTISELECT) && !(ofn->Flags & OFN_EXPLORER)) return FALSE;
++    if (!ofn->lpstrFile || !ofn->nMaxFile) return FALSE;
++
++    dlg.owner = ofn->hwndOwner;
++    dlg.save = save;
++    dlg.multiple = !save && (ofn->Flags & OFN_ALLOWMULTISELECT);
++    dlg.title = ofn->lpstrTitle;
++    dlg.filters = ofn->lpstrFilter;
++    dlg.filter_index = ofn->nFilterIndex ? ofn->nFilterIndex - 1 : 0;
++    dlg.folder = ofn->lpstrInitialDir;
++
++    /* the initial file name may include a directory */
++    folder[0] = 0;
++    if (ofn->lpstrFile[0])
++    {
++        name = PathFindFileNameW(ofn->lpstrFile);
++        if (name != ofn->lpstrFile && name - ofn->lpstrFile < ARRAY_SIZE(folder))
++        {
++            lstrcpynW(folder, ofn->lpstrFile, name - ofn->lpstrFile + 1);
++            if (!dlg.folder) dlg.folder = folder;
++        }
++        if (save && *name) dlg.file_name = name;
++    }
++
++    hr = host_file_chooser(&dlg, &files);
++    if (hr == HRESULT_FROM_WIN32(ERROR_CANCELLED))
++    {
++        COMDLG32_SetCommDlgExtendedError(0);
++        *ret = FALSE;
++        return TRUE;
++    }
++    if (FAILED(hr)) return FALSE;
++
++    if (save && ofn->lpstrDefExt && ofn->lpstrDefExt[0] && !PathFindExtensionW(files)[0])
++    {
++        size_t len = wcslen(files);
++
++        if ((p = realloc(files, (len + wcslen(ofn->lpstrDefExt) + 3) * sizeof(WCHAR))))
++        {
++            files = p;
++            files[len] = '.';
++            wcscpy(files + len + 1, ofn->lpstrDefExt);
++            files[len + wcslen(ofn->lpstrDefExt) + 2] = 0;
++        }
++    }
++
++    for (count = 0, p = files; *p; p += wcslen(p) + 1) count++;
++    name = PathFindFileNameW(files);
++    dir_len = name - files;
++
++    if (count == 1)
++    {
++        needed = wcslen(files) + 1;
++        if (needed > ofn->nMaxFile) goto too_small;
++        wcscpy(ofn->lpstrFile, files);
++        ofn->nFileOffset = dir_len;
++    }
++    else
++    {
++        /* "dir\0name1\0name2\0\0", all files are in the same directory */
++        WCHAR *out = ofn->lpstrFile;
++
++        if (dir_len > 3) dir_len--;  /* keep the backslash only for a drive root */
++        needed = dir_len + 2;
++        for (p = files; *p; p += wcslen(p) + 1) needed += wcslen(PathFindFileNameW(p)) + 1;
++        if (needed > ofn->nMaxFile) goto too_small;
++        memcpy(out, files, dir_len * sizeof(WCHAR));
++        out += dir_len;
++        *out++ = 0;
++        for (p = files; *p; p += wcslen(p) + 1)
++        {
++            wcscpy(out, PathFindFileNameW(p));
++            out += wcslen(out) + 1;
++        }
++        *out = 0;
++        ofn->nFileOffset = dir_len + 1;
++    }
++
++    p = PathFindExtensionW(ofn->lpstrFile + ofn->nFileOffset);
++    ofn->nFileExtension = (count == 1 && *p) ? p - ofn->lpstrFile + 1 : 0;
++    if (ofn->lpstrFileTitle && ofn->nMaxFileTitle)
++        lstrcpynW(ofn->lpstrFileTitle, ofn->lpstrFile + ofn->nFileOffset, ofn->nMaxFileTitle);
++    if (ofn->lpstrFilter) ofn->nFilterIndex = dlg.filter_index + 1;
++
++    free(files);
++    *ret = TRUE;
++    return TRUE;
++
++too_small:
++    TRACE("buffer too small, %lu needed\n", needed);
++    if (ofn->nMaxFile >= 2) *(WORD *)ofn->lpstrFile = needed;
++    COMDLG32_SetCommDlgExtendedError(FNERR_BUFFERTOOSMALL);
++    free(files);
++    *ret = FALSE;
++    return TRUE;
++}
+diff --git a/dlls/comdlg32/itemdlg.c b/dlls/comdlg32/itemdlg.c
+index 830d88b..b95d903 100644
+--- a/dlls/comdlg32/itemdlg.c
++++ b/dlls/comdlg32/itemdlg.c
+@@ -2519,13 +2519,117 @@ static ULONG WINAPI IFileDialog2_fnRelease(IFileDialog2 *iface)
+     return ref;
+ }
+ 
++/* Use the host file chooser if enabled and the dialog has no custom controls.
++ * Returns S_FALSE if Wine's dialog should be shown instead. */
++static HRESULT show_host_file_chooser(FileDialogImpl *This, HWND owner)
++{
++    struct host_file_chooser dlg = { 0 };
++    WCHAR *filters = NULL, *files = NULL, *folder = NULL, *p;
++    IShellItem *psi_folder;
++    ITEMIDLIST **pidls = NULL;
++    UINT i, count = 0;
++    size_t len = 0;
++    HRESULT hr;
++
++    if (!host_file_chooser_enabled() || !list_empty(&This->cctrls))
++        return S_FALSE;
++
++    for (i = 0; i < This->filterspec_count; i++)
++    {
++        if (!This->filterspecs[i].pszName || !This->filterspecs[i].pszName[0] ||
++            !This->filterspecs[i].pszSpec || !This->filterspecs[i].pszSpec[0])
++            return S_FALSE;
++        len += wcslen(This->filterspecs[i].pszName) + wcslen(This->filterspecs[i].pszSpec) + 2;
++    }
++    if (len && (filters = p = malloc((len + 1) * sizeof(WCHAR))))
++    {
++        for (i = 0; i < This->filterspec_count; i++)
++        {
++            wcscpy(p, This->filterspecs[i].pszName);
++            p += wcslen(p) + 1;
++            wcscpy(p, This->filterspecs[i].pszSpec);
++            p += wcslen(p) + 1;
++        }
++        *p = 0;
++    }
++
++    psi_folder = This->psi_setfolder ? This->psi_setfolder :
++                 This->psi_folder ? This->psi_folder : This->psi_defaultfolder;
++    if (psi_folder && FAILED(IShellItem_GetDisplayName(psi_folder, SIGDN_FILESYSPATH, &folder)))
++        folder = NULL;
++
++    dlg.owner = owner;
++    dlg.save = This->dlg_type == ITEMDLG_TYPE_SAVE;
++    dlg.multiple = !!(This->options & FOS_ALLOWMULTISELECT);
++    dlg.directory = !!(This->options & FOS_PICKFOLDERS);
++    dlg.title = This->custom_title;
++    dlg.filters = filters;
++    dlg.filter_index = This->filetypeindex;
++    dlg.file_name = This->set_filename;
++    dlg.folder = folder;
++
++    hr = host_file_chooser(&dlg, &files);
++    free(filters);
++    CoTaskMemFree(folder);
++    if (hr == HRESULT_FROM_WIN32(ERROR_CANCELLED)) return hr;
++    if (FAILED(hr)) return S_FALSE;
++
++    if (This->filterspec_count)
++        This->filetypeindex = min(dlg.filter_index, This->filterspec_count - 1);
++
++    if (dlg.save && This->default_ext && !PathFindExtensionW(files)[0])
++    {
++        len = wcslen(files);
++        if ((p = realloc(files, (len + wcslen(This->default_ext) + 3) * sizeof(WCHAR))))
++        {
++            files = p;
++            files[len] = '.';
++            wcscpy(files + len + 1, This->default_ext);
++            files[len + wcslen(This->default_ext) + 2] = 0;
++        }
++    }
++
++    for (p = files; *p; p += wcslen(p) + 1) count++;
++    hr = E_OUTOFMEMORY;
++    if ((pidls = calloc(count, sizeof(*pidls))))
++    {
++        for (i = 0, p = files; *p; i++, p += wcslen(p) + 1)
++        {
++            if (FAILED(SHParseDisplayName(p, NULL, &pidls[i], 0, NULL)))
++                pidls[i] = SHSimpleIDListFromPath(p);
++            if (!pidls[i]) break;
++        }
++        if (i == count)
++        {
++            if (This->psia_results)
++            {
++                IShellItemArray_Release(This->psia_results);
++                This->psia_results = NULL;
++            }
++            hr = SHCreateShellItemArrayFromIDLists(count, (PCIDLIST_ABSOLUTE_ARRAY)pidls, &This->psia_results);
++        }
++        for (i = 0; i < count; i++) ILFree(pidls[i]);
++        free(pidls);
++    }
++    free(files);
++    if (FAILED(hr)) return S_FALSE;
++
++    if (events_OnFileOk(This) != S_OK)
++        return HRESULT_FROM_WIN32(ERROR_CANCELLED);
++    return S_OK;
++}
++
+ static HRESULT WINAPI IFileDialog2_fnShow(IFileDialog2 *iface, HWND hwndOwner)
+ {
+     FileDialogImpl *This = impl_from_IFileDialog2(iface);
++    HRESULT hr;
+     TRACE("%p (%p)\n", iface, hwndOwner);
+ 
+     This->opendropdown_has_selection = FALSE;
+ 
++    if ((hr = show_host_file_chooser(This, hwndOwner)) != S_FALSE)
++        return hr;
++
+     return create_dialog(This, hwndOwner);
+ }
+ 
+diff --git a/dlls/comdlg32/portal.c b/dlls/comdlg32/portal.c
+new file mode 100644
+index 0000000..eaafd57
+--- /dev/null
++++ b/dlls/comdlg32/portal.c
+@@ -0,0 +1,621 @@
++/*
++ * Host file chooser through the xdg-desktop-portal FileChooser interface
++ *
++ * This library is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ *
++ * This library is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with this library; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
++ */
++
++#if 0
++#pragma makedep unix
++#endif
++
++#include "config.h"
++
++#include <stdarg.h>
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++#include <ctype.h>
++#include <dlfcn.h>
++#include <errno.h>
++#include <pthread.h>
++#include <unistd.h>
++#include <sys/stat.h>
++#ifdef SONAME_LIBDBUS_1
++# include <dbus/dbus.h>
++#endif
++
++#include "ntstatus.h"
++#define WIN32_NO_STATUS
++#include "windef.h"
++#include "winternl.h"
++#include "unixlib.h"
++#include "wine/debug.h"
++
++WINE_DEFAULT_DEBUG_CHANNEL(commdlg);
++
++#ifdef SONAME_LIBDBUS_1
++
++#define DBUS_FUNCS \
++    DO_FUNC(dbus_bus_add_match); \
++    DO_FUNC(dbus_bus_get_private); \
++    DO_FUNC(dbus_bus_get_unique_name); \
++    DO_FUNC(dbus_connection_close); \
++    DO_FUNC(dbus_connection_pop_message); \
++    DO_FUNC(dbus_connection_read_write); \
++    DO_FUNC(dbus_connection_send_with_reply_and_block); \
++    DO_FUNC(dbus_connection_set_exit_on_disconnect); \
++    DO_FUNC(dbus_connection_unref); \
++    DO_FUNC(dbus_error_free); \
++    DO_FUNC(dbus_error_init); \
++    DO_FUNC(dbus_error_is_set); \
++    DO_FUNC(dbus_message_get_args); \
++    DO_FUNC(dbus_message_get_path); \
++    DO_FUNC(dbus_message_is_signal); \
++    DO_FUNC(dbus_message_iter_append_basic); \
++    DO_FUNC(dbus_message_iter_append_fixed_array); \
++    DO_FUNC(dbus_message_iter_close_container); \
++    DO_FUNC(dbus_message_iter_get_arg_type); \
++    DO_FUNC(dbus_message_iter_get_basic); \
++    DO_FUNC(dbus_message_iter_init); \
++    DO_FUNC(dbus_message_iter_init_append); \
++    DO_FUNC(dbus_message_iter_next); \
++    DO_FUNC(dbus_message_iter_open_container); \
++    DO_FUNC(dbus_message_iter_recurse); \
++    DO_FUNC(dbus_message_new_method_call); \
++    DO_FUNC(dbus_message_unref)
++
++#define DO_FUNC(f) static typeof(f) * p_##f
++DBUS_FUNCS;
++#undef DO_FUNC
++
++static pthread_once_t dbus_once = PTHREAD_ONCE_INIT;
++static BOOL dbus_loaded;
++
++static void load_dbus_functions(void)
++{
++    void *handle;
++
++    if (!(handle = dlopen( SONAME_LIBDBUS_1, RTLD_NOW )))
++        goto failed;
++
++#define DO_FUNC(f) if (!(p_##f = dlsym( handle, #f ))) goto failed
++    DBUS_FUNCS;
++#undef DO_FUNC
++    dbus_loaded = TRUE;
++    return;
++
++failed:
++    WARN( "failed to load DBUS support: %s\n", dlerror() );
++}
++
++static const char *param_str( const struct file_chooser_params *params, UINT32 offset )
++{
++    if (offset == ~0u || offset >= params->size) return NULL;
++    return params->data + offset;
++}
++
++static void append_variant( DBusMessageIter *dict, const char *key, int type, const char *sig, const void *value )
++{
++    DBusMessageIter entry, variant;
++
++    p_dbus_message_iter_open_container( dict, DBUS_TYPE_DICT_ENTRY, NULL, &entry );
++    p_dbus_message_iter_append_basic( &entry, DBUS_TYPE_STRING, &key );
++    p_dbus_message_iter_open_container( &entry, DBUS_TYPE_VARIANT, sig, &variant );
++    p_dbus_message_iter_append_basic( &variant, type, value );
++    p_dbus_message_iter_close_container( &entry, &variant );
++    p_dbus_message_iter_close_container( dict, &entry );
++}
++
++static void append_glob( DBusMessageIter *patterns, const char *glob )
++{
++    DBusMessageIter pattern;
++    dbus_uint32_t type = 0;
++
++    p_dbus_message_iter_open_container( patterns, DBUS_TYPE_STRUCT, NULL, &pattern );
++    p_dbus_message_iter_append_basic( &pattern, DBUS_TYPE_UINT32, &type );
++    p_dbus_message_iter_append_basic( &pattern, DBUS_TYPE_STRING, &glob );
++    p_dbus_message_iter_close_container( patterns, &pattern );
++}
++
++/* append a (sa(us)) filter built from a Windows "*.a;*.b" pattern list */
++static void append_filter( DBusMessageIter *iter, const char *name, const char *spec )
++{
++    DBusMessageIter filter, patterns;
++    char *copy = strdup( spec ), *glob, *next, *p;
++    BOOL lower, upper;
++
++    p_dbus_message_iter_open_container( iter, DBUS_TYPE_STRUCT, NULL, &filter );
++    p_dbus_message_iter_append_basic( &filter, DBUS_TYPE_STRING, &name );
++    p_dbus_message_iter_open_container( &filter, DBUS_TYPE_ARRAY, "(us)", &patterns );
++    for (glob = copy; glob; glob = next)
++    {
++        if ((next = strchr( glob, ';' ))) *next++ = 0;
++        while (*glob == ' ') glob++;
++        for (p = glob + strlen( glob ); p > glob && p[-1] == ' '; p--) p[-1] = 0;
++        if (!*glob) continue;
++        if (!strcmp( glob, "*.*" )) glob[1] = 0;
++        append_glob( &patterns, glob );
++        /* Windows patterns are case insensitive, add upper and lower case variants */
++        for (p = glob, lower = upper = FALSE; *p; p++)
++        {
++            if (islower( (unsigned char)*p )) lower = TRUE;
++            if (isupper( (unsigned char)*p )) upper = TRUE;
++        }
++        if (lower)
++        {
++            for (p = glob; *p; p++) *p = toupper( (unsigned char)*p );
++            append_glob( &patterns, glob );
++        }
++        if (upper)
++        {
++            for (p = glob; *p; p++) *p = tolower( (unsigned char)*p );
++            append_glob( &patterns, glob );
++        }
++    }
++    p_dbus_message_iter_close_container( &filter, &patterns );
++    p_dbus_message_iter_close_container( iter, &filter );
++    free( copy );
++}
++
++static DBusMessage *create_request( const struct file_chooser_params *params, const char *token )
++{
++    const char *title = param_str( params, params->title ) ? param_str( params, params->title ) : "";
++    const char *current_name = param_str( params, params->current_name );
++    const char *folder = param_str( params, params->current_folder );
++    const char *filters = param_str( params, params->filters );
++    BOOL save = params->flags & FILE_CHOOSER_SAVE;
++    DBusMessageIter iter, dict, entry, variant, array;
++    dbus_bool_t multiple = !!(params->flags & FILE_CHOOSER_MULTIPLE);
++    dbus_bool_t directory = !!(params->flags & FILE_CHOOSER_DIRECTORY);
++    dbus_bool_t modal = TRUE;
++    char parent[32] = "", *path;
++    const char *parent_ptr = parent, *name, *key;
++    DBusMessage *msg;
++    UINT32 i;
++
++    if (!(msg = p_dbus_message_new_method_call( "org.freedesktop.portal.Desktop", "/org/freedesktop/portal/desktop",
++                                                "org.freedesktop.portal.FileChooser", save ? "SaveFile" : "OpenFile" )))
++        return NULL;
++
++    if (params->parent) snprintf( parent, sizeof(parent), "x11:%llx", (unsigned long long)params->parent );
++
++    p_dbus_message_iter_init_append( msg, &iter );
++    p_dbus_message_iter_append_basic( &iter, DBUS_TYPE_STRING, &parent_ptr );
++    p_dbus_message_iter_append_basic( &iter, DBUS_TYPE_STRING, &title );
++    p_dbus_message_iter_open_container( &iter, DBUS_TYPE_ARRAY, "{sv}", &dict );
++
++    append_variant( &dict, "handle_token", DBUS_TYPE_STRING, "s", &token );
++    append_variant( &dict, "modal", DBUS_TYPE_BOOLEAN, "b", &modal );
++    if (save)
++    {
++        if (current_name) append_variant( &dict, "current_name", DBUS_TYPE_STRING, "s", &current_name );
++    }
++    else
++    {
++        append_variant( &dict, "multiple", DBUS_TYPE_BOOLEAN, "b", &multiple );
++        append_variant( &dict, "directory", DBUS_TYPE_BOOLEAN, "b", &directory );
++    }
++
++    /* show the real directory, not the symlink inside the prefix */
++    if (folder && (path = realpath( folder, NULL )))
++    {
++        const char *ptr = path;
++
++        key = "current_folder";
++        p_dbus_message_iter_open_container( &dict, DBUS_TYPE_DICT_ENTRY, NULL, &entry );
++        p_dbus_message_iter_append_basic( &entry, DBUS_TYPE_STRING, &key );
++        p_dbus_message_iter_open_container( &entry, DBUS_TYPE_VARIANT, "ay", &variant );
++        p_dbus_message_iter_open_container( &variant, DBUS_TYPE_ARRAY, "y", &array );
++        p_dbus_message_iter_append_fixed_array( &array, DBUS_TYPE_BYTE, &ptr, strlen( path ) + 1 );
++        p_dbus_message_iter_close_container( &variant, &array );
++        p_dbus_message_iter_close_container( &entry, &variant );
++        p_dbus_message_iter_close_container( &dict, &entry );
++        free( path );
++    }
++
++    if (filters && *filters && !directory)
++    {
++        key = "filters";
++        p_dbus_message_iter_open_container( &dict, DBUS_TYPE_DICT_ENTRY, NULL, &entry );
++        p_dbus_message_iter_append_basic( &entry, DBUS_TYPE_STRING, &key );
++        p_dbus_message_iter_open_container( &entry, DBUS_TYPE_VARIANT, "a(sa(us))", &variant );
++        p_dbus_message_iter_open_container( &variant, DBUS_TYPE_ARRAY, "(sa(us))", &array );
++        for (name = filters; *name; name += strlen( name ) + 1)
++        {
++            const char *spec = name + strlen( name ) + 1;
++            append_filter( &array, name, spec );
++            name = spec;
++        }
++        p_dbus_message_iter_close_container( &variant, &array );
++        p_dbus_message_iter_close_container( &entry, &variant );
++        p_dbus_message_iter_close_container( &dict, &entry );
++
++        for (i = 0, name = filters; *name; i++, name += strlen( name ) + 1)
++        {
++            const char *spec = name + strlen( name ) + 1;
++            if (i == params->filter_index)
++            {
++                key = "current_filter";
++                p_dbus_message_iter_open_container( &dict, DBUS_TYPE_DICT_ENTRY, NULL, &entry );
++                p_dbus_message_iter_append_basic( &entry, DBUS_TYPE_STRING, &key );
++                p_dbus_message_iter_open_container( &entry, DBUS_TYPE_VARIANT, "(sa(us))", &variant );
++                append_filter( &variant, name, spec );
++                p_dbus_message_iter_close_container( &entry, &variant );
++                p_dbus_message_iter_close_container( &dict, &entry );
++                break;
++            }
++            name = spec;
++        }
++    }
++
++    p_dbus_message_iter_close_container( &iter, &dict );
++    return msg;
++}
++
++/* canonical path; for a file that does not exist yet only the directory is resolved */
++static char *canonicalize( const char *path )
++{
++    const char *slash = strrchr( path, '/' );
++    char *dir, *real, *ret;
++
++    if ((ret = realpath( path, NULL ))) return ret;
++    if (!slash || slash == path) return strdup( path );
++    if (!(dir = strndup( path, slash - path ))) return NULL;
++    real = realpath( dir, NULL );
++    free( dir );
++    if (!real) return strdup( path );
++    if ((ret = malloc( strlen( real ) + strlen( slash ) + 1 )))
++    {
++        strcpy( ret, real );
++        strcat( ret, slash );
++    }
++    free( real );
++    return ret;
++}
++
++/* return a path below a shared directory through its link inside the prefix */
++static char *map_to_shared_dir( char *path, const char *shared_dirs )
++{
++    const char *dir;
++    char *target, *ret;
++    size_t len;
++
++    for (dir = shared_dirs; dir && *dir; dir += strlen( dir ) + 1)
++    {
++        if (!(target = realpath( dir, NULL ))) continue;
++        len = strlen( target );
++        if (len > 1 && !strncmp( path, target, len ) && (!path[len] || path[len] == '/') &&
++            (ret = malloc( strlen( dir ) + strlen( path + len ) + 1 )))
++        {
++            strcpy( ret, dir );
++            strcat( ret, path + len );
++            free( target );
++            free( path );
++            return ret;
++        }
++        free( target );
++    }
++    return path;
++}
++
++static char *uri_to_path( const char *uri )
++{
++    char *ret, *out;
++    const char *p;
++
++    if (strncmp( uri, "file://", 7 )) return NULL;
++    uri += 7;
++    if (*uri != '/' && !(uri = strchr( uri, '/' ))) return NULL;  /* skip host name */
++    if (!(ret = out = malloc( strlen( uri ) + 1 ))) return NULL;
++    for (p = uri; *p; p++)
++    {
++        if (p[0] == '%' && isxdigit( (unsigned char)p[1] ) && isxdigit( (unsigned char)p[2] ))
++        {
++            char hex[3] = { p[1], p[2], 0 };
++            *out++ = strtoul( hex, NULL, 16 );
++            p += 2;
++        }
++        else *out++ = *p;
++    }
++    *out = 0;
++    return ret;
++}
++
++static NTSTATUS parse_response( DBusMessage *msg, struct file_chooser_params *params,
++                                const char *shared_dirs, const char *filters )
++{
++    DBusMessageIter iter, dict, entry, variant, array;
++    dbus_uint32_t response;
++    const char *key, *str;
++    char *result = NULL, *path;
++    size_t len = 0, size;
++    NTSTATUS status;
++
++    if (!p_dbus_message_iter_init( msg, &iter ) || p_dbus_message_iter_get_arg_type( &iter ) != DBUS_TYPE_UINT32)
++        return STATUS_UNSUCCESSFUL;
++    p_dbus_message_iter_get_basic( &iter, &response );
++    TRACE( "response %u\n", response );
++    if (response) return STATUS_CANCELLED;
++
++    p_dbus_message_iter_next( &iter );
++    if (p_dbus_message_iter_get_arg_type( &iter ) != DBUS_TYPE_ARRAY) return STATUS_UNSUCCESSFUL;
++    p_dbus_message_iter_recurse( &iter, &dict );
++    for (; p_dbus_message_iter_get_arg_type( &dict ) == DBUS_TYPE_DICT_ENTRY; p_dbus_message_iter_next( &dict ))
++    {
++        p_dbus_message_iter_recurse( &dict, &entry );
++        p_dbus_message_iter_get_basic( &entry, &key );
++        p_dbus_message_iter_next( &entry );
++        p_dbus_message_iter_recurse( &entry, &variant );
++
++        if (!strcmp( key, "uris" ) && p_dbus_message_iter_get_arg_type( &variant ) == DBUS_TYPE_ARRAY)
++        {
++            p_dbus_message_iter_recurse( &variant, &array );
++            for (; p_dbus_message_iter_get_arg_type( &array ) == DBUS_TYPE_STRING; p_dbus_message_iter_next( &array ))
++            {
++                char *real, *tmp;
++
++                p_dbus_message_iter_get_basic( &array, &str );
++                TRACE( "uri %s\n", debugstr_a(str) );
++                if (!(path = uri_to_path( str ))) continue;
++                real = canonicalize( path );
++                free( path );
++                if (!real) continue;
++                path = map_to_shared_dir( real, shared_dirs );
++                size = strlen( path ) + 1;
++                if ((tmp = realloc( result, len + size + 1 )))
++                {
++                    result = tmp;
++                    memcpy( result + len, path, size );
++                    len += size;
++                }
++                free( path );
++            }
++        }
++        else if (!strcmp( key, "current_filter" ) && filters &&
++                 p_dbus_message_iter_get_arg_type( &variant ) == DBUS_TYPE_STRUCT)
++        {
++            const char *name;
++            UINT32 i;
++
++            p_dbus_message_iter_recurse( &variant, &array );
++            if (p_dbus_message_iter_get_arg_type( &array ) != DBUS_TYPE_STRING) continue;
++            p_dbus_message_iter_get_basic( &array, &str );
++            for (i = 0, name = filters; *name; i++)
++            {
++                if (!strcmp( name, str )) params->filter_index = i;
++                name += strlen( name ) + 1;
++                name += strlen( name ) + 1;
++            }
++        }
++    }
++
++    if (!len) status = STATUS_UNSUCCESSFUL;
++    else if (len + 1 > params->size) status = STATUS_BUFFER_TOO_SMALL;
++    else
++    {
++        memcpy( params->data, result, len );
++        params->data[len] = 0;
++        status = STATUS_SUCCESS;
++    }
++    free( result );
++    return status;
++}
++
++static NTSTATUS file_chooser( void *args )
++{
++    static unsigned int request_id;
++    struct file_chooser_params *params = args;
++    const char *sender, *reply_path = NULL, *str;
++    char *shared_dirs = NULL, *filters = NULL, *handle = NULL, *rule = NULL;
++    char token[64], *p;
++    DBusConnection *conn;
++    DBusMessage *msg, *reply = NULL;
++    DBusError error;
++    NTSTATUS status = STATUS_NOT_SUPPORTED;
++    BOOL done = FALSE;
++    size_t len;
++
++    pthread_once( &dbus_once, load_dbus_functions );
++    if (!dbus_loaded) return STATUS_NOT_SUPPORTED;
++
++    /* keep the input lists, data is overwritten with the result */
++    if ((str = param_str( params, params->shared_dirs )))
++    {
++        for (p = (char *)str; *p; p += strlen( p ) + 1) ;
++        len = p - str + 1;
++        if ((shared_dirs = malloc( len ))) memcpy( shared_dirs, str, len );
++    }
++    if ((str = param_str( params, params->filters )))
++    {
++        for (p = (char *)str; *p; p += strlen( p ) + 1) ;
++        len = p - str + 1;
++        if ((filters = malloc( len ))) memcpy( filters, str, len );
++    }
++
++    p_dbus_error_init( &error );
++    if (!(conn = p_dbus_bus_get_private( DBUS_BUS_SESSION, &error )))
++    {
++        WARN( "failed to connect to the session bus: %s\n", debugstr_a(error.message) );
++        p_dbus_error_free( &error );
++        goto done;
++    }
++    p_dbus_connection_set_exit_on_disconnect( conn, FALSE );
++
++    /* subscribe to the Response signal before making the request, see the
++     * org.freedesktop.portal.Request documentation */
++    snprintf( token, sizeof(token), "wine_comdlg32_%u", __atomic_add_fetch( &request_id, 1, __ATOMIC_SEQ_CST ) );
++    sender = p_dbus_bus_get_unique_name( conn );
++    if (!sender || !(handle = malloc( strlen( sender ) + strlen( token ) + 64 ))) goto done;
++    sprintf( handle, "/org/freedesktop/portal/desktop/request/%s/%s", sender + (*sender == ':'), token );
++    for (p = handle + strlen( "/org/freedesktop/portal/desktop/request/" ); *p != '/'; p++)
++        if (*p == '.') *p = '_';
++    if (!(rule = malloc( strlen( handle ) + 128 ))) goto done;
++    sprintf( rule, "type='signal',interface='org.freedesktop.portal.Request',member='Response',path='%s'", handle );
++    p_dbus_bus_add_match( conn, rule, &error );
++    if (p_dbus_error_is_set( &error ))
++    {
++        WARN( "failed to add match: %s\n", debugstr_a(error.message) );
++        p_dbus_error_free( &error );
++        goto done;
++    }
++
++    if (!(msg = create_request( params, token ))) goto done;
++    reply = p_dbus_connection_send_with_reply_and_block( conn, msg, -1, &error );
++    p_dbus_message_unref( msg );
++    if (!reply)
++    {
++        WARN( "FileChooser request failed: %s\n", debugstr_a(error.message) );
++        p_dbus_error_free( &error );
++        goto done;
++    }
++    if (!p_dbus_message_get_args( reply, &error, DBUS_TYPE_OBJECT_PATH, &reply_path, DBUS_TYPE_INVALID ))
++    {
++        WARN( "unexpected reply: %s\n", debugstr_a(error.message) );
++        p_dbus_error_free( &error );
++        goto done;
++    }
++    TRACE( "request %s\n", debugstr_a(reply_path) );
++    if (strcmp( reply_path, handle ))
++    {
++        /* old portal versions don't use the handle token */
++        free( rule );
++        if (!(rule = malloc( strlen( reply_path ) + 128 ))) goto done;
++        sprintf( rule, "type='signal',interface='org.freedesktop.portal.Request',member='Response',path='%s'",
++                 reply_path );
++        p_dbus_bus_add_match( conn, rule, NULL );
++    }
++
++    status = STATUS_UNSUCCESSFUL;
++    for (;;)
++    {
++        while (!done && (msg = p_dbus_connection_pop_message( conn )))
++        {
++            if (p_dbus_message_is_signal( msg, "org.freedesktop.portal.Request", "Response" ) &&
++                (str = p_dbus_message_get_path( msg )) && (!strcmp( str, handle ) || !strcmp( str, reply_path )))
++            {
++                status = parse_response( msg, params, shared_dirs, filters );
++                done = TRUE;
++            }
++            p_dbus_message_unref( msg );
++        }
++        if (done || !p_dbus_connection_read_write( conn, -1 )) break;
++    }
++
++done:
++    if (reply) p_dbus_message_unref( reply );
++    if (conn)
++    {
++        p_dbus_connection_close( conn );
++        p_dbus_connection_unref( conn );
++    }
++    free( rule );
++    free( handle );
++    free( filters );
++    free( shared_dirs );
++    TRACE( "returning %#x\n", (int)status );
++    return status;
++}
++
++#else  /* SONAME_LIBDBUS_1 */
++
++static NTSTATUS file_chooser( void *args )
++{
++    return STATUS_NOT_SUPPORTED;
++}
++
++#endif  /* SONAME_LIBDBUS_1 */
++
++static NTSTATUS link_folder( void *args )
++{
++    struct link_folder_params *params = args;
++    char *root = NULL, *target = NULL, *link = NULL, current[4096];
++    const char *end = params->data + sizeof(params->data), *base;
++    NTSTATUS status = STATUS_UNSUCCESSFUL;
++    struct stat st;
++    size_t size;
++    ssize_t len;
++    int i;
++
++    if (!(base = memchr( params->data, 0, sizeof(params->data) )) || ++base >= end || !memchr( base, 0, end - base ))
++        return STATUS_INVALID_PARAMETER;
++    if (!(root = strdup( params->data )) || !(target = strdup( base ))) goto done;
++
++    len = strlen( target );
++    while (len > 1 && target[len - 1] == '/') target[--len] = 0;
++    if (stat( target, &st ) || !S_ISDIR( st.st_mode ))
++    {
++        status = STATUS_NOT_A_DIRECTORY;
++        goto done;
++    }
++
++    base = strrchr( target, '/' );
++    base = base && base[1] ? base + 1 : "root";
++    size = strlen( root ) + strlen( base ) + 16;
++    if (!(link = malloc( size ))) goto done;
++
++    for (i = 1; i <= 100; i++)
++    {
++        if (i == 1) snprintf( link, size, "%s/%s", root, base );
++        else snprintf( link, size, "%s/%s (%d)", root, base, i );
++
++        if ((len = readlink( link, current, sizeof(current) - 1 )) >= 0)
++        {
++            current[len] = 0;
++            if (strcmp( current, target )) continue;  /* taken by another folder */
++        }
++        else if (errno != ENOENT || symlink( target, link ))
++        {
++            if (errno == EEXIST) continue;  /* not a symlink, or created meanwhile */
++            WARN( "failed to link %s: %s\n", debugstr_a(link), strerror( errno ) );
++            goto done;
++        }
++        TRACE( "%s -> %s\n", debugstr_a(link), debugstr_a(target) );
++        if (strlen( link ) >= params->size || strlen( link ) >= sizeof(params->data))
++            status = STATUS_BUFFER_TOO_SMALL;
++        else
++        {
++            strcpy( params->data, link );
++            status = STATUS_SUCCESS;
++        }
++        break;
++    }
++
++done:
++    free( link );
++    free( target );
++    free( root );
++    return status;
++}
++
++const unixlib_entry_t __wine_unix_call_funcs[] =
++{
++    file_chooser,
++    link_folder,
++};
++
++C_ASSERT( ARRAYSIZE(__wine_unix_call_funcs) == unix_funcs_count );
++
++#ifdef _WIN64
++
++/* the parameter structures have the same layout for 32-bit callers */
++const unixlib_entry_t __wine_unix_call_wow64_funcs[] =
++{
++    file_chooser,
++    link_folder,
++};
++
++C_ASSERT( ARRAYSIZE(__wine_unix_call_wow64_funcs) == unix_funcs_count );
++
++#endif  /* _WIN64 */
+diff --git a/dlls/comdlg32/unixlib.h b/dlls/comdlg32/unixlib.h
+new file mode 100644
+index 0000000..466641e
+--- /dev/null
++++ b/dlls/comdlg32/unixlib.h
+@@ -0,0 +1,70 @@
++/*
++ * Unix interface for comdlg32 (host file chooser)
++ *
++ * This library is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ *
++ * This library is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with this library; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
++ */
++
++#ifndef __WINE_COMDLG32_UNIXLIB_H
++#define __WINE_COMDLG32_UNIXLIB_H
++
++#include "wine/unixlib.h"
++
++#define FILE_CHOOSER_SAVE       0x01
++#define FILE_CHOOSER_MULTIPLE   0x02
++#define FILE_CHOOSER_DIRECTORY  0x04
++
++/* The structure has the same layout for 32-bit and 64-bit callers.
++ *
++ * Input strings are UTF-8 (paths are Unix paths) stored in data at the given
++ * offsets; an offset of ~0u means not set. filters holds "name\0pattern;pattern\0"
++ * pairs, shared_dirs holds null terminated paths; both lists end with an empty
++ * string. shared_dirs are directories inside the prefix that are symlinks to host
++ * directories; picked paths below their targets are returned through the links.
++ *
++ * On success data is overwritten with the picked Unix paths, each null terminated,
++ * followed by an empty string, and filter_index is the filter the user chose. */
++struct file_chooser_params
++{
++    UINT64 parent;          /* X11 window of the owner, 0 if none */
++    UINT32 flags;
++    UINT32 filter_index;
++    UINT32 title;
++    UINT32 current_name;
++    UINT32 current_folder;
++    UINT32 filters;
++    UINT32 shared_dirs;
++    UINT32 size;            /* size of data */
++    char   data[8];
++};
++
++/* Link a host directory the user picked into a directory of the prefix, so that a
++ * prefix without a drive for it can still reach it. data holds the Unix path of
++ * the directory to put links in and the Unix path of the target, both null
++ * terminated. On success data is overwritten with the full Unix path of the link.
++ * An existing link to the same target is reused. */
++struct link_folder_params
++{
++    UINT32 size;            /* size of data */
++    char   data[4096];
++};
++
++enum comdlg32_funcs
++{
++    unix_file_chooser,
++    unix_link_folder,
++    unix_funcs_count
++};
++
++#endif /* __WINE_COMDLG32_UNIXLIB_H */

@@ -1,0 +1,80 @@
+From: 5sick <213179368+5sick@users.noreply.github.com>
+Subject: [PATCH] shell32: Optionally pick folders with the host file chooser.
+
+If HKCU\Software\Wine\FileDialog "HostFileChooser" is enabled,
+SHBrowseForFolderW() picks the folder with IFileOpenDialog (FOS_PICKFOLDERS),
+which then uses the host file chooser, instead of showing the classic folder
+browser. Browsing for computers, printers or files keeps the classic dialog.
+---
+diff --git a/dlls/shell32/brsfolder.c b/dlls/shell32/brsfolder.c
+index ebaf01e..abffd9e 100644
+--- a/dlls/shell32/brsfolder.c
++++ b/dlls/shell32/brsfolder.c
+@@ -1210,8 +1210,54 @@ LPITEMIDLIST WINAPI SHBrowseForFolderA (LPBROWSEINFOA lpbi)
+  * NOTES
+  *  crashes when passed a null pointer
+  */
++/* If HKCU\Software\Wine\FileDialog "HostFileChooser" is enabled, pick the folder
++ * with IFileOpenDialog, which then uses the host file chooser. Returns FALSE if
++ * the classic dialog should be shown instead. */
++static BOOL host_browse_for_folder( LPBROWSEINFOW lpbi, LPITEMIDLIST *ret )
++{
++    FILEOPENDIALOGOPTIONS options;
++    IFileOpenDialog *dialog;
++    IShellItem *item;
++    WCHAR value[8], *name;
++    DWORD size = sizeof(value);
++    HRESULT hr;
++
++    if (RegGetValueW( HKEY_CURRENT_USER, L"Software\\Wine\\FileDialog", L"HostFileChooser",
++                      RRF_RT_REG_SZ, NULL, value, &size ))
++        return FALSE;
++    if (!value[0] || !wcschr( L"yYtT1", value[0] )) return FALSE;
++    if (lpbi->ulFlags & (BIF_BROWSEFORCOMPUTER | BIF_BROWSEFORPRINTER | BIF_BROWSEINCLUDEFILES))
++        return FALSE;
++
++    if (FAILED(CoCreateInstance( &CLSID_FileOpenDialog, NULL, CLSCTX_INPROC_SERVER,
++                                 &IID_IFileOpenDialog, (void **)&dialog )))
++        return FALSE;
++
++    TRACE( "using the file dialog for %p\n", lpbi );
++    if (SUCCEEDED(IFileOpenDialog_GetOptions( dialog, &options )))
++        IFileOpenDialog_SetOptions( dialog, options | FOS_PICKFOLDERS | FOS_FORCEFILESYSTEM );
++    if (lpbi->lpszTitle) IFileOpenDialog_SetTitle( dialog, lpbi->lpszTitle );
++
++    *ret = NULL;
++    hr = IFileOpenDialog_Show( dialog, lpbi->hwndOwner );
++    if (SUCCEEDED(hr) && SUCCEEDED(IFileOpenDialog_GetResult( dialog, &item )))
++    {
++        SHGetIDListFromObject( (IUnknown *)item, ret );
++        if (*ret && lpbi->pszDisplayName &&
++            SUCCEEDED(IShellItem_GetDisplayName( item, SIGDN_NORMALDISPLAY, &name )))
++        {
++            lstrcpynW( lpbi->pszDisplayName, name, MAX_PATH );
++            CoTaskMemFree( name );
++        }
++        IShellItem_Release( item );
++    }
++    IFileOpenDialog_Release( dialog );
++    return TRUE;
++}
++
+ LPITEMIDLIST WINAPI SHBrowseForFolderW (LPBROWSEINFOW lpbi)
+ {
++    LPITEMIDLIST host_ret;
+     browse_info info;
+     DWORD r;
+     HRESULT hr;
+@@ -1229,6 +1275,12 @@ LPITEMIDLIST WINAPI SHBrowseForFolderW (LPBROWSEINFOW lpbi)
+ 
+     hr = OleInitialize(NULL);
+ 
++    if (host_browse_for_folder( lpbi, &host_ret ))
++    {
++        if (SUCCEEDED(hr)) OleUninitialize();
++        return host_ret;
++    }
++
+     if (lpbi->ulFlags & BIF_NEWDIALOGSTYLE)
+         templateName = L"SHNEWBRSFORFOLDER_MSGBOX";
+     else

@@ -60,16 +60,16 @@
 
 ## Wine (R10)
 
-Состояние на 18 октября 2026:
+Штатный Wine стандартные диалоги (`GetOpenFileName*`, `GetSaveFileName*`, `IFileOpenDialog`, `IFileSaveDialog`) рисует сам и портал не использует. Upstream-серия [MR10060](https://list.winehq.org/hyperkitty/list/wine-gitlab@list.winehq.org/thread/JN42A3C7H6JEMMDKH7W56BE5DTHYQKJ6/) (Wine bug 51134) так и осталась черновиком.
 
-- Штатный Wine стандартные диалоги (`GetOpenFileName*`, `GetSaveFileName*`, `IFileOpenDialog`, `IFileSaveDialog`) рисует сам. Портал он не использует.
-- [MR10060 «Use XDG Desktop Portal for native file dialogs»](https://list.winehq.org/hyperkitty/list/wine-gitlab@list.winehq.org/thread/JN42A3C7H6JEMMDKH7W56BE5DTHYQKJ6/) — серия из 4 патчей в comdlg32 (февраль 2026, Wine bug 51134). Она помечена как черновик, автор сообщал о закрытии. Политика выбора — `auto` или «принудительно портал», с откатом на диалог Wine. В штатные выпуски не вошла.
-- Есть downstream-сборки с похожими патчами (например, обёртки KakaoTalk), это не upstream.
+Поэтому есть **отдельная сборка**: переключатель «Настройки → Система → Игры → Системные диалоги в Wine» (`gaming.wineHostDialogs`), модуль `modules/system/wine-portal.nix`.
 
-План:
-1. Выбрать проверяемый runner: системный `wine` из nixpkgs или Proton из Steam, их не смешивать.
-2. Собрать **отдельный** пакет Wine с актуальной версией патчей MR10060 (`wine.overrideAttrs { patches = …; }`). Подключать его только для выбранных префиксов, а не подменять все Wine и Proton автоматически.
-3. Проверить по списку: `GetOpenFileName*`, `GetSaveFileName*`, `IFileOpenDialog`, `IFileSaveDialog`, выбор папки, несколько файлов, Unicode, перезапись, отмена, преобразование путей `Z:\…` ↔ Linux.
-4. Для запросов, которые портал не выражает (шаблоны, хуки диалога), оставить штатный диалог Wine. Это делает политика `auto` из MR.
+- Это `wineWow64Packages.stable` (11.0) с двумя патчами из `patches/wine` (LGPL 2.1+, откуда взяты — в `patches/wine/README.md`). Она становится системным `wine`. Собирается из исходников, поэтому первая пересборка после включения долгая.
+- Патчи включаются ключом `HKCU\Software\Wine\FileDialog` `HostFileChooser=Y`. Обёртка `wine` ставит его один раз на префикс (метка `.pixel-host-dialogs` в префиксе). Вручную: `WINEPREFIX=… wine-host-dialogs`.
+- Через портал идут: `IFileDialog::Show` без своих элементов, `GetOpenFileNameW`/`GetSaveFileNameW` без хуков и шаблонов, `SHBrowseForFolderW`. Остальное (ANSI-функции, диалоги с шаблонами и хуками) и запуск без портала — обычный диалог Wine.
+- Пути Linux возвращаются через известные папки префикса (Загрузки, Документы…), иначе через ссылки в `C:\Linux\`.
+- **Proton в Steam и раннеры Lutris/Heroic не подменяются** — у них свой Wine. В Lutris эту сборку можно выбрать как «System».
 
-Пока п. 2 не сделан, Wine показывает свой диалог — это известное ограничение.
+Сквозная проверка — `patches/wine/test/e2e.sh`: Windows-программа `dialogs.c` (собирается `x86_64-w64-mingw32-gcc -municode dialogs.c -lcomdlg32`) в новом префиксе вызывает `GetOpenFileNameW` и `GetSaveFileNameW`, запросы идут через настоящий xdg-desktop-portal в pixel-portal, выбранные пути с кириллицей возвращаются в программу (`Z:\tmp\…\выбранный файл.txt`). Ключ реестра ставит обёртка `wine`, тест это тоже проверяет. В `nix flake check` теста нет, потому что сборка Wine идёт около часа.
+
+Проверить на живой системе (строка «Wine» в матрице выше): `wine notepad` → «Открыть» и «Сохранить как»; `wine regedit` → «Экспорт»; несколько файлов, Unicode-имена, перезапись, отмена, путь вне домашней папки.

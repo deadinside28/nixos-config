@@ -16,6 +16,7 @@
     ./modules/system/nemo.nix
     ./modules/system/users.nix
     ./modules/system/gui-settings.nix
+    ./modules/system/wine-portal.nix
     ./modules/system/quickshare.nix
   ];
 }
