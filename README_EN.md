@@ -71,6 +71,8 @@ The same host GTK file chooser opens everywhere, through xdg-desktop-portal:
 * **cpak** — the policy in `modules/cpak-policy.nix` grants every app the host file picker automatically. It runs at login and on every app install or update;
 * **AppImage** — via the `appimage-run` shim that every AppImage shortcut goes through.
 
+> **Experimental:** the shell's own Files-style file chooser instead of GTK — Settings → System → Desktop. If the shell doesn't respond, the regular GTK dialog opens. Details, test matrix and Wine status: [docs/filechooser.md](docs/filechooser.md).
+
 ### 📦 Packages & App Formats
 * **Nix** for system packages, **Home Manager** for user settings.
 * **Flatpak** declaratively via `nix-flatpak`, with weekly auto-updates.
