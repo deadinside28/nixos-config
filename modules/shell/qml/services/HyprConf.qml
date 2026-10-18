@@ -125,6 +125,47 @@ hl.config({
 `;
     }
 
+    // Режимы окон для новых окон (services/WindowModes.qml). Общее правило
+    // не трогает столы со своим режимом: оно разбито на диапазоны r[a-b]
+    // в обход них, так что от порядка правил ничего не зависит.
+    readonly property string modesLua: {
+        const d = Settings.data;
+        const own = d.workspaceModes ?? {};
+        const ids = Object.keys(own).map(Number).filter(n => n > 0).sort((a, b) => a - b);
+        const rest = [];
+        let from = 1;
+        for (const id of ids) {
+            if (id > from)
+                rest.push(`r[${from}-${id - 1}]`);
+            from = id + 1;
+        }
+        rest.push(`r[${from}-99999]`);
+        const rx = WindowModes.floatRx;
+        const out = [];
+        // match по столам: без своих режимов — без ограничения (и спецстолы)
+        const each = (extra, fx) => {
+            for (const sel of ids.length ? rest : [""])
+                out.push(`hl.window_rule({ match = { ${[...(sel ? [`workspace = ${lua(sel)}`] : []), ...extra].join(", ")} }, ${fx} })`);
+        };
+        if (d.windowMode === "floating")
+            each([`class = ".*"`], "float = true");
+        else if (d.windowMode === "mixed" && rx)
+            each([`class = ${lua(rx)}`], "float = true");
+        for (const id of ids) {
+            const p = own[String(id)];
+            const ws = lua(String(id));
+            const mode = WindowModes.modeOf(p);
+            out.push(`hl.workspace_rule({ workspace = ${ws}, layout = ${lua(WindowModes.layoutOf(p))} })`);
+            if (mode === "floating")
+                out.push(`hl.window_rule({ match = { workspace = ${ws}, class = ".*" }, float = true })`);
+            else if (mode === "mixed" && rx)
+                out.push(`hl.window_rule({ match = { workspace = ${ws}, class = ${lua(rx)} }, float = true })`);
+        }
+        return `-- Сгенерировано оболочкой: Настройки → Окна и тайлинг (режимы окон). Не править руками.
+${out.join("\n")}
+`;
+    }
+
     // Действие бинда → выражение hl.dsp
     function bindExpr(b) {
         const n = parseInt(b.arg) || 1;
@@ -280,6 +321,7 @@ ${lines.join("\n")}
             animFile.setText(root.animLua);
             bindsFile.setText(root.bindsLua);
             rulesFile.setText(root.rulesLua);
+            modesFile.setText(root.modesLua);
             recordFile.setText(root.recordEnv);
         }
     }
@@ -301,6 +343,8 @@ ${lines.join("\n")}
         bindsTimer.restart()
     onRulesLuaChanged: if (Settings.loaded)
         rulesTimer.restart()
+    onModesLuaChanged: if (Settings.loaded)
+        modesTimer.restart()
 
     Timer {
         id: tilingTimer
@@ -322,6 +366,20 @@ ${lines.join("\n")}
             rulesFile.setText(root.rulesLua);
             reloadTimer.restart();
         }
+    }
+    Timer {
+        id: modesTimer
+        interval: 400
+        onTriggered: {
+            modesFile.setText(root.modesLua);
+            reloadTimer.restart();
+        }
+    }
+    FileView {
+        id: modesFile
+        path: Settings.hyprDir + "/modes.lua"
+        printErrors: false
+        atomicWrites: true
     }
     Timer {
         id: animTimer

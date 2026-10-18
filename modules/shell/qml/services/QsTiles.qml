@@ -140,6 +140,15 @@ Singleton {
             toggle: () => Keyboard.next()
         },
         {
+            id: "windowmode",
+            label: "Окна",
+            icon: () => WindowModes.presetInfo(WindowModes.effectivePreset(WindowModes.activeWorkspace)).icon,
+            sub: () => WindowModes.presetInfo(WindowModes.effectivePreset(WindowModes.activeWorkspace)).label,
+            active: () => WindowModes.workspacePreset(WindowModes.activeWorkspace) !== "",
+            toggle: () => WindowModes.cycleActive(),
+            details: () => Ui.openSettings("windows")
+        },
+        {
             id: "wallpaper",
             label: "Живые обои",
             icon: () => "animated_images",

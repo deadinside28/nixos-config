@@ -8,6 +8,8 @@ local mainMod = "SUPER"
 hl.bind(mainMod .. " + Escape",      hl.dsp.exec_cmd("hyprctl kill"))
 hl.bind(mainMod .. " + Q",           hl.dsp.window.close())
 hl.bind(mainMod .. " + ALT + Space", hl.dsp.window.float({ action = "toggle" }))
+-- Режим окон текущего стола: Лента → Мозаика → Главное окно → Смешанный → Плавающие
+hl.bind(mainMod .. " + SHIFT + Space", hl.dsp.exec_cmd("pixel-shell windows cycle"))
 hl.bind(mainMod .. " + D",           hl.dsp.window.fullscreen({ mode = 1 }))
 hl.bind(mainMod .. " + F",           hl.dsp.window.fullscreen())
 hl.bind(mainMod .. " + J",           hl.dsp.layout("togglesplit"))

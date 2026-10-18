@@ -50,6 +50,18 @@ Scope {
         }
     }
     IpcHandler {
+        target: "windows"
+        // Режим текущего стола по кругу (Super+Shift+Пробел)
+        function cycle(): void {
+            WindowModes.cycleActive();
+        }
+        // Общий режим: scrolling | dwindle | master | mixed | floating
+        function mode(preset: string): void {
+            if (WindowModes.presets.some(p => p.value === preset))
+                WindowModes.setGlobal(preset);
+        }
+    }
+    IpcHandler {
         target: "lock"
         function lock(): void {
             Power.lock();

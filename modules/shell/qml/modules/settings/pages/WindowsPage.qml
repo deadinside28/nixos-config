@@ -35,27 +35,12 @@ SettingsPage {
                 anchors.leftMargin: 20
                 anchors.rightMargin: 20
                 spacing: 10
+                // Общий режим для всех рабочих столов (services/WindowModes.qml)
                 SegmentedButtons {
                     Layout.fillWidth: true
-                    options: [
-                        {
-                            value: "scrolling",
-                            label: "Лента",
-                            icon: "view_column"
-                        },
-                        {
-                            value: "dwindle",
-                            label: "Мозаика",
-                            icon: "dashboard"
-                        },
-                        {
-                            value: "master",
-                            label: "Главное окно",
-                            icon: "view_quilt"
-                        }
-                    ]
-                    current: Settings.data.layout
-                    onSelected: v => Settings.data.layout = v
+                    options: WindowModes.presets
+                    current: WindowModes.globalPreset
+                    onSelected: v => WindowModes.setGlobal(v)
                 }
                 MText {
                     Layout.fillWidth: true
@@ -64,8 +49,17 @@ SettingsPage {
                     text: ({
                             scrolling: "Окна стоят колонками в бесконечной горизонтальной ленте, которая прокручивается.",
                             dwindle: "Каждое новое окно делит место пополам с текущим — классический тайлинг.",
-                            master: "Одно большое главное окно, остальные — стопкой рядом."
-                        })[Settings.data.layout] ?? ""
+                            master: "Одно большое главное окно, остальные — стопкой рядом.",
+                            mixed: "Окна стоят по раскладке «" + WindowModes.presetInfo(Settings.data.layout).label + "», а приложения из списка «Плавающие приложения» ниже плавают.",
+                            floating: "Все окна плавают: свободное место и размер, как в обычных системах. Возврат в тайлинг вернёт окна на места, а плавающие запомнят своё."
+                        })[WindowModes.globalPreset] ?? ""
+                }
+                MText {
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    color: Theme.fgSurfaceVariant
+                    size: Theme.type.bodyS
+                    text: "Super + Shift + Пробел — следующий режим для текущего рабочего стола; Super + Alt + Пробел — сделать плавающим одно окно."
                 }
             }
         }
@@ -195,6 +189,84 @@ SettingsPage {
         }
     }
 
+
+    // --- Режимы отдельных рабочих столов ---------------------------------
+    Group {
+        id: wsGroup
+        title: "Свой режим рабочего стола"
+        // Открытые столы и те, у которых уже есть свой режим
+        readonly property var ids: {
+            const set = {};
+            for (const w of Hyprland.workspaces.values)
+                if (w.id > 0)
+                    set[w.id] = true;
+            for (const k in Settings.data.workspaceModes ?? {})
+                set[k] = true;
+            return Object.keys(set).map(Number).sort((a, b) => a - b);
+        }
+        Repeater {
+            model: wsGroup.ids
+            ChoiceItem {
+                required property var modelData
+                required property int index
+                first: index === 0
+                last: index === wsGroup.ids.length - 1
+                icon: "desktop_windows"
+                title: "Рабочий стол " + modelData
+                options: [
+                    {
+                        value: "",
+                        label: "Как везде — " + WindowModes.presetInfo(WindowModes.globalPreset).label
+                    },
+                    ...WindowModes.presets.map(p => ({
+                                value: p.value,
+                                label: p.label
+                            }))
+                ]
+                current: WindowModes.workspacePreset(modelData)
+                onSelected: v => WindowModes.setWorkspace(modelData, v)
+            }
+        }
+    }
+
+    Group {
+        title: "Плавающие приложения"
+        Rectangle {
+            readonly property bool groupItem: true
+            property bool first: true
+            property bool last: true
+            Layout.fillWidth: true
+            implicitHeight: fcol.implicitHeight + 28
+            color: Theme.dark ? Theme.surfaceContainerHigh : Theme.surfaceContainerLowest
+            radius: 24
+            ColumnLayout {
+                id: fcol
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                anchors.leftMargin: 20
+                anchors.rightMargin: 20
+                spacing: 10
+                MText {
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    color: Theme.fgSurfaceVariant
+                    text: "В смешанном режиме эти приложения плавают, остальные стоят по раскладке. Классы окон через пробел или запятую — их видно в списке открытых окон ниже."
+                }
+                TextField {
+                    id: floatField
+                    Layout.fillWidth: true
+                    icon: "select_window"
+                    placeholder: "org.gnome.Calculator, pavucontrol"
+                    text: Settings.data.floatApps.join(", ")
+                    onAccepted: {
+                        Settings.data.floatApps = text.split(/[,\s]+/).filter(c => c);
+                        WindowModes.reconcileSoon();
+                    }
+                }
+            }
+        }
+    }
     // --- Поведение ------------------------------------------------------------
     Group {
         title: "Поведение"

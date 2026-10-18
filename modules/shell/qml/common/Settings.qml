@@ -184,6 +184,11 @@ Singleton {
 
             // Раскладка окон и поведение (Hyprland)
             property string layout: "scrolling" // scrolling | dwindle | master
+            // Режим окон (services/WindowModes.qml): tiled — по раскладке выше,
+            // mixed — тайлинг, но floatApps плавают, floating — все плавают
+            property string windowMode: "tiled"
+            property list<string> floatApps: [] // классы окон для «Смешанного»
+            property var workspaceModes: ({}) // свой режим стола: { "3": "dwindle" }
             property real scrollColumnWidth: 0.5
             property bool scrollFullscreenOne: true
             property int scrollFocusFit: 1 // 0 — по центру, 1 — по краю
