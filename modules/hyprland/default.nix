@@ -38,10 +38,19 @@
   # GTK-диалог прямо в песочнице, и тот видел бы только её файлы, а не
   # твои. Портал показывает диалог хоста и сам пробрасывает выбранное.
 
+  # Глобально — только то, что нужно для одинакового вида, и только на
+  # чтение. Права на запись и на личные данные выдаются конкретным
+  # приложениям (файлы ниже или Flatseal). Целиком ~/.local/share и
+  # ~/.cache не открываются: там связки ключей, профили и данные других
+  # программ. ~/nixos-config — тем более: запись в flake из песочницы
+  # означала бы root при следующей пересборке.
+  #
+  # Рабочие папки (Загрузки, Документы, ~/Games…) пока открыты всем —
+  # TODO: раздать их конкретным приложениям, которым они нужны.
   xdg.dataFile."flatpak/overrides/global".text = ''
     [Context]
     devices=dri;
-    filesystems=/run/current-system/sw/share/themes;/run/current-system/sw/share/icons;/run/current-system/sw/share/X11/fonts:ro;~/.icons:ro;~/.themes:ro;xdg-config/gtk-4.0:ro;xdg-config/gtk-3.0:ro;xdg-config/fontconfig:ro;xdg-config/qt5ct:ro;xdg-config/qt6ct:ro;xdg-config/Kvantum:ro;xdg-config/MangoHud;xdg-cache:ro;xdg-data:ro;/nix/store:ro;~/.var/app/com.valvesoftware.Steam/.local/share/Steam/userdata:ro;xdg-desktop;xdg-documents;xdg-download;xdg-music;xdg-pictures;xdg-public-share;xdg-templates;xdg-videos;~/AppImages;~/Games;~/nixos-config;~/winboat;~/work;
+    filesystems=/run/current-system/sw/share/themes:ro;/run/current-system/sw/share/icons:ro;/run/current-system/sw/share/X11/fonts:ro;~/.icons:ro;~/.themes:ro;xdg-data/icons:ro;xdg-data/themes:ro;xdg-data/fonts:ro;xdg-config/gtk-4.0:ro;xdg-config/gtk-3.0:ro;xdg-config/fontconfig:ro;xdg-config/qt5ct:ro;xdg-config/qt6ct:ro;xdg-config/Kvantum:ro;xdg-config/MangoHud:ro;/nix/store:ro;~/.var/app/com.valvesoftware.Steam/.local/share/Steam/userdata:ro;xdg-desktop;xdg-documents;xdg-download;xdg-music;xdg-pictures;xdg-public-share;xdg-templates;xdg-videos;~/AppImages;~/Games;~/winboat;~/work;
 
     [Environment]
     MANGOHUD=1
@@ -54,5 +63,12 @@
     QT_QPA_PLATFORMTHEME=xdgdesktopportal
     XCURSOR_THEME=${appearance.cursorTheme}
     XCURSOR_SIZE=${toString appearance.cursorSize}
+  '';
+
+  # MangoJuice правит конфиг MangoHud; остальным (игры со слоем MangoHud)
+  # он нужен только на чтение — см. global
+  xdg.dataFile."flatpak/overrides/io.github.radiolamp.mangojuice".text = ''
+    [Context]
+    filesystems=xdg-config/MangoHud;
   '';
 }
