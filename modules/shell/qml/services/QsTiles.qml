@@ -29,6 +29,15 @@ Singleton {
             details: () => Ui.openSettings("bluetooth")
         },
         {
+            id: "quickshare",
+            label: "Quick Share",
+            available: () => QuickShare.enabled,
+            icon: () => QuickShare.visibility === "hidden" ? "share_off" : "share",
+            sub: () => QuickShare.visibilityLabel,
+            active: () => QuickShare.available && QuickShare.visibility !== "hidden",
+            toggle: () => QuickShare.toggleVisible()
+        },
+        {
             id: "dnd",
             label: "Не беспокоить",
             icon: () => Settings.data.dnd ? "do_not_disturb_on" : "do_not_disturb_off",
@@ -184,7 +193,8 @@ Singleton {
         }
     ]
 
+    // available() — плитка имеет смысл только при включённой функции
     function byId(id) {
-        return all.find(t => t.id === id) ?? null;
+        return all.find(t => t.id === id && (!t.available || t.available())) ?? null;
     }
 }

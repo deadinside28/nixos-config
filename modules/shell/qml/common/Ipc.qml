@@ -59,6 +59,17 @@ Scope {
             FileChooser.cancel(id);
         }
     }
+    // Quick Share: отправить файл (пути через «\n» — несколько),
+    // видимость: visible | hidden | temporary
+    IpcHandler {
+        target: "quickshare"
+        function send(paths: string): void {
+            QuickShare.share(String(paths).split("\n"));
+        }
+        function visibility(v: string): void {
+            QuickShare.setVisibility(v);
+        }
+    }
     IpcHandler {
         target: "notes"
         function open(): void {

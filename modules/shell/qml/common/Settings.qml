@@ -28,11 +28,15 @@ Singleton {
 
     // Версия формата settings.json. Растёт, когда ключ переименовывается
     // или меняет смысл; перевод старых значений — в migrate().
-    readonly property int schemaVersion: 1
-    function migrate() {
-        if (adapter.schemaVersion >= schemaVersion)
+    readonly property int schemaVersion: 2
+    // from — версия из файла; файлы старше схемы версии не хранят (1)
+    function migrate(from) {
+        if (from >= schemaVersion)
             return;
-        // if (adapter.schemaVersion < 2) { … перенос значений … }
+        // 2: плитка Quick Share в быстрых настройках (видна, когда служба
+        // включена в «Системе»)
+        if (from < 2 && !adapter.qsTiles.includes("quickshare"))
+            adapter.qsTiles = [...adapter.qsTiles, "quickshare"];
         adapter.schemaVersion = schemaVersion;
     }
 
@@ -52,9 +56,9 @@ Singleton {
         onAdapterUpdated: if (!root.broken)
             writeAdapter()
         onLoaded: {
-            let ok = false;
+            let ok = false, j = null;
             try {
-                const j = JSON.parse(text());
+                j = JSON.parse(text());
                 ok = j !== null && typeof j === "object" && !Array.isArray(j);
             } catch (e) {}
             if (!ok) {
@@ -63,7 +67,7 @@ Singleton {
             }
             root.broken = false;
             loaded = true;
-            root.migrate();
+            root.migrate(j.schemaVersion ?? 1);
             if (text() !== backup.text())
                 backup.setText(text());
         }
@@ -79,7 +83,7 @@ Singleton {
         JsonAdapter {
             id: adapter
 
-            property int schemaVersion: 1
+            property int schemaVersion: 2
 
             // Тема
             property bool darkMode: true
@@ -138,7 +142,7 @@ Singleton {
             property list<string> frameScreens: [] // пусто — на всех экранах
 
             // Быстрые настройки (шторка)
-            property list<string> qsTiles: ["internet", "bluetooth", "dnd", "night", "dark", "mic", "caffeine", "record", "screenshot", "lens", "translate", "clipboard"]
+            property list<string> qsTiles: ["internet", "bluetooth", "quickshare", "dnd", "night", "dark", "mic", "caffeine", "record", "screenshot", "lens", "translate", "clipboard"]
             property bool qsShowMedia: true
             property bool qsShowBrightness: true
             property bool showWorkspaces: true

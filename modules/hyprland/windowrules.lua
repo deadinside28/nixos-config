@@ -171,9 +171,10 @@ hl.window_rule({
 -- из него — тоже плавающие (у них тот же класс).
 -- Плавают только служебные окна оболочки; «Файлы» встают в раскладку,
 -- как обычное приложение.
-hl.window_rule({ match = { class = "^(pixel-shell)$", title = "^(Настройки|Обновление системы)$" }, float = true, center = true })
+hl.window_rule({ match = { class = "^(pixel-shell)$", title = "^(Настройки|Обновление системы|Quick Share)$" }, float = true, center = true })
 hl.window_rule({ match = { class = "^(pixel-shell)$", title = "^(Настройки)$" }, size = { "1180", "800" } })
 hl.window_rule({ match = { class = "^(pixel-shell)$", title = "^(Обновление системы)$" }, size = { "760", "640" } })
+hl.window_rule({ match = { class = "^(pixel-shell)$", title = "^(Quick Share)$" }, size = { "460", "560" } })
 
 -- Autostart Apps to Monitor 2
 hl.window_rule({ match = { class = "^(discord)$" }, workspace = "6" })

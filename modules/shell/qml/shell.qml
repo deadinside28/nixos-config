@@ -26,6 +26,7 @@ import qs.modules.settings
 import qs.modules.dnd
 import qs.modules.frame
 import qs.modules.files
+import qs.modules.share
 import qs.modules.record
 import qs.modules.lens
 import qs.modules.store
@@ -80,6 +81,7 @@ ShellRoot {
     NotesWindow {}
     CalendarWindows {}
     FileChooserWindows {}
+    ShareWindows {}
     DndSpring {}
 
     Ipc {}

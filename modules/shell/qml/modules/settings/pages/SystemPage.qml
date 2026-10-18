@@ -316,7 +316,7 @@ SettingsPage {
                     key: "services.quickShare",
                     icon: "share",
                     title: "Quick Share с Android",
-                    sub: "Приём и отправка файлов в общей сети (rquickshare). Нужен Avahi и порт в брандмауэре; «Ваши устройства» пока нет"
+                    sub: "Приём и отправка файлов: в общей сети, по Bluetooth и Wi-Fi Direct. Видимость — в быстрых настройках; «Ваши устройства» пока нет"
                 }
             ]
             SwitchItem {
@@ -362,6 +362,12 @@ SettingsPage {
                     icon: "speed",
                     title: "GameMode",
                     sub: "Режим производительности на время игры"
+                },
+                {
+                    key: "gaming.wineHostDialogs",
+                    icon: "folder_open",
+                    title: "Системные диалоги в Wine",
+                    sub: "Отдельный wine 11.0: «Открыть» и «Сохранить» Windows-программ — через системный диалог. Собирается из исходников, первая пересборка долгая. Proton не затрагивается"
                 }
             ]
             SwitchItem {

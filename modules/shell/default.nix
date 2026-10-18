@@ -15,6 +15,7 @@
   appearance,
   hostname,
   configDir,
+  osConfig,
   ...
 }: let
   flake = configDir;
@@ -77,6 +78,7 @@
         readonly property string flake: "${flake}"
         readonly property string hostname: "${hostname}"
         readonly property string quickshellVersion: "${quickshell.version}"
+        readonly property bool quickShare: ${lib.boolToString osConfig.pixel.system.services.quickShare}
     }
   '';
 

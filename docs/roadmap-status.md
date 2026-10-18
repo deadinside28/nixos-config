@@ -31,7 +31,7 @@
 | 11 диалог файлов | backend портала, запасной путь в GTK | `modules/shell/portal`, `docs/filechooser.md` | привязка к родителю; Wine — отдельная сборка |
 | 12 заметки, календарь | Markdown-заметки; календарь с повторами, `.ics`, службой напоминаний | `Notes.qml`, `Calendar.qml`, `reminders.sh` | синхронизация (по решению) |
 | 12.3 замена GNOME | — | — | матрицы паритета перед удалением gnome-calendar, text-editor и т. д. |
-| 13 Quick Share | исследование, rquickshare переключателем | `docs/quickshare.md` | своя служба на `rqs_lib`; аккаунт заблокирован |
+| 13 Quick Share | своя служба `pixel-quickshare` на `rqs_lib`: приём с согласием, отправка из «Файлов», видимость плиткой; сквозной тест в двух сетевых пространствах | `modules/shell/quickshare`, `docs/quickshare.md` | проверить с телефоном; «Ваши устройства» — блокер аккаунта |
 | 14 метрики | `pixel-metrics` (PSS/USS, VRAM, CPU) | `metrics.sh` | снять исходный замер |
 | 15 выпуски | процесс, схемы, сценарии | `docs/releases.md` | — |
 | 5.2 общая MD3E-библиотека | — | — | отделить `widgets/` от Quickshell для самостоятельных приложений |

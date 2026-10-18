@@ -16,5 +16,6 @@
     ./modules/system/nemo.nix
     ./modules/system/users.nix
     ./modules/system/gui-settings.nix
+    ./modules/system/quickshare.nix
   ];
 }

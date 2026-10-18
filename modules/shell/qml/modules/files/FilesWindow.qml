@@ -1718,6 +1718,12 @@ FloatingWindow {
                             text: "Сжать в архив",
                             act: () => Files.compress(sel, win.path)
                         });
+                    if (QuickShare.enabled && sel.length && !win.inArchive && sel.every(p => !(win.allShown.find(i => i.path === p)?.isDir ?? true)))
+                        l.push({
+                            icon: "share",
+                            text: "Отправить через Quick Share",
+                            act: () => QuickShare.share(sel)
+                        });
                     if (one && one.path.match(/\.(png|jpe?g|webp)$/i))
                         l.push({
                             icon: "wallpaper",

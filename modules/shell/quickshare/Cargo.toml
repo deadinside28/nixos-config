@@ -1,0 +1,18 @@
+[package]
+name = "pixel-quickshare"
+version = "0.1.0"
+edition = "2024"
+license = "GPL-3.0-or-later"
+description = "Quick Share service for Pixel Shell on top of rqs_lib (open-quickshare)"
+
+[dependencies]
+anyhow = "1.0"
+log = "0.4"
+rqs_lib = { git = "https://github.com/ignotusbucius/open-quickshare", rev = "fb9c8f9502e5313e3d788aa3498659773ef12d28" }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1.43", features = ["macros", "rt-multi-thread", "net", "sync", "time", "io-util", "signal", "process", "fs"] }
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[profile.release]
+lto = "thin"

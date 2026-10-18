@@ -171,6 +171,8 @@
             ${pkgs.qt6.qtdeclarative}/lib/qt-6/qml ${dataDirs} ${theme}/lib/qt-6/plugins
           touch $out
         '';
+      # Служба Quick Share собирается (сквозной тест — e2e.py, нужен root)
+      quickshare = pkgs.callPackage ./modules/shell/quickshare/package.nix {};
       calendar = pkgs.runCommand "pixel-calendar-test" {nativeBuildInputs = [pkgs.nodejs];} ''
         TZ=Europe/Berlin node ${./modules/shell/calendar-test.js} ${./modules/shell/qml/services/calendar.js}
         touch $out

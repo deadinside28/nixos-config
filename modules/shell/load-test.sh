@@ -34,6 +34,7 @@ call quicksettings toggle
 call overview toggle
 call filechooser request '{"id":"t","reply":"'"$work"'/r.json","kind":"open","title":"Тест","acceptLabel":"","multiple":true,"directory":false,"filters":[{"name":"Текст","patterns":[{"mime":false,"pattern":"*.txt"}]}],"currentFilter":"","choices":[{"id":"c","label":"Флаг","options":[],"selected":"false"}],"currentName":"","currentFolder":"/","currentFile":"","files":[]}'
 call filechooser cancel t
+call quickshare send /etc/hostname
 sleep 2
 kill "$qspid" 2>/dev/null
 kill "$swaypid" 2>/dev/null

@@ -10,7 +10,7 @@
 | Данные | Версия схемы | Где |
 |---|---|---|
 | `system.json` | `schemaVersion` (сейчас 1) | `modules/system/gui-settings.nix` |
-| настройки оболочки `settings.json` | `schemaVersion` (сейчас 1), миграции в `Settings.migrate()` | `modules/shell/qml/common/Settings.qml` |
+| настройки оболочки `settings.json` | `schemaVersion` (сейчас 2), миграции в `Settings.migrate()` | `modules/shell/qml/common/Settings.qml` |
 | события календаря `events.json` | `schemaVersion` (сейчас 1) | `modules/shell/qml/services/Calendar.qml` |
 | заметки | обычные Markdown-файлы, схемы нет | — |
 
