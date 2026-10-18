@@ -124,6 +124,13 @@
     text = builtins.readFile ./store.sh;
   };
 
+  # Исходные метрики ресурсов: PSS/USS по группам процессов, память, VRAM, CPU
+  pixel-metrics = pkgs.writeShellApplication {
+    name = "pixel-metrics";
+    runtimeInputs = with pkgs; [coreutils gawk jq];
+    text = builtins.readFile ./metrics.sh;
+  };
+
   # Ярлык «Календаря»: без файла — открыть, с .ics — импортировать
   pixel-calendar = pkgs.writeShellScriptBin "pixel-calendar" ''
     if [ $# -gt 0 ]; then exec pixel-shell calendar importFile "$1"; fi
@@ -381,6 +388,7 @@ in {
     pixel-rebuild
     pixel-lens
     pixel-calendar
+    pixel-metrics
   ];
 
   # QML по файлам (recursive), чтобы рядом можно было положить

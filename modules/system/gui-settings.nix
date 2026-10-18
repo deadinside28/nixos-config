@@ -50,6 +50,7 @@ in {
       scx = flag true "Планировщик sched-ext.";
       plymouth = flag true "Заставка загрузки Plymouth.";
       zram = flag false "Сжатый swap в памяти.";
+      quickShare = flag false "Quick Share с Android в общей сети (rquickshare; без «Ваших устройств», см. docs/quickshare.md).";
     };
     gaming = {
       steam = flag true "Steam.";
@@ -94,7 +95,6 @@ in {
       "LC_TIME"
     ] (_: s.locale);
 
-    environment.systemPackages = map package s.extraPackages;
 
     services.flatpak.packages = s.flatpaks;
     services.flatpak.update.auto.enable = s.flatpakAutoUpdate;
@@ -110,6 +110,9 @@ in {
     services.scx.enable = s.services.scx;
     boot.plymouth.enable = s.services.plymouth;
     zramSwap.enable = s.services.zram;
+    # Обнаружение — mDNS (Avahi), передача — TCP на порт из настроек
+    # rquickshare: его нужно закрепить там и открыть в «Брандмауэре».
+    environment.systemPackages = map package s.extraPackages ++ lib.optional s.services.quickShare pkgs.rquickshare;
 
     programs.steam.enable = s.gaming.steam;
     programs.gamescope.enable = s.gaming.gamescope;

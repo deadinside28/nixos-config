@@ -311,6 +311,12 @@ SettingsPage {
                     icon: "compress",
                     title: "Сжатая подкачка в памяти (zram)",
                     sub: "Больше свободной ОЗУ под тяжёлые игры и браузер"
+                },
+                {
+                    key: "services.quickShare",
+                    icon: "share",
+                    title: "Quick Share с Android",
+                    sub: "Приём и отправка файлов в общей сети (rquickshare). Нужен Avahi и порт в брандмауэре; «Ваши устройства» пока нет"
                 }
             ]
             SwitchItem {
