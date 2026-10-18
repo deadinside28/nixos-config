@@ -9,6 +9,15 @@
   ...
 }: let
   startHyprland = "${config.programs.hyprland.package}/bin/start-hyprland";
+
+  # Чей диалог выбора файлов: gtk — хостовый GTK, pixel — свой диалог
+  # оболочки (pixel-portal), «Настройки → Система». pixel без оболочки сам
+  # передаёт запрос GTK, так что диалог не пропадает.
+  chooser =
+    if config.pixel.system.desktop.fileChooser == "pixel"
+    then ["pixel" "gtk"]
+    else ["gtk"];
+  pixel-portal = pkgs.callPackage ../shell/portal/package.nix {inherit username;};
 in {
   programs.hyprland.enable = true;
   programs.dconf.enable = true;
@@ -86,22 +95,24 @@ in {
       # файл из /etc/xdg побеждает файл из пакета.
       hyprland = {
         default = ["hyprland" "gtk"];
-        "org.freedesktop.impl.portal.FileChooser" = ["gtk"];
+        "org.freedesktop.impl.portal.FileChooser" = chooser;
         "org.freedesktop.impl.portal.ScreenCast" = ["hyprland"];
         "org.freedesktop.impl.portal.Screenshot" = ["hyprland"];
       };
       # Запасной вариант для сессий с другим XDG_CURRENT_DESKTOP.
       common = {
         default = ["gtk"];
-        "org.freedesktop.impl.portal.FileChooser" = ["gtk"];
+        "org.freedesktop.impl.portal.FileChooser" = chooser;
         "org.freedesktop.impl.portal.ScreenCast" = ["hyprland"];
         "org.freedesktop.impl.portal.Screenshot" = ["hyprland"];
       };
     };
-    extraPortals = with pkgs; [
-      xdg-desktop-portal-gtk
-      xdg-desktop-portal-hyprland
-    ];
+    extraPortals = with pkgs;
+      [
+        xdg-desktop-portal-gtk
+        xdg-desktop-portal-hyprland
+      ]
+      ++ lib.optional (config.pixel.system.desktop.fileChooser == "pixel") pixel-portal;
   };
 
   fonts = {

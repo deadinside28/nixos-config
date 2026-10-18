@@ -60,6 +60,9 @@ in {
       tcp = opt (types.listOf types.port) [] "Открытые TCP-порты.";
       udp = opt (types.listOf types.port) [] "Открытые UDP-порты.";
     };
+    desktop = {
+      fileChooser = opt (types.enum ["gtk" "pixel"]) "gtk" "Диалог выбора файлов: gtk — хостовый GTK, pixel — свой диалог оболочки (экспериментально).";
+    };
     nix = {
       autoGc = flag true "Еженедельная очистка старых поколений.";
       gcDays = opt (types.ints.between 1 3650) 14 "Сколько дней хранить поколения.";

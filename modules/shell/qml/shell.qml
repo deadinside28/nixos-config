@@ -31,6 +31,7 @@ import qs.modules.lens
 import qs.modules.store
 import qs.modules.notes
 import qs.modules.calendar
+import qs.modules.filechooser
 
 ShellRoot {
     id: root
@@ -78,6 +79,7 @@ ShellRoot {
     StoreWindow {}
     NotesWindow {}
     CalendarWindows {}
+    FileChooserWindows {}
     DndSpring {}
 
     Ipc {}

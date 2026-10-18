@@ -120,6 +120,16 @@
       storage = test "storage" (with pkgs; [bash coreutils findutils gnused gnugrep gawk]);
       store = test "store" (with pkgs; [bash coreutils gnugrep gawk jq]);
       reminders = test "reminders" (with pkgs; [bash coreutils gnugrep jq]);
+      # Портал FileChooser на настоящей шине (dbus-run-session)
+      portal = pkgs.runCommand "pixel-portal-test" {
+        nativeBuildInputs = [pkgs.dbus (pkgs.python3.withPackages (ps: [ps.dbus-next]))];
+      } ''
+        # штатный конфиг session-шины, только сокет — в $TMPDIR
+        sed "s|<listen>.*</listen>|<listen>unix:tmpdir=$TMPDIR</listen>|" \
+          ${pkgs.dbus}/share/dbus-1/session.conf > bus.conf
+        dbus-run-session --config-file=bus.conf -- python3 ${./modules/shell/portal/test_portal.py} ${./modules/shell/portal/pixel-portal.py}
+        touch $out
+      '';
       calendar = pkgs.runCommand "pixel-calendar-test" {nativeBuildInputs = [pkgs.nodejs];} ''
         TZ=Europe/Berlin node ${./modules/shell/calendar-test.js} ${./modules/shell/qml/services/calendar.js}
         touch $out

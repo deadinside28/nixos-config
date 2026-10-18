@@ -325,6 +325,17 @@ SettingsPage {
     }
 
     Group {
+        title: "Рабочий стол"
+        SwitchItem {
+            icon: "folder_open"
+            title: "Свой диалог выбора файлов (экспериментально)"
+            subtitle: "Окно открытия и сохранения в стиле «Файлов» для приложений через портал (GTK4, Flatpak, Chrome, Qt). Если оболочка не отвечает, откроется обычный GTK-диалог"
+            checked: SystemConfig.get("desktop.fileChooser", "gtk") === "pixel"
+            onToggled: v => SystemConfig.set("desktop.fileChooser", v ? "pixel" : "gtk")
+        }
+    }
+
+    Group {
         title: "Игры"
         Repeater {
             model: [

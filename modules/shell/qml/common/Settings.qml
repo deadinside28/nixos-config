@@ -243,6 +243,8 @@ Singleton {
             property bool filesSortDesc: false
             property var netPlaces: [] // сохранённые сетевые папки: [{ uri, user }]
 
+            property string chooserLastDir: "" // последняя папка диалога выбора файлов
+
             // Заметки (services/Notes.qml): папка — пусто = ~/Documents/Заметки
             property string notesDir: ""
             property list<string> notesPinned: [] // пути относительно папки заметок

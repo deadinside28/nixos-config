@@ -49,6 +49,16 @@ Scope {
             Ui.toggle("power");
         }
     }
+    // Запросы диалога выбора файлов от pixel-portal (JSON)
+    IpcHandler {
+        target: "filechooser"
+        function request(json: string): void {
+            FileChooser.request(json);
+        }
+        function cancel(id: string): void {
+            FileChooser.cancel(id);
+        }
+    }
     IpcHandler {
         target: "notes"
         function open(): void {
