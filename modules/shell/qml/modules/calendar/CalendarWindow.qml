@@ -56,6 +56,11 @@ FloatingWindow {
         const c = cursor;
         cursor = view === "month" ? new Date(c.getFullYear(), c.getMonth() + n, 1) : addDays(c, n * (view === "week" ? 7 : view === "day" ? 1 : 30));
     }
+    // «Октябрь 2026»: формат LLLL Qt не знает, а MMMM в русском — родительный падеж
+    function monthTitle(d) {
+        const m = loc.standaloneMonthName(d.getMonth(), Locale.LongFormat);
+        return m.charAt(0).toUpperCase() + m.slice(1) + " " + d.getFullYear();
+    }
     function timeText(o) {
         return o.ev.allDay ? "Весь день" : o.start.toLocaleTimeString(loc, "HH:mm") + "–" + o.end.toLocaleTimeString(loc, "HH:mm");
     }
@@ -110,7 +115,7 @@ FloatingWindow {
                 MText {
                     Layout.leftMargin: 8
                     Layout.preferredWidth: 280
-                    text: win.view === "month" ? win.cursor.toLocaleDateString(win.loc, "LLLL yyyy") : win.view === "day" ? win.cursor.toLocaleDateString(win.loc, "d MMMM yyyy, dddd") : win.rangeFrom.toLocaleDateString(win.loc, "d MMM") + " — " + win.addDays(win.rangeTo, -1).toLocaleDateString(win.loc, "d MMM yyyy")
+                    text: win.view === "month" ? win.monthTitle(win.cursor) : win.view === "day" ? win.cursor.toLocaleDateString(win.loc, "d MMMM yyyy, dddd") : win.rangeFrom.toLocaleDateString(win.loc, "d MMM") + " — " + win.addDays(win.rangeTo, -1).toLocaleDateString(win.loc, "d MMM yyyy")
                     size: Theme.type.headlineS
                     elide: Text.ElideRight
                 }

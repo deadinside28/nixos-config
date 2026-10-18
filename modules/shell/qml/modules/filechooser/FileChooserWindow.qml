@@ -16,7 +16,9 @@ FloatingWindow {
 
     readonly property bool saving: req.kind === "save"
     readonly property bool pickDir: req.directory || req.kind === "saveFiles"
-    title: req.title || (saving ? "Сохранить" : pickDir ? "Выбрать папку" : "Открыть")
+    // Суффикс — для правила Hyprland (windowrules.lua): окно без родителя
+    // иначе встало бы в тайлинг, а диалогу место по центру поверх
+    title: (req.title || (saving ? "Сохранить" : pickDir ? "Выбрать папку" : "Открыть")) + " — выбор файла"
     implicitWidth: 920
     implicitHeight: 620
     minimumSize: Qt.size(640, 420)

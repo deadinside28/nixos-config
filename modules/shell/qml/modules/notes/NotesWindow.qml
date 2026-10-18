@@ -103,6 +103,7 @@ Scope {
                 // --- Список -------------------------------------------------
                 ColumnLayout {
                     Layout.preferredWidth: 320
+                    Layout.fillWidth: false
                     Layout.fillHeight: true
                     spacing: 8
                     RowLayout {

@@ -55,6 +55,14 @@ hl.window_rule({ match = { class = "^(org\\.kde\\.keditfiletype)$" }, float = tr
 hl.window_rule({ match = { class = "^(org\\.kde\\.ark)$" }, size = { "max(monitor_w, monitor_h)*0.40", "min(monitor_w, monitor_h)*0.40" } })
 hl.window_rule({ match = { class = "^(.*satty.*)$", title = "^(Satty)$" }, min_size = { "max(monitor_w, monitor_h)*0.35", "min(monitor_w, monitor_h)*0.35" }, float = true })
 
+-- Диалог выбора файлов оболочки (pixel-portal): плавающий, по центру
+hl.window_rule({
+    match = { class = "^(pixel-shell)$", title = "^(.* — выбор файла)$" },
+    float = true,
+    center = true,
+    size = { "920", "620" }
+})
+
 -- Плавающее окно выбора экрана для стрима (портал xdg)
 hl.window_rule({
     match = {

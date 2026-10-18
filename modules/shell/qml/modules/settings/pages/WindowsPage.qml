@@ -227,6 +227,13 @@ SettingsPage {
                 onSelected: v => WindowModes.setWorkspace(modelData, v)
             }
         }
+        ListItem {
+            visible: wsGroup.ids.length === 0
+            icon: "desktop_windows"
+            title: "Открытых рабочих столов нет"
+            subtitle: "Здесь появятся рабочие столы Hyprland, когда они откроются"
+            clickable: false
+        }
     }
 
     Group {
