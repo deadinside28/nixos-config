@@ -40,6 +40,8 @@ Singleton {
     property string settingsPage: "network"
     property bool updateWindowOpen: false // окно с прогрессом обновления и логом
     property bool storeOpen: false // «Магазин» (modules/store)
+    property bool notesOpen: false // «Заметки» (modules/notes)
+    property bool calendarOpen: false // «Календарь» (modules/calendar)
 
     function openSettings(page) {
         if (page)

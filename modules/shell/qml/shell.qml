@@ -29,6 +29,8 @@ import qs.modules.files
 import qs.modules.record
 import qs.modules.lens
 import qs.modules.store
+import qs.modules.notes
+import qs.modules.calendar
 
 ShellRoot {
     id: root
@@ -74,6 +76,8 @@ ShellRoot {
     UpdateWindow {}
     FilesWindows {}
     StoreWindow {}
+    NotesWindow {}
+    CalendarWindows {}
     DndSpring {}
 
     Ipc {}

@@ -243,6 +243,10 @@ Singleton {
             property bool filesSortDesc: false
             property var netPlaces: [] // сохранённые сетевые папки: [{ uri, user }]
 
+            // Заметки (services/Notes.qml): папка — пусто = ~/Documents/Заметки
+            property string notesDir: ""
+            property list<string> notesPinned: [] // пути относительно папки заметок
+
             // Лаунчер и меню приложений (services/Apps.qml)
             property var appUsage: ({})
             property var appOverrides: ({}) // правки поверх .desktop: { id: { name, icon, folder, … } }

@@ -50,6 +50,23 @@ Scope {
         }
     }
     IpcHandler {
+        target: "notes"
+        function open(): void {
+            Ui.notesOpen = true;
+        }
+    }
+    IpcHandler {
+        target: "calendar"
+        function open(): void {
+            Ui.calendarOpen = true;
+        }
+        // .ics из «Файлов» или браузера — в календарь
+        function importFile(path: string): void {
+            Ui.calendarOpen = true;
+            Calendar.importIcs(String(path).replace(/^file:\/\//, ""));
+        }
+    }
+    IpcHandler {
         target: "store"
         function open(): void {
             Ui.storeOpen = true;

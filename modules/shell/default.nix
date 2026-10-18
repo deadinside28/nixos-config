@@ -124,6 +124,19 @@
     text = builtins.readFile ./store.sh;
   };
 
+  # Ярлык «Календаря»: без файла — открыть, с .ics — импортировать
+  pixel-calendar = pkgs.writeShellScriptBin "pixel-calendar" ''
+    if [ $# -gt 0 ]; then exec pixel-shell calendar importFile "$1"; fi
+    exec pixel-shell calendar open
+  '';
+
+  # Напоминания календаря — своей службой, независимо от оболочки
+  pixel-reminders = pkgs.writeShellApplication {
+    name = "pixel-reminders";
+    runtimeInputs = with pkgs; [coreutils gnugrep jq libnotify];
+    text = builtins.readFile ./reminders.sh;
+  };
+
   # Скриншоты: area | full | window. Картинка — в буфер и в уведомление.
   pixel-screenshot = pkgs.writeShellApplication {
     name = "pixel-screenshot";
@@ -367,6 +380,7 @@ in {
     pixel-record
     pixel-rebuild
     pixel-lens
+    pixel-calendar
   ];
 
   # QML по файлам (recursive), чтобы рядом можно было положить
@@ -426,6 +440,22 @@ in {
     Install.WantedBy = ["hyprland-session.target"];
   };
 
+  # Напоминания календаря: читают ~/.local/state/pixel-calendar/reminders.json,
+  # который пишет оболочка; работают и пока оболочка перезапускается.
+  systemd.user.services.pixel-reminders = {
+    Unit = {
+      Description = "Pixel Shell: напоминания календаря";
+      PartOf = ["graphical-session.target"];
+      After = ["graphical-session.target"];
+    };
+    Service = {
+      ExecStart = lib.getExe pixel-reminders;
+      Restart = "always";
+      RestartSec = 5;
+    };
+    Install.WantedBy = ["hyprland-session.target"];
+  };
+
   # История буфера обмена для Super+V
   services.cliphist = {
     enable = true;
@@ -441,6 +471,26 @@ in {
     icon = "preferences-system";
     exec = "pixel-shell settings toggle";
     categories = ["Settings" "System"];
+    settings.StartupWMClass = "pixel-shell";
+  };
+
+  xdg.desktopEntries.pixel-shell-notes = {
+    name = "Заметки";
+    genericName = "Заметки";
+    comment = "Заметки в Markdown: папки, поиск, закреплённые";
+    icon = "accessories-text-editor";
+    exec = "pixel-shell notes open";
+    categories = ["Office" "Utility"];
+    settings.StartupWMClass = "pixel-shell";
+  };
+  xdg.desktopEntries.pixel-shell-calendar = {
+    name = "Календарь";
+    genericName = "Календарь";
+    comment = "События, повторы, напоминания, импорт и экспорт .ics";
+    icon = "x-office-calendar";
+    exec = "pixel-calendar %f";
+    categories = ["Office" "Calendar"];
+    mimeType = ["text/calendar"];
     settings.StartupWMClass = "pixel-shell";
   };
 
