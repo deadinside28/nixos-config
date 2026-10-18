@@ -228,7 +228,10 @@ async def main():
     bus = await MessageBus(bus_type=BusType.SESSION).connect()
     bus.export(OBJECT_PATH, FileChooser(bus))
     await bus.request_name(BUS_NAME)
-    await bus.wait_for_disconnect()
+    try:
+        await bus.wait_for_disconnect()
+    except (EOFError, ConnectionError):
+        pass  # сеанс закончился — шина ушла, выходим тихо
 
 
 if __name__ == "__main__":
