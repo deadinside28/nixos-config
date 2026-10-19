@@ -119,7 +119,7 @@
     in {
       fileops = test "fileops" (with pkgs; [bash coreutils findutils gnused gnugrep libarchive]);
       storage = test "storage" (with pkgs; [bash coreutils findutils gnused gnugrep gawk]);
-      store = test "store" (with pkgs; [bash coreutils gnugrep gawk jq]);
+      store = test "store" (with pkgs; [bash coreutils findutils gnugrep gawk jq python3]);
       reminders = test "reminders" (with pkgs; [bash coreutils gnugrep jq]);
       # Портал FileChooser на настоящей шине (dbus-run-session)
       portal = pkgs.runCommand "pixel-portal-test" {

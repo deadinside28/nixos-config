@@ -38,6 +38,8 @@ call filechooser cancel t
 call quickshare send /etc/hostname
 call files properties /etc
 call files properties /etc/hostname
+call store app org.example.Missing
+call store search firefox
 sleep 2
 kill "$qspid" 2>/dev/null
 kill "$swaypid" 2>/dev/null

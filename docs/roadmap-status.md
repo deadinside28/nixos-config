@@ -27,10 +27,10 @@
 | 6 меню приложений | правки поверх `.desktop`, папки, свои команды, источник | `Apps.qml`, `MenuPage.qml` | ручная сортировка перетаскиванием |
 | 7 режимы окон | 5 режимов, свой режим стола, перекладка открытых окон | `WindowModes.qml` | точное дерево тайлинга (сейчас — раскладка и порядок) |
 | 8–9 реестр и «Память» | размеры Nix/Flatpak, очистка по правилам | `storage.sh`, `Storage.qml` | расширять правила путей |
-| 10 магазин | каталог по `flake.lock`, Flatpak, желаемое/фактическое | `store.sh`, `Store.qml` | скриншоты AppStream, отмена задач |
+| 10 магазин | обзор, категории и подборки Flathub, страницы приложений со скриншотами (AppStream), поиск по Flathub и Nix по `flake.lock`, желаемое/фактическое, `appstream://` | `store.sh`, `store-appstream.py`, `Store.qml` | отмена задач; оценки и отзывы (ODRS) |
 | 11 диалог файлов | backend портала, запасной путь в GTK | `modules/shell/portal`, `docs/filechooser.md` | привязка к родителю; проверить Wine (`wine-portal.nix`) на живой системе |
 | 12 заметки, календарь | Markdown-заметки; календарь с повторами, `.ics`, службой напоминаний | `Notes.qml`, `Calendar.qml`, `reminders.sh` | синхронизация (по решению) |
-| 12.3 замена GNOME | — | — | матрицы паритета перед удалением gnome-calendar, text-editor и т. д. |
+| 12.3 замена GNOME | убраны Nemo, File Roller, GNOME Calendar, Baobab, pavucontrol, Bazaar — их заменяют приложения оболочки | `packages.nix`, `appimage-menu.nix` | GNOME Text Editor остался: «Заметки» не открывают произвольные файлы |
 | 13 Quick Share | своя служба `pixel-quickshare` на `rqs_lib`: приём с согласием, отправка из «Файлов», видимость плиткой; сквозной тест в двух сетевых пространствах | `modules/shell/quickshare`, `docs/quickshare.md` | проверить с телефоном; «Ваши устройства» — блокер аккаунта |
 | 14 метрики | `pixel-metrics` (PSS/USS, VRAM, CPU) | `metrics.sh` | снять исходный замер |
 | 15 выпуски | процесс, схемы, сценарии | `docs/releases.md` | — |

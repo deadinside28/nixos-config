@@ -4,7 +4,6 @@
   "extraPackages": [],
   "flatpaks": [
     "com.github.tchx84.Flatseal",
-    "io.github.kolunmi.Bazaar",
     "io.github.radiolamp.mangojuice",
     "org.freedesktop.Platform.VulkanLayer.MangoHud//26.08"
   ],

@@ -32,6 +32,8 @@ Singleton {
     property string indexStatus: "" // "" | building | ready | failed
     function prepare() {
         refreshFlatpaks();
+        loadCatalog();
+        featuredProc.running = true;
         if (!indexProc.running && indexStatus !== "ready")
             indexProc.running = true;
     }
@@ -59,6 +61,192 @@ Singleton {
         }
     }
 
+    // --- Каталог Flathub (AppStream) -------------------------------------------
+    // [{ id, remote, name, summary, description, categories, keywords,
+    //    developer, license, icon, screenshots, version, released, homepage,
+    //    verified }] — из pixel-store catalog
+    property var catalog: []
+    property var catalogById: ({})
+    property bool catalogLoading: false
+    function loadCatalog() {
+        if (!catalogProc.running)
+            catalogProc.running = true;
+    }
+    Process {
+        id: catalogProc
+        command: [Nix.store, "catalog"]
+        onRunningChanged: root.catalogLoading = running
+        stdout: SplitParser {
+            onRead: line => {
+                const f = line.split("\t");
+                if (f[0] === "catalog" && f[1])
+                    catalogFile.path = f[1];
+            }
+        }
+    }
+    FileView {
+        id: catalogFile
+        printErrors: false
+        onLoaded: {
+            try {
+                const apps = JSON.parse(text()).apps ?? [];
+                const by = {};
+                for (const a of apps)
+                    by[a.id] = a;
+                root.catalog = apps;
+                root.catalogById = by;
+            } catch (e) {
+                console.warn("store: каталог не читается", e);
+            }
+        }
+    }
+
+    // Подборки Flathub: популярное, в тренде, недавно обновлённое, новое
+    property var featured: ({})
+    Process {
+        id: featuredProc
+        command: [Nix.store, "featured"]
+        stdout: SplitParser {
+            onRead: line => {
+                const f = line.split("\t");
+                if (f[0] === "featured" && f[1])
+                    featuredFile.path = f[1];
+            }
+        }
+    }
+    FileView {
+        id: featuredFile
+        printErrors: false
+        onLoaded: {
+            try {
+                root.featured = JSON.parse(text());
+            } catch (e) {}
+        }
+    }
+    // id из подборки → приложения каталога (неизвестные пропускаются)
+    function collection(key, limit) {
+        const ids = featured[key] ?? [];
+        return ids.map(id => catalogById[id]).filter(a => a).slice(0, limit ?? 24);
+    }
+    // Запасной вариант без сети: свежие релизы из AppStream
+    readonly property var recentlyReleased: catalog.slice().filter(a => a.released > 0).sort((a, b) => b.released - a.released).slice(0, 24)
+
+    // Категории как в GNOME Software: основная категория freedesktop → раздел
+    readonly property var categories: [
+        {
+            id: "create",
+            label: "Творчество",
+            icon: "palette",
+            cats: ["Graphics", "2DGraphics", "3DGraphics", "Photography", "VectorGraphics", "RasterGraphics", "AudioVideoEditing", "Publishing"]
+        },
+        {
+            id: "work",
+            label: "Работа",
+            icon: "work",
+            cats: ["Office", "Finance", "WordProcessor", "Spreadsheet", "Presentation", "ProjectManagement", "Calendar", "ContactManagement"]
+        },
+        {
+            id: "social",
+            label: "Общение",
+            icon: "forum",
+            cats: ["Chat", "InstantMessaging", "Email", "VideoConference", "IRCClient", "Telephony", "News"]
+        },
+        {
+            id: "play",
+            label: "Игры",
+            icon: "stadia_controller",
+            cats: ["Game"]
+        },
+        {
+            id: "media",
+            label: "Аудио и видео",
+            icon: "music_note",
+            cats: ["AudioVideo", "Audio", "Video", "Music", "Player", "Recorder", "TV"]
+        },
+        {
+            id: "internet",
+            label: "Интернет",
+            icon: "language",
+            cats: ["Network", "WebBrowser", "FileTransfer", "P2P", "RemoteAccess"]
+        },
+        {
+            id: "learn",
+            label: "Образование и наука",
+            icon: "school",
+            cats: ["Education", "Science", "Math", "Astronomy", "Chemistry", "Languages", "Geography", "Literature"]
+        },
+        {
+            id: "develop",
+            label: "Разработка",
+            icon: "code",
+            cats: ["Development", "IDE", "TextEditor", "Debugger", "WebDevelopment", "RevisionControl", "Database"]
+        },
+        {
+            id: "system",
+            label: "Утилиты и система",
+            icon: "build",
+            cats: ["Utility", "System", "Settings", "Monitor", "FileManager", "Archiving", "Security", "Accessibility", "Emulator"]
+        }
+    ]
+    function categoryApps(catId) {
+        const c = categories.find(x => x.id === catId);
+        if (!c)
+            return [];
+        return catalog.filter(a => a.categories.some(k => c.cats.includes(k))).sort((a, b) => (b.verified - a.verified) || (b.released - a.released));
+    }
+
+    // Навигация окна магазина из его карточек
+    signal appRequested(var item)
+    signal shotRequested(string url)
+    function requestApp(item) {
+        appRequested(item);
+    }
+    function requestShot(url) {
+        shotRequested(url);
+    }
+    // Открыть магазин с поиском (IPC)
+    signal searchRequested(string q)
+    function showSearch(q) {
+        search(q);
+        Ui.storeOpen = true;
+        searchRequested(q);
+    }
+    // Открыть страницу приложения по id (IPC, ссылки appstream://)
+    property string pendingApp: ""
+    function showApp(id) {
+        pendingApp = String(id).replace(/^appstream:\/\//, "").replace(/\.desktop$/, "");
+        Ui.storeOpen = true;
+    }
+    function takePendingApp() {
+        if (!pendingApp)
+            return null;
+        const a = catalogById[pendingApp];
+        if (!a && catalog.length === 0)
+            return null; // каталог ещё грузится
+        const item = a ? itemOf(a) : {
+            source: "nixpkgs",
+            id: pendingApp,
+            name: pendingApp.split(".").pop(),
+            version: "",
+            description: ""
+        };
+        pendingApp = "";
+        return item;
+    }
+
+    // Запись каталога → элемент установки (как у результатов поиска)
+    function itemOf(app) {
+        return {
+            source: "flatpak",
+            id: app.id,
+            name: app.name,
+            version: app.version,
+            description: app.summary,
+            remote: app.remote,
+            app
+        };
+    }
+
     property string query: ""
     property var nixResults: []
     property var flatpakResults: []
@@ -81,11 +269,62 @@ Singleton {
             nixSearch.running = false;
             nixSearch.command = [Nix.store, "search", q];
             nixSearch.running = true;
-            flatSearch.running = false;
-            flatSearch.command = [Nix.store, "flatpak-search", q];
-            flatSearch.running = true;
+            if (root.catalog.length) {
+                root.flatpakResults = root.searchCatalog(q);
+            } else {
+                flatSearch.running = false;
+                flatSearch.command = [Nix.store, "flatpak-search", q];
+                flatSearch.running = true;
+            }
         }
     }
+    // Поиск по каталогу: имя > начало имени > ключевые слова > описание
+    function searchCatalog(q) {
+        const ql = q.toLowerCase();
+        const scored = [];
+        for (const a of catalog) {
+            const n = a.name.toLowerCase();
+            let r = -1;
+            if (n === ql || a.id.toLowerCase() === ql)
+                r = 0;
+            else if (n.startsWith(ql))
+                r = 1;
+            else if (n.includes(ql) || a.id.toLowerCase().includes(ql))
+                r = 2;
+            else if (a.keywords.some(k => k.toLowerCase().includes(ql)))
+                r = 3;
+            else if (a.summary.toLowerCase().includes(ql))
+                r = 4;
+            if (r >= 0)
+                scored.push([r, a]);
+        }
+        scored.sort((x, y) => x[0] - y[0] || (y[1].verified - x[1].verified) || x[1].name.localeCompare(y[1].name));
+        return scored.slice(0, 40).map(x => itemOf(x[1]));
+    }
+
+    // Описание пакета Nix для страницы приложения: attr → meta
+    property var nixInfo: ({})
+    function loadNixInfo(item) {
+        if (item.source === "flatpak" || nixInfo[item.id] || nixInfoProc.running)
+            return;
+        nixInfoProc.item = item;
+        nixInfoProc.command = [Nix.store, "nix-info", Nix.flake, item.source, item.id];
+        nixInfoProc.running = true;
+    }
+    Process {
+        id: nixInfoProc
+        property var item
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    const o = Object.assign({}, root.nixInfo);
+                    o[nixInfoProc.item.id] = JSON.parse(text);
+                    root.nixInfo = o;
+                } catch (e) {}
+            }
+        }
+    }
+
     function parse(text) {
         return text.split("\n").filter(l => l.includes("\t")).map(l => {
             const [source, id, version, description, name, remote] = l.split("\t");
@@ -108,7 +347,7 @@ Singleton {
     Process {
         id: flatSearch
         stdout: StdioCollector {
-            onStreamFinished: root.flatpakResults = root.parse(text)
+            onStreamFinished: root.flatpakResults = root.parse(text).map(r => root.catalogById[r.id] ? root.itemOf(root.catalogById[r.id]) : r)
         }
     }
 

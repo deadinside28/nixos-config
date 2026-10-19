@@ -122,8 +122,8 @@
   # Flatpak. nix и flatpak — системные (из PATH).
   pixel-store = pkgs.writeShellApplication {
     name = "pixel-store";
-    runtimeInputs = with pkgs; [coreutils gawk gnugrep jq];
-    text = builtins.readFile ./store.sh;
+    runtimeInputs = with pkgs; [coreutils findutils gawk gnugrep jq curl python3];
+    text = "appstream_py=${./store-appstream.py}\n" + builtins.readFile ./store.sh;
   };
 
   # Исходные метрики ресурсов: PSS/USS по группам процессов, память, VRAM, CPU
@@ -134,6 +134,13 @@
   };
 
   # Ярлык «Календаря»: без файла — открыть, с .ics — импортировать
+  # «Магазин» по ссылке appstream://<id> (кнопка «Установить» на Flathub)
+  # или просто открыть
+  pixel-store-open = pkgs.writeShellScriptBin "pixel-store-open" ''
+    if [ $# -gt 0 ] && [ -n "$1" ]; then exec pixel-shell store app "$1"; fi
+    exec pixel-shell store open
+  '';
+
   # Отправить файлы через Quick Share: pixel-share <файл>…
   pixel-share = pkgs.writeShellScriptBin "pixel-share" ''
     exec pixel-shell quickshare send "$(printf '%s\n' "$@")"
@@ -426,6 +433,7 @@ in {
     pixel-lens
     pixel-calendar
     pixel-share
+    pixel-store-open
     pixel-metrics
   ];
 
@@ -543,7 +551,8 @@ in {
     genericName = "Установка приложений";
     comment = "Приложения из Nixpkgs, Chaotic-Nyx и Flatpak";
     icon = "pixel-shell-store";
-    exec = "pixel-shell store open";
+    exec = "pixel-store-open %u";
+    mimeType = ["x-scheme-handler/appstream"];
     categories = ["System" "PackageManager"];
   };
 

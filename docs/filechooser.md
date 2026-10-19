@@ -51,7 +51,7 @@
 | Loupe / Papers | GTK4 | | | | | | |
 | gnome-text-editor | GTK4 | | | | | | |
 | qBittorrent | Qt6 | | | | | | |
-| Bazaar | Flatpak | | | | | | |
+| Flatseal | Flatpak | | | | | | |
 | AppImage (любой Qt/GTK) | шим `appimage-run` | | | | | | |
 | cpak-приложение | cpak | | | | | | |
 | Wine: notepad, regedit | Wine | | | | | | см. ниже |

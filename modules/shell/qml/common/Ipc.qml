@@ -93,8 +93,11 @@ Scope {
             Ui.storeOpen = true;
         }
         function search(query: string): void {
-            Ui.storeOpen = true;
-            Store.search(query);
+            Store.showSearch(query);
+        }
+        // pixel-shell store app <id> — страница приложения (id Flatpak или атрибут Nix)
+        function app(id: string): void {
+            Store.showApp(id);
         }
     }
     IpcHandler {
