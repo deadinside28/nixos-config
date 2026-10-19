@@ -14,7 +14,7 @@
 | P0 `extract()`, `transfer()`, вставка | ошибки не теряются, распакованное сохраняется | `modules/shell/fileops.sh`, тест | — |
 | P0 пересборка из GUI | отдельная служба `pixel-rebuild.service`, переподключение после перезапуска | `SystemConfig.qml` | проверить `switch` |
 | P0 блокировка перед сном | ожидание `secure`, delay-ингибитор logind, `lock-session` | `Power.qml`, `Lock.qml` | проверить крышку и кнопку |
-| P1 Flatpak-права | убраны `~/nixos-config`, `xdg-data`, `xdg-cache` | `modules/hyprland/default.nix` | раздать рабочие папки по приложениям |
+| P1 Flatpak-права | убраны `~/nixos-config`, `xdg-data`, `xdg-cache`, `~/work`; игры и диски (`~/Games`, `/mnt`, `/media`, `/run/media`) открыты всем — эмуляторы и лаунчеры видят игры на любом диске | `modules/hyprland/default.nix` | — |
 | P1 AppImage | снова прямой запуск через nix-ld, библиотеки как у appimage-run | `modules/system/appimage.nix`, `nix-ld.nix` | — |
 | P1 превью | очередь, лимит, ключ по mtime | `Thumbs.qml` | — |
 | P1 `FilesWindow` | виртуализация сетки папок | `FilesWindow.qml` | дальнейшее разбиение файла |

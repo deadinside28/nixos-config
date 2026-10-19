@@ -224,7 +224,7 @@ Scope {
                         Hero {
                             Layout.fillWidth: true
                             Layout.preferredHeight: 300
-                            apps: [...Store.collection("trending", 12), ...Store.collection("popular", 12), ...Store.recentlyReleased].filter(a => a.screenshots.length > 0).filter((a, i, arr) => arr.findIndex(b => b.id === a.id) === i).slice(0, 6)
+                            apps: [...Store.collection("trending", 12), ...Store.collection("popular", 12), ...Store.recentlyReleased].filter(a => a.shot).filter((a, i, arr) => arr.findIndex(b => b.id === a.id) === i).slice(0, 6)
                         }
 
                         Section {
@@ -442,18 +442,55 @@ Scope {
                     Group {
                         title: "Flatpak"
                         ListItem {
-                            icon: "inventory_2"
-                            title: Store.flatpakUpdates.length ? "Доступны обновления: " + Store.flatpakUpdates.length : "Обновлений нет"
-                            subtitle: Store.flatpakUpdates.length ? Store.flatpakUpdates.map(id => Store.catalogById[id]?.name ?? id).join(", ") : "Flatpak обновляется и сам раз в неделю (если включено в «Системе»). Список Flatpak в конфигурации не закрепляет версии — ставится текущая из remote."
+                            icon: Store.updating ? "downloading" : "inventory_2"
+                            title: Store.updating ? Store.updateLine : Store.flatpakUpdatesAll.length ? "Доступно обновлений: " + Store.flatpakUpdatesAll.length : "Всё обновлено"
+                            subtitle: Store.updating ? (Store.updateTotal > 1 ? Store.updateStep + " из " + Store.updateTotal : "") : Store.flatpakUpdatesAll.length ? "Приложений: " + Store.flatpakUpdates.length + ", сред выполнения и дополнений: " + (Store.flatpakUpdatesAll.length - Store.flatpakUpdates.length) : "Flatpak обновляется и сам раз в неделю (если включено в «Системе»)."
                             clickable: false
                             Button {
-                                visible: Store.flatpakUpdates.length > 0
-                                text: "Обновить"
-                                onClicked: Apps.run([Nix.terminal, "--hold", "flatpak", "update"])
+                                visible: Store.flatpakUpdatesAll.length > 0 && !Store.updating
+                                icon: "download"
+                                text: "Обновить всё"
+                                onClicked: Store.updateFlatpaks([])
                             }
                             IconButton {
+                                visible: !Store.updating
                                 icon: "refresh"
+                                tooltip: "Проверить"
                                 onClicked: Store.refreshFlatpaks()
+                            }
+                        }
+                        LinearProgress {
+                            visible: Store.updating
+                            Layout.fillWidth: true
+                            Layout.leftMargin: 20
+                            Layout.rightMargin: 20
+                            value: Store.updateTotal > 1 && Store.updateStep > 0 ? Store.updateStep / Store.updateTotal : -1
+                        }
+                        Repeater {
+                            model: Store.flatpakUpdates
+                            ListItem {
+                                id: upd
+                                required property string modelData
+                                readonly property var app: Store.catalogById[modelData] ?? null
+                                leading: Component {
+                                    StoreIcon {
+                                        item: upd.app ? Store.itemOf(upd.app) : {
+                                            source: "flatpak",
+                                            id: upd.modelData
+                                        }
+                                        size: 40
+                                    }
+                                }
+                                title: app?.name ?? modelData
+                                subtitle: app ? (app.version ? "Версия " + app.version + " · " : "") + app.summary : modelData
+                                onClicked: if (app)
+                                    Store.requestApp(Store.itemOf(app))
+                                Button {
+                                    variant: "tonal"
+                                    text: Store.updating && Store.updatingId === upd.modelData ? "Обновляю…" : "Обновить"
+                                    disabled: Store.updating
+                                    onClicked: Store.updateFlatpaks([upd.modelData])
+                                }
                             }
                         }
                     }
@@ -699,7 +736,7 @@ Scope {
                     anchors.bottom: parent.bottom
                     anchors.topMargin: 24
                     width: parent.width * 0.55
-                    source: hero.app?.screenshots[0]?.thumb ?? ""
+                    source: hero.app?.shot ?? ""
                     fillMode: Image.PreserveAspectCrop
                     horizontalAlignment: Image.AlignLeft
                     verticalAlignment: Image.AlignTop
@@ -882,6 +919,10 @@ Scope {
                 readonly property var app: item ? (item.app ?? Store.catalogById[item.id] ?? null) : null
                 readonly property var nix: item && item.source !== "flatpak" ? Store.nixInfo[item.id] ?? null : null
                 readonly property var st: item ? Store.stateOf(item) : ({})
+                // описание, скриншоты, лицензия — из файла подробностей
+                readonly property var det: app ? Store.details[app.id] ?? null : null
+                onAppChanged: if (app)
+                    Store.loadDetails(app.id)
                 contentHeight: apCol.implicitHeight + 24
                 clip: true
                 boundsBehavior: Flickable.StopAtBounds
@@ -949,14 +990,14 @@ Scope {
                     // Скриншоты
                     ListView {
                         id: shots
-                        visible: (ap.app?.screenshots ?? []).length > 0
+                        visible: (ap.det?.screenshots ?? []).length > 0
                         Layout.fillWidth: true
                         Layout.preferredHeight: 340
                         orientation: ListView.Horizontal
                         spacing: 12
                         clip: true
                         boundsBehavior: Flickable.StopAtBounds
-                        model: ap.app?.screenshots ?? []
+                        model: ap.det?.screenshots ?? []
                         delegate: Rectangle {
                             id: sh
                             required property var modelData
@@ -996,7 +1037,7 @@ Scope {
                     MText {
                         Layout.fillWidth: true
                         visible: text !== ""
-                        text: ap.app?.description ?? (ap.nix ? (ap.nix.long || ap.nix.description || "") : "")
+                        text: ap.det?.description ?? (ap.nix ? (ap.nix.long || ap.nix.description || "") : "")
                         wrapMode: Text.WordWrap
                         lineHeight: 1.15
                     }
@@ -1014,7 +1055,7 @@ Scope {
                         rowSpacing: 8
                         Repeater {
                             model: {
-                                const a = ap.app, n = ap.nix, it = ap.item;
+                                const a = ap.det ?? ap.app, n = ap.nix, it = ap.item;
                                 if (!it)
                                     return [];
                                 const lic = a?.license || (Array.isArray(n?.license) ? n.license.join(", ") : n?.license) || "";
@@ -1057,7 +1098,7 @@ Scope {
                     RowLayout {
                         spacing: 8
                         Button {
-                            readonly property string url: ap.app?.homepage || ap.nix?.homepage || ""
+                            readonly property string url: ap.det?.homepage || ap.nix?.homepage || ""
                             visible: url !== ""
                             variant: "outlined"
                             icon: "open_in_new"

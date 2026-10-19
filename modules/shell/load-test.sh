@@ -23,7 +23,7 @@ qspid=$!
 for _ in $(seq 1 100); do grep -q "Configuration Loaded\|Failed to load" "$work/qs.log" && break; sleep 0.2; done
 
 call() { "$qs" ipc -p "$cfg" call "$@" >>"$work/ipc.log" 2>&1; sleep 0.7; }
-for p in network bluetooth display sound style desktop quicksettings notifications apps storage menu windows input power system about; do
+for p in network bluetooth quickshare display sound style desktop quicksettings notifications apps storage menu windows input power system about; do
     call settings open "$p"
 done
 call store open

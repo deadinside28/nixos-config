@@ -28,12 +28,9 @@ Singleton {
         command: ["pidof", "gpu-screen-recorder"]
         onExited: code => root.recording = code === 0
     }
-    Timer {
-        running: true
-        interval: 2000
-        repeat: true
-        onTriggered: recCheck.running = true
-    }
+    // Идёт ли запись — сообщает pixel-record (pixel-shell record started/
+    // stopped); здесь — только проверка при запуске оболочки, без опроса
+    Component.onCompleted: recCheck.running = true
 
     // Окно «Настройки» и открытый в нём раздел
     property bool settingsOpen: false

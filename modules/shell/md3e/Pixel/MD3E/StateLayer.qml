@@ -19,9 +19,10 @@ MouseArea {
     cursorShape: disabled ? Qt.ArrowCursor : Qt.PointingHandCursor
 
     onPressed: event => {
-        ripple.x = event.x - ripple.width / 2;
-        ripple.y = event.y - ripple.height / 2;
-        rippleAnim.restart();
+        ripple.px = event.x;
+        ripple.py = event.y;
+        ripple.active = false;
+        ripple.active = true;
     }
 
     Rectangle {
@@ -32,7 +33,7 @@ MouseArea {
         bottomLeftRadius: root.bottomLeftRadius
         bottomRightRadius: root.bottomRightRadius
         color: Theme.alpha(root.color, root.pressed ? Theme.pressOpacity : root.containsMouse ? Theme.hoverOpacity : 0)
-        clip: true
+        clip: ripple.active
 
         Behavior on color {
             ColorAnimation {
@@ -40,39 +41,53 @@ MouseArea {
             }
         }
 
-        Rectangle {
+        // Круг ряби создаётся только на время анимации. Скруглённый
+        // прямоугольник большого радиуса дорог сам по себе — даже
+        // невидимый он держит геометрию (и кеш программной отрисовки),
+        // около 4 МБ на штуку, а StateLayer есть почти в каждом пункте,
+        // кнопке и карточке.
+        Loader {
             id: ripple
-            width: Math.max(root.width, root.height) * 2.2
-            height: width
-            radius: width / 2
-            color: root.color
-            opacity: 0
-            scale: 0
-        }
-    }
-
-    ParallelAnimation {
-        id: rippleAnim
-        NumberAnimation {
-            target: ripple
-            property: "scale"
-            from: 0
-            to: 1
-            duration: Theme.anim.slow
-            easing.type: Easing.OutCubic
-        }
-        SequentialAnimation {
-            NumberAnimation {
-                target: ripple
-                property: "opacity"
-                to: 0.10
-                duration: 60
-            }
-            NumberAnimation {
-                target: ripple
-                property: "opacity"
-                to: 0
-                duration: Theme.anim.slow
+            property real px
+            property real py
+            active: false
+            sourceComponent: Rectangle {
+                id: circle
+                readonly property real d: Math.max(root.width, root.height) * 2.2
+                x: ripple.px - d / 2
+                y: ripple.py - d / 2
+                width: d
+                height: d
+                radius: d / 2
+                color: root.color
+                opacity: 0
+                scale: 0
+                ParallelAnimation {
+                    running: true
+                    onFinished: ripple.active = false
+                    NumberAnimation {
+                        target: circle
+                        property: "scale"
+                        from: 0
+                        to: 1
+                        duration: Theme.anim.slow
+                        easing.type: Easing.OutCubic
+                    }
+                    SequentialAnimation {
+                        NumberAnimation {
+                            target: circle
+                            property: "opacity"
+                            to: 0.10
+                            duration: 60
+                        }
+                        NumberAnimation {
+                            target: circle
+                            property: "opacity"
+                            to: 0
+                            duration: Theme.anim.slow
+                        }
+                    }
+                }
             }
         }
     }

@@ -20,18 +20,6 @@ Overlay {
     property bool brightOpen: false
 
     // Идёт ли запись экрана — проверяем, пока панель открыта.
-    Process {
-        id: recCheck
-        command: ["pidof", "gpu-screen-recorder"]
-        onExited: code => Ui.recording = code === 0
-    }
-    Timer {
-        running: root.open
-        interval: 2000
-        repeat: true
-        triggeredOnStart: true
-        onTriggered: recCheck.running = true
-    }
 
     ColumnLayout {
         id: stack

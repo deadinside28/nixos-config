@@ -9,6 +9,8 @@
 //   {"cmd":"send","device":"<id>","files":["/путь", ...]}
 //   {"cmd":"accept"|"decline"|"cancel","id":"<id>"}
 //   {"cmd":"state"}
+//   {"cmd":"trust","name":"<устройство>","on":true|false}
+//   {"cmd":"rename","name":"<имя компьютера>"} — служба перезапускается
 // События: hello (имя, видимость), device, device-gone, transfer, error.
 //
 // Согласие на входящую передачу спрашивается уведомлением с кнопками
@@ -48,6 +50,8 @@ enum Cmd {
     Accept { id: String },
     Decline { id: String },
     Cancel { id: String },
+    Trust { name: String, on: bool },
+    Rename { name: String },
     State,
 }
 
@@ -94,6 +98,8 @@ struct State {
     // закончилась раньше ответа
     consent: HashMap<String, tokio::sync::oneshot::Sender<()>>,
     discovering: usize,
+    // устройства, от которых передачи принимаются без вопроса (по имени)
+    trusted: Vec<String>,
 }
 
 struct Service {
@@ -103,6 +109,8 @@ struct Service {
     events: broadcast::Sender<String>,
     state: Mutex<State>,
     state_file: PathBuf,
+    // ~/.local/state/pixel-quickshare: visibility, name, trusted
+    dir: PathBuf,
 }
 
 fn device_json(d: &EndpointInfo) -> Value {
@@ -137,6 +145,7 @@ impl Service {
             "name": self.rqs.lock().await.get_device_name(),
             "visibility": st.visibility,
             "discovering": st.discovering > 0,
+            "trusted": st.trusted,
         })
     }
 
@@ -269,9 +278,38 @@ impl Service {
             Cmd::Accept { id } => self.answer(&id, true).await,
             Cmd::Decline { id } => self.answer(&id, false).await,
             Cmd::Cancel { id } => self.action(&id, TransferAction::TransferCancel),
+            Cmd::Trust { name, on } => self.trust(&name, on).await,
+            Cmd::Rename { name } => {
+                let name = name.trim().to_string();
+                if name.is_empty() {
+                    anyhow::bail!("пустое имя");
+                }
+                tokio::fs::create_dir_all(&self.dir).await?;
+                tokio::fs::write(self.dir.join("name"), &name).await?;
+                // имя уходит в mDNS и BLE только при запуске: перезапуск
+                // делает systemd (Restart=on-failure)
+                info!("Новое имя «{name}» — перезапуск");
+                let _ = tokio::time::timeout(Duration::from_secs(5), self.rqs.lock().await.stop()).await;
+                std::process::exit(75);
+            }
             Cmd::State => {}
         }
         Ok(())
+    }
+
+    async fn trust(&self, name: &str, on: bool) {
+        let list = {
+            let mut st = self.state.lock().await;
+            st.trusted.retain(|n| n != name);
+            if on && !name.is_empty() {
+                st.trusted.push(name.to_string());
+            }
+            st.trusted.clone()
+        };
+        let _ = tokio::fs::create_dir_all(&self.dir).await;
+        let _ = tokio::fs::write(self.dir.join("trusted"), list.join("\n")).await;
+        let hello = self.hello().await;
+        self.emit(hello);
     }
 
     async fn answer(&self, id: &str, accept: bool) {
@@ -343,7 +381,11 @@ impl Service {
         if t.state == before {
             return;
         }
-        if !t.outbound && t.state == "WaitingForUserConsent" {
+        if !t.outbound && t.state == "WaitingForUserConsent" && st.trusted.contains(&t.device) {
+            // своё устройство — принять без вопроса
+            info!("Передача от доверенного «{}» принята", t.device);
+            self.action(id, TransferAction::ConsentAccept);
+        } else if !t.outbound && t.state == "WaitingForUserConsent" {
             let (close, closed) = tokio::sync::oneshot::channel();
             st.consent.insert(id.to_string(), close);
             let me = self.clone();
@@ -384,6 +426,7 @@ impl Service {
                 "--urgency=critical",
                 "--wait",
                 "--action=accept=Принять",
+                "--action=trust=Принимать всегда",
                 "--action=decline=Отклонить",
                 &format!("{} — Quick Share", t.device),
                 &body,
@@ -400,9 +443,13 @@ impl Service {
                 if self.state.lock().await.consent.remove(&id).is_none() {
                     return; // уже ответили или передача закончилась
                 }
-                let accept = out
-                    .map(|o| String::from_utf8_lossy(&o.stdout).trim() == "accept")
-                    .unwrap_or(false);
+                let answer = out
+                    .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+                    .unwrap_or_default();
+                if answer == "trust" {
+                    self.trust(&t.device, true).await;
+                }
+                let accept = answer == "accept" || answer == "trust";
                 self.action(&id, if accept {
                     TransferAction::ConsentAccept
                 } else {
@@ -604,7 +651,21 @@ async fn main() -> anyhow::Result<()> {
         .map(PathBuf::from)
         .unwrap_or_else(|| PathBuf::from(std::env::var("HOME").unwrap_or_default()).join(".local/state"))
         .join("pixel-quickshare/visibility");
+    let dir = state_file.parent().map(PathBuf::from).unwrap_or_default();
     let saved = std::fs::read_to_string(&state_file).unwrap_or_default();
+    // имя из «Настройки → Quick Share», если не задано аргументом
+    let name = name.or_else(|| {
+        std::fs::read_to_string(dir.join("name"))
+            .ok()
+            .map(|n| n.trim().to_string())
+            .filter(|n| !n.is_empty())
+    });
+    let trusted: Vec<String> = std::fs::read_to_string(dir.join("trusted"))
+        .unwrap_or_default()
+        .lines()
+        .map(|l| l.trim().to_string())
+        .filter(|l| !l.is_empty())
+        .collect();
     let (vis, vis_name) = match saved.trim() {
         "visible" => (Visibility::Visible, "visible"),
         _ => (Visibility::Invisible, "hidden"),
@@ -631,8 +692,10 @@ async fn main() -> anyhow::Result<()> {
             transfers: HashMap::new(),
             consent: HashMap::new(),
             discovering: 0,
+            trusted,
         }),
         state_file,
+        dir,
     });
 
     let mut lib_rx = svc.lib.subscribe();

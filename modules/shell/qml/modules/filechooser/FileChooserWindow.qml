@@ -238,10 +238,11 @@ FloatingWindow {
                             anchors.leftMargin: 12
                             anchors.rightMargin: 12
                             spacing: 12
-                            AppIcon {
+                            FileIcon {
                                 size: 24
-                                styled: false
-                                icon: Files.iconFor(row.fileName, row.filePath, row.fileIsDir)
+                                name: row.fileName
+                                path: row.filePath
+                                isDir: row.fileIsDir
                             }
                             MText {
                                 Layout.fillWidth: true

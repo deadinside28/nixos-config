@@ -25,8 +25,9 @@ in
       wantedBy = ["hyprland-session.target"];
       serviceConfig = {
         ExecStart = "${lib.getExe pkg} --port ${toString port}";
+        # смена имени в «Настройках» — выход с кодом 75 и перезапуск
         Restart = "on-failure";
-        RestartSec = 5;
+        RestartSec = 1;
         # mDNS и BLE иногда не останавливаются сразу
         TimeoutStopSec = 10;
       };

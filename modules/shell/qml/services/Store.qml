@@ -62,9 +62,9 @@ Singleton {
     }
 
     // --- Каталог Flathub (AppStream) -------------------------------------------
-    // [{ id, remote, name, summary, description, categories, keywords,
-    //    developer, license, icon, screenshots, version, released, homepage,
-    //    verified }] — из pixel-store catalog
+    // [{ id, remote, name, summary, developer, categories, keywords, icon,
+    //    version, released, verified, shot }] — лёгкий индекс pixel-store
+    //    catalog; описание и скриншоты — loadDetails()
     property var catalog: []
     property var catalogById: ({})
     property bool catalogLoading: false
@@ -79,8 +79,10 @@ Singleton {
         stdout: SplitParser {
             onRead: line => {
                 const f = line.split("\t");
-                if (f[0] === "catalog" && f[1])
+                if (f[0] === "catalog" && f[1]) {
+                    root.catalogPath = f[1];
                     catalogFile.path = f[1];
+                }
             }
         }
     }
@@ -91,13 +93,50 @@ Singleton {
             try {
                 const apps = JSON.parse(text()).apps ?? [];
                 const by = {};
-                for (const a of apps)
+                for (const a of apps) {
                     by[a.id] = a;
+                    // строчные копии один раз — поиск идёт по ним на каждую букву
+                    a._n = a.name.toLowerCase();
+                    a._i = a.id.toLowerCase();
+                    a._k = a.keywords.join(" ").toLowerCase();
+                    a._s = a.summary.toLowerCase();
+                }
                 root.catalog = apps;
                 root.catalogById = by;
             } catch (e) {
                 console.warn("store: каталог не читается", e);
             }
+        }
+    }
+
+    // Подробности приложения (описание, скриншоты, лицензия, сайт) — в
+    // отдельном файле на каждое, читаются при открытии его страницы: в
+    // памяти держится только лёгкий индекс
+    property string catalogPath: ""
+    property var details: ({}) // id → подробности, последние открытые
+    function loadDetails(id) {
+        if (!id || details[id] || !catalogPath)
+            return;
+        detailsFile.wanted = id;
+        const p = catalogPath + ".d/" + id + ".json";
+        if (detailsFile.path === p)
+            detailsFile.reload();
+        else
+            detailsFile.path = p;
+    }
+    FileView {
+        id: detailsFile
+        property string wanted: ""
+        printErrors: false
+        onLoaded: {
+            try {
+                const d = {};
+                // кеш на десяток страниц
+                for (const k of Object.keys(root.details).slice(-9))
+                    d[k] = root.details[k];
+                d[wanted] = JSON.parse(text());
+                root.details = d;
+            } catch (e) {}
         }
     }
 
@@ -283,17 +322,17 @@ Singleton {
         const ql = q.toLowerCase();
         const scored = [];
         for (const a of catalog) {
-            const n = a.name.toLowerCase();
+            const n = a._n;
             let r = -1;
-            if (n === ql || a.id.toLowerCase() === ql)
+            if (n === ql || a._i === ql)
                 r = 0;
             else if (n.startsWith(ql))
                 r = 1;
-            else if (n.includes(ql) || a.id.toLowerCase().includes(ql))
+            else if (n.includes(ql) || a._i.includes(ql))
                 r = 2;
-            else if (a.keywords.some(k => k.toLowerCase().includes(ql)))
+            else if (a._k.includes(ql))
                 r = 3;
-            else if (a.summary.toLowerCase().includes(ql))
+            else if (a._s.includes(ql))
                 r = 4;
             if (r >= 0)
                 scored.push([r, a]);
@@ -354,9 +393,72 @@ Singleton {
     // --- Flatpak: установлено и обновления -----------------------------------
     property var flatpakInstalled: []
     property var flatpakUpdates: []
+    property var flatpakUpdatesAll: [] // с средами выполнения и расширениями
     function refreshFlatpaks() {
         flatList.running = true;
         flatUpd.running = true;
+        flatUpdAll.running = true;
+    }
+    Process {
+        id: flatUpdAll
+        command: [Nix.store, "flatpak-updates-all"]
+        stdout: StdioCollector {
+            onStreamFinished: root.flatpakUpdatesAll = text.split("\n").filter(l => l)
+        }
+    }
+
+    // Обновление Flatpak прямо из магазина. Системная установка обновляется
+    // через flatpak-system-helper: polkit разрешает это активной сессии без
+    // пароля. ids пусто — обновить всё, вместе со средами выполнения.
+    property bool updating: false
+    property string updatingId: "" // "" — всё
+    property string updateLine: ""
+    property int updateStep: 0
+    property int updateTotal: 0
+    function updateFlatpaks(ids) {
+        if (updating)
+            return;
+        lastError = "";
+        updatingId = ids && ids.length === 1 ? ids[0] : "";
+        updateTotal = ids && ids.length ? ids.length : Math.max(1, flatpakUpdatesAll.length);
+        updateStep = 0;
+        updateLine = "Готовлю обновление…";
+        updating = true;
+        updProc.command = ["sh", "-c", 'export LC_ALL=C; exec flatpak update -y --noninteractive "$@" 2>&1', "sh", ...(ids ?? [])];
+        updProc.running = true;
+    }
+    Process {
+        id: updProc
+        property string tail: ""
+        stdout: SplitParser {
+            onRead: line => {
+                const l = line.trim();
+                if (!l)
+                    return;
+                updProc.tail = l;
+                // «Updating 3/17…» в обычном режиме, «Updating app/…» в noninteractive
+                const m = l.match(/^(Updating|Installing)\s+(\d+)\/(\d+)/);
+                if (m) {
+                    root.updateStep = Number(m[2]);
+                    root.updateTotal = Number(m[3]);
+                } else if (/^(Updating|Installing)\b/.test(l))
+                    root.updateStep = Math.min(root.updateTotal, root.updateStep + 1);
+                const ref = l.match(/(?:app|runtime)\/([^/\s]+)/);
+                root.updateLine = ref ? "Обновляю " + (root.catalogById[ref[1]]?.name ?? ref[1]) : l.length < 120 ? l : root.updateLine;
+            }
+        }
+        onExited: code => {
+            root.updating = false;
+            root.updateLine = "";
+            if (code !== 0)
+                root.lastError = "Flatpak: " + updProc.tail;
+            else
+                root.log("Обновлено (Flatpak)", {
+                    id: root.updatingId || "всё",
+                    source: "flatpak"
+                });
+            root.refreshFlatpaks();
+        }
     }
     Process {
         id: flatList

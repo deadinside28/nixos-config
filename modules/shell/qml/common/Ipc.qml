@@ -136,6 +136,13 @@ Scope {
             else
                 Ui.toggle("record");
         }
+        // от pixel-record: запись началась / рекордер завершился
+        function started(): void {
+            Ui.recording = true;
+        }
+        function stopped(): void {
+            Ui.recording = false;
+        }
     }
     IpcHandler {
         target: "lens"

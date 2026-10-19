@@ -2,9 +2,12 @@
 # Flatpak держит их локально и обновляет сам:
 #   /var/lib/flatpak/appstream/<remote>/x86_64/active/appstream.xml.gz
 #   …/active/icons/128x128/<id>.png
-# Здесь они сводятся в один JSON для оболочки: название, описание и т. п. —
+# Здесь они сводятся в JSON для оболочки: название, описание и т. п. —
 # по-русски, если перевод есть, иначе как в источнике.
 #   python3 store-appstream.py ВЫХОД.json КАТАЛОГ_APPSTREAM…
+# ВЫХОД.json — лёгкий индекс для витрины и поиска (без описаний и
+# скриншотов): его оболочка держит в памяти целиком. Подробности каждого
+# приложения — ВЫХОД.json.d/<id>.json, читаются при открытии его страницы.
 # КАТАЛОГ — …/appstream/<remote>/<arch>/active; remote берётся из пути.
 import gzip
 import json
@@ -160,10 +163,33 @@ def main():
             if app and app["id"] not in seen:
                 seen.add(app["id"])
                 apps.append(app)
+    # что нужно витрине, карточкам и поиску; остальное — в подробностях
+    light = ("id", "remote", "name", "summary", "developer", "categories", "keywords", "icon", "version", "released", "verified")
+    details_dir = out_path + ".d"
+    tmp_dir = details_dir + ".tmp"
+    if os.path.isdir(tmp_dir):
+        for f in os.listdir(tmp_dir):
+            os.remove(os.path.join(tmp_dir, f))
+    else:
+        os.makedirs(tmp_dir)
+    for app in apps:
+        with open(os.path.join(tmp_dir, app["id"] + ".json"), "w", encoding="utf-8") as f:
+            json.dump(app, f, ensure_ascii=False, separators=(",", ":"))
     tmp = out_path + ".tmp"
     with open(tmp, "w", encoding="utf-8") as f:
-        json.dump({"apps": apps}, f, ensure_ascii=False, separators=(",", ":"))
+        # первый скриншот — для баннера на главной
+        index = [dict({k: a[k] for k in light}, shot=a["screenshots"][0]["thumb"] if a["screenshots"] else "") for a in apps]
+        json.dump({"apps": index}, f, ensure_ascii=False, separators=(",", ":"))
+    # сначала подробности, потом индекс: индекс не ссылается на то, чего нет
+    old_dir = details_dir + ".old"
+    if os.path.isdir(details_dir):
+        os.replace(details_dir, old_dir)
+    os.replace(tmp_dir, details_dir)
     os.replace(tmp, out_path)
+    if os.path.isdir(old_dir):
+        for f in os.listdir(old_dir):
+            os.remove(os.path.join(old_dir, f))
+        os.rmdir(old_dir)
     print(len(apps))
 
 

@@ -110,7 +110,13 @@ def main():
         # отказ или обрыв, в зависимости от того, что прочитал первым
         b.until(lambda e: e.get("ev") == "transfer" and e["state"] in ("Rejected", "Disconnected"), 30)
         assert not os.path.exists(os.path.join(root, "qsa/dl/привет мир (1).txt"))
-        print("OK: передача, согласие, отказ")
+        # доверенное устройство — приём без вопроса
+        a.cmd(cmd="trust", name="Отправитель", on=True)
+        a.until(lambda e: e.get("ev") == "hello" and "Отправитель" in e.get("trusted", []), 5)
+        b.cmd(cmd="send", device=dev["id"], files=[payload])
+        a.until(lambda e: e.get("ev") == "transfer" and e["state"] == "Finished", 30)
+        assert open(os.path.join(root, "qsa/state/pixel-quickshare/trusted")).read() == "Отправитель"
+        print("OK: передача, согласие, отказ, доверенное устройство")
     finally:
         for p in procs:
             p.terminate()

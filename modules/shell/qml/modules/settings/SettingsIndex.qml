@@ -27,6 +27,15 @@ Singleton {
             keywords: "bluetooth блютуз наушники геймпад мышь клавиатура сопряжение"
         },
         {
+            page: "quickshare",
+            file: "QuickSharePage",
+            icon: "share",
+            title: "Quick Share",
+            subtitle: "Обмен файлами с телефоном",
+            accent: 5,
+            keywords: "quick share nearby share обмен файлами телефон android отправить принять видимость доверенные устройства аккаунт google"
+        },
+        {
             page: "display",
             file: "DisplayPage",
             icon: "desktop_windows",

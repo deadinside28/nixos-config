@@ -206,7 +206,7 @@
   # Параметры (кадры, кодек, качество, папка) — из «Настройки → Экран».
   pixel-record = pkgs.writeShellApplication {
     name = "pixel-record";
-    runtimeInputs = with pkgs; [procps psmisc ffmpeg libnotify coreutils slurp jq hyprland];
+    runtimeInputs = with pkgs; [procps psmisc ffmpeg libnotify coreutils slurp jq hyprland] ++ [pixel-shell];
     excludeShellChecks = ["SC1091"];
     text = ''
       REC_FPS=60 REC_CODEC=av1 REC_QUALITY=very_high REC_CONTAINER=mp4 REC_CURSOR=yes REC_DIR="$HOME/Videos"
@@ -257,8 +257,14 @@
       mkdir -p "$REC_DIR"
       file="$REC_DIR/video_$(date +%F_%H-%M-%S).$REC_CONTAINER"
       echo "$file" > "$last"
-      gpu-screen-recorder "''${target[@]}" -f "$REC_FPS" "''${args[@]}" -k "$REC_CODEC" -q "$REC_QUALITY" \
-        -cursor "$REC_CURSOR" -c "$REC_CONTAINER" -o "$file" &
+      # оболочка узнаёт о записи отсюда, а не опросом pidof: «started» сразу,
+      # «stopped» — когда рекордер завершится (остановкой или сбоем)
+      (
+        gpu-screen-recorder "''${target[@]}" -f "$REC_FPS" "''${args[@]}" -k "$REC_CODEC" -q "$REC_QUALITY" \
+          -cursor "$REC_CURSOR" -c "$REC_CONTAINER" -o "$file" || true
+        pixel-shell record stopped >/dev/null 2>&1 || true
+      ) &
+      pixel-shell record started >/dev/null 2>&1 || true
       notify-send -a "Запись экрана" -i camera-video "Запись начата" "$what, $label · ''${REC_CODEC^^}, $REC_FPS кадров/с"
     '';
   };
@@ -481,7 +487,8 @@ in {
           brightnessctl
           hyprsunset
           mpvpaper # видеообои Wallpaper Engine
-          ffmpeg # кадры из видеообоев для превью и палитры
+          ffmpeg # кадры из видеообоев для превью и палитры; ffprobe — «Свойства»
+          exiv2 # EXIF снимков в «Свойствах»
           libarchive # bsdtar: архивы в «Файлах»
           ddcutil # яркость внешних мониторов
           xdg-utils

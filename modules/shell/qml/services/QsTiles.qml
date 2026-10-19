@@ -35,7 +35,8 @@ Singleton {
             icon: () => QuickShare.visibility === "hidden" ? "share_off" : "share",
             sub: () => QuickShare.visibilityLabel,
             active: () => QuickShare.available && QuickShare.visibility !== "hidden",
-            toggle: () => QuickShare.toggleVisible()
+            toggle: () => QuickShare.toggleVisible(),
+            details: () => Ui.openSettings("quickshare")
         },
         {
             id: "dnd",

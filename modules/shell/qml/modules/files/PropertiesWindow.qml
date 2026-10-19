@@ -77,35 +77,150 @@ ftype=%F' -- "$f" 2>/dev/null
             [ -L "$f" ] && echo "link=$(readlink -- "$f")"
             m=$(xdg-mime query filetype "$f" 2>/dev/null); echo "mime=$m"
             df -B1 --output=avail,size,target -- "$f" 2>/dev/null | tail -n 1 | awk '{print "free="$1; print "disk="$2; print "mount="$3}'
-            case "$m" in image/*|video/*|audio/*)
-                ffprobe -v error -show_entries format=duration,bit_rate:stream=codec_type,codec_name,width,height,sample_rate,channels,avg_frame_rate -of default=nw=1 -- "$f" 2>/dev/null | sed 's/^/ff_/' ;;
-            esac
             true`, "sh", win.path]
         stdout: StdioCollector {
             onStreamFinished: {
                 const o = {};
-                let stream = "";
                 for (const l of text.split("\n")) {
                     const i = l.indexOf("=");
-                    if (i < 0)
-                        continue;
-                    let k = l.slice(0, i);
-                    const v = l.slice(i + 1);
-                    // первый видео- и первый аудиопоток
-                    if (k === "ff_codec_type") {
-                        stream = v;
-                        continue;
-                    }
-                    if (k.startsWith("ff_") && k !== "ff_duration" && k !== "ff_bit_rate")
-                        k = "ff_" + stream + "_" + k.slice(3);
-                    if (!(k in o))
-                        o[k] = v;
+                    if (i > 0 && !(l.slice(0, i) in o))
+                        o[l.slice(0, i)] = l.slice(i + 1);
                 }
                 win.info = o;
                 win.syncPerms();
+                if (/^(image|video|audio)\//.test(o.mime ?? ""))
+                    mediaProc.running = true;
             }
         }
     }
+
+    // --- Медиа: контейнер, потоки и кодеки (ffprobe), снимок с камеры (exiv2) ---
+    property var media: null
+    Process {
+        id: mediaProc
+        command: ["sh", "-c", `
+            ffprobe -v error -of json -show_format -show_streams -- "$1" 2>/dev/null
+            echo "@@EXIF@@"
+            # exiv2 не знает «--» (принял бы его за файл); путь всегда абсолютный
+            case "$2" in image/*) LC_ALL=C exiv2 -q pr "$1" 2>/dev/null ;; esac
+            true`, "sh", win.path, win.mime]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const [ff, ex] = text.split("@@EXIF@@");
+                let j = {};
+                try {
+                    j = JSON.parse(ff);
+                } catch (e) {}
+                const exif = [];
+                for (const l of (ex ?? "").split("\n")) {
+                    const i = l.indexOf(":");
+                    if (i < 0)
+                        continue;
+                    const k = l.slice(0, i).trim(), v = l.slice(i + 1).trim();
+                    if (!v || !win.exifLabels[k])
+                        continue;
+                    // «2026:10:18 02:18:07» → дата по-русски; единицы — по-русски
+                    const t = v.match(/^(\d{4}):(\d{2}):(\d{2}) (\d{2}):(\d{2})/);
+                    const val = t ? new Date(+t[1], t[2] - 1, +t[3], +t[4], +t[5]).toLocaleString(Qt.locale("ru_RU"), "d MMMM yyyy, HH:mm") : v.replace(/ s$/, " с").replace(/ mm\b/g, " мм").replace(/35 mm equivalent/, "в пересчёте на 35 мм");
+                    exif.push([win.exifLabels[k], val]);
+                }
+                const streams = j.streams ?? [];
+                win.media = {
+                    format: j.format ?? {},
+                    video: streams.filter(x => x.codec_type === "video" && x.disposition?.attached_pic !== 1),
+                    cover: streams.some(x => x.disposition?.attached_pic === 1),
+                    audio: streams.filter(x => x.codec_type === "audio"),
+                    subs: streams.filter(x => x.codec_type === "subtitle"),
+                    exif
+                };
+            }
+        }
+    }
+    readonly property var exifLabels: ({
+            "Camera make": "Производитель",
+            "Camera model": "Камера",
+            "Image timestamp": "Снято",
+            "Exposure time": "Выдержка",
+            "Aperture": "Диафрагма",
+            "ISO speed": "ISO",
+            "Focal length": "Фокусное расстояние",
+            "Exposure bias": "Экспокоррекция",
+            "Flash": "Вспышка",
+            "Exposure mode": "Режим экспозиции",
+            "Metering mode": "Замер",
+            "White balance": "Баланс белого",
+            "Copyright": "Авторские права"
+        })
+    readonly property var codecNames: ({
+            h264: "H.264 (AVC)",
+            hevc: "H.265 (HEVC)",
+            av1: "AV1",
+            vp9: "VP9",
+            vp8: "VP8",
+            mpeg4: "MPEG-4 Part 2",
+            mpeg2video: "MPEG-2",
+            prores: "Apple ProRes",
+            theora: "Theora",
+            aac: "AAC",
+            opus: "Opus",
+            mp3: "MP3",
+            flac: "FLAC",
+            vorbis: "Vorbis",
+            ac3: "Dolby Digital (AC-3)",
+            eac3: "Dolby Digital Plus (E-AC-3)",
+            truehd: "Dolby TrueHD",
+            dts: "DTS",
+            alac: "Apple Lossless",
+            pcm_s16le: "PCM 16 бит",
+            pcm_s24le: "PCM 24 бит",
+            pcm_f32le: "PCM 32 бит (float)",
+            mjpeg: "JPEG",
+            png: "PNG",
+            webp: "WebP",
+            gif: "GIF",
+            bmp: "BMP",
+            tiff: "TIFF",
+            hevc_image: "HEIF",
+            jpegxl: "JPEG XL",
+            subrip: "SubRip (SRT)",
+            ass: "ASS/SSA",
+            mov_text: "MP4 Timed Text",
+            hdmv_pgs_subtitle: "PGS (Blu-ray)"
+        })
+    function codec(st) {
+        const n = codecNames[st.codec_name] ?? st.codec_long_name ?? st.codec_name ?? "";
+        return n + (st.profile && st.profile !== "unknown" && !/^\d+$/.test(st.profile) ? ", профиль " + st.profile : "");
+    }
+    function bitrate(b) {
+        const n = Number(b);
+        if (!n)
+            return "";
+        return n >= 1e6 ? (n / 1e6).toFixed(n >= 1e7 ? 0 : 1) + " Мбит/с" : Math.round(n / 1000) + " кбит/с";
+    }
+    function fps(r) {
+        const [a, b] = String(r ?? "").split("/").map(Number);
+        if (!a || !b)
+            return "";
+        const v = a / b;
+        return (Math.abs(v - Math.round(v)) < 0.01 ? Math.round(v) : v.toFixed(2)) + " кадр/с";
+    }
+    function channels(st) {
+        const l = st.channel_layout ?? "";
+        const named = ({
+                mono: "моно",
+                stereo: "стерео"
+            })[l];
+        return named ?? (l ? l.replace(/\(.*\)/, "") : st.channels ? st.channels + " кан." : "");
+    }
+    function hz(r) {
+        return r ? (Number(r) / 1000).toLocaleString(Qt.locale("ru_RU"), "f", Number(r) % 1000 ? 1 : 0) + " кГц" : "";
+    }
+    function join(parts) {
+        return parts.filter(x => x).join(" · ");
+    }
+    // Кратко для «Основного»
+    readonly property string videoLine: media && media.video.length ? join([media.video[0].width + " × " + media.video[0].height, codecNames[media.video[0].codec_name] ?? media.video[0].codec_name, fps(media.video[0].avg_frame_rate)]) : ""
+    readonly property string audioLine: media && media.audio.length ? join([codecNames[media.audio[0].codec_name] ?? media.audio[0].codec_name, channels(media.audio[0]), hz(media.audio[0].sample_rate)]) : ""
     // Размер и число вложенных объектов — для папок и нескольких файлов долго
     Process {
         id: countProc
@@ -235,6 +350,12 @@ ftype=%F' -- "$f" 2>/dev/null
                         value: "perms",
                         label: "Права"
                     },
+                    ...(win.media && (win.media.video.length || win.media.audio.length || win.media.exif.length) ? [
+                            {
+                                value: "media",
+                                label: "Медиа"
+                            }
+                        ] : []),
                     ...(win.multi || win.isDir ? [] : [
                             {
                                 value: "open",
@@ -292,29 +413,182 @@ ftype=%F' -- "$f" 2>/dev/null
                     title: "Создан"
                     value: win.date(win.info.btime)
                 }
-                // Медиа: размер картинки, длительность, кодеки
+                // Медиа кратко; подробно — вкладка «Медиа»
                 Prop {
-                    visible: (win.info.ff_video_width ?? "") !== ""
-                    icon: "aspect_ratio"
-                    title: win.mime.startsWith("image/") ? "Размер изображения" : "Видео"
-                    value: (win.info.ff_video_width ?? "") + " × " + (win.info.ff_video_height ?? "") + (win.mime.startsWith("video/") ? " · " + (win.info.ff_video_codec_name ?? "") : "")
+                    visible: win.videoLine !== ""
+                    icon: win.mime.startsWith("image/") ? "aspect_ratio" : "movie"
+                    title: win.mime.startsWith("image/") ? "Изображение" : "Видео"
+                    value: win.videoLine
                 }
                 Prop {
-                    visible: win.duration(win.info.ff_duration) !== "" && !win.mime.startsWith("image/")
+                    visible: win.duration(win.media?.format?.duration) !== "" && !win.mime.startsWith("image/")
                     icon: "schedule"
                     title: "Длительность"
-                    value: win.duration(win.info.ff_duration)
+                    value: win.duration(win.media?.format?.duration)
                 }
                 Prop {
-                    visible: (win.info.ff_audio_codec_name ?? "") !== ""
+                    visible: win.audioLine !== ""
                     icon: "graphic_eq"
                     title: "Звук"
-                    value: (win.info.ff_audio_codec_name ?? "") + (win.info.ff_audio_sample_rate ? " · " + Math.round(Number(win.info.ff_audio_sample_rate) / 100) / 10 + " кГц" : "") + (win.info.ff_audio_channels ? " · " + (win.info.ff_audio_channels === "2" ? "стерео" : win.info.ff_audio_channels === "1" ? "моно" : win.info.ff_audio_channels + " канала") : "")
+                    value: win.audioLine
                 }
                 Prop {
                     icon: "hard_drive"
                     title: "Свободно на диске"
                     value: win.info.free ? Files.humanSize(Number(win.info.free)) + " из " + Files.humanSize(Number(win.info.disk)) + " (" + win.info.mount + ")" : "—"
+                }
+            }
+
+            // --- Медиа ---
+            Group {
+                visible: win.tab === "media" && win.media !== null && !win.mime.startsWith("image/")
+                title: "Файл"
+                Prop {
+                    icon: "inventory_2"
+                    title: "Контейнер"
+                    value: win.media?.format?.format_long_name ?? ""
+                }
+                Prop {
+                    visible: value !== ""
+                    icon: "schedule"
+                    title: "Длительность"
+                    value: win.duration(win.media?.format?.duration)
+                }
+                Prop {
+                    visible: value !== ""
+                    icon: "speed"
+                    title: "Общий битрейт"
+                    value: win.bitrate(win.media?.format?.bit_rate)
+                }
+                Repeater {
+                    // название, исполнитель, альбом, год, кодировщик…
+                    model: {
+                        const t = win.media?.format?.tags ?? {};
+                        const names = {
+                            title: "Название",
+                            artist: "Исполнитель",
+                            album_artist: "Исполнитель альбома",
+                            album: "Альбом",
+                            date: "Год",
+                            genre: "Жанр",
+                            track: "Дорожка",
+                            comment: "Комментарий",
+                            encoder: "Кодировщик",
+                            creation_time: "Создано"
+                        };
+                        return Object.keys(t).filter(k => names[k.toLowerCase()]).map(k => [names[k.toLowerCase()], t[k]]);
+                    }
+                    Prop {
+                        required property var modelData
+                        icon: "label"
+                        title: modelData[0]
+                        value: modelData[1]
+                    }
+                }
+            }
+            Repeater {
+                model: win.tab === "media" ? win.media?.video ?? [] : []
+                Group {
+                    id: vg
+                    required property var modelData
+                    required property int index
+                    readonly property var st: modelData
+                    title: win.mime.startsWith("image/") ? "Изображение" : "Видео" + ((win.media?.video.length ?? 0) > 1 ? " " + (index + 1) : "")
+                    Prop {
+                        icon: "aspect_ratio"
+                        title: "Разрешение"
+                        value: vg.st.width + " × " + vg.st.height + (vg.st.display_aspect_ratio && vg.st.display_aspect_ratio !== "0:1" ? " (" + vg.st.display_aspect_ratio + ")" : "")
+                    }
+                    Prop {
+                        icon: "movie"
+                        title: "Кодек"
+                        value: win.codec(vg.st)
+                    }
+                    Prop {
+                        visible: value !== "" && !win.mime.startsWith("image/")
+                        icon: "slow_motion_video"
+                        title: "Частота кадров"
+                        value: win.fps(vg.st.avg_frame_rate)
+                    }
+                    Prop {
+                        visible: value !== ""
+                        icon: "speed"
+                        title: "Битрейт"
+                        value: win.bitrate(vg.st.bit_rate)
+                    }
+                    Prop {
+                        visible: value !== ""
+                        icon: "palette"
+                        title: "Цвет"
+                        value: win.join([vg.st.pix_fmt, vg.st.color_space, vg.st.color_transfer === "smpte2084" ? "HDR10 (PQ)" : vg.st.color_transfer === "arib-std-b67" ? "HLG" : "", vg.st.bits_per_raw_sample ? vg.st.bits_per_raw_sample + " бит" : ""])
+                    }
+                }
+            }
+            Repeater {
+                model: win.tab === "media" ? win.media?.audio ?? [] : []
+                Group {
+                    id: ag
+                    required property var modelData
+                    required property int index
+                    readonly property var st: modelData
+                    title: "Звук" + ((win.media?.audio.length ?? 0) > 1 ? " " + (index + 1) + (st.tags?.language ? " · " + st.tags.language : "") : "")
+                    Prop {
+                        icon: "graphic_eq"
+                        title: "Кодек"
+                        value: win.codec(ag.st)
+                    }
+                    Prop {
+                        icon: "surround_sound"
+                        title: "Каналы"
+                        value: win.channels(ag.st)
+                    }
+                    Prop {
+                        visible: value !== ""
+                        icon: "waves"
+                        title: "Частота дискретизации"
+                        value: win.hz(ag.st.sample_rate)
+                    }
+                    Prop {
+                        visible: value !== ""
+                        icon: "speed"
+                        title: "Битрейт"
+                        value: win.bitrate(ag.st.bit_rate)
+                    }
+                }
+            }
+            Group {
+                visible: win.tab === "media" && (win.media?.subs.length ?? 0) > 0
+                title: "Субтитры"
+                Repeater {
+                    model: win.media?.subs ?? []
+                    Prop {
+                        required property var modelData
+                        icon: "subtitles"
+                        title: modelData.tags?.title || modelData.tags?.language || "Дорожка"
+                        value: win.codec(modelData)
+                    }
+                }
+            }
+            Group {
+                visible: win.tab === "media" && (win.media?.exif.length ?? 0) > 0
+                title: "Снимок"
+                Repeater {
+                    model: win.media?.exif ?? []
+                    Prop {
+                        required property var modelData
+                        icon: ({
+                                "Производитель": "factory",
+                                "Камера": "photo_camera",
+                                "Снято": "event",
+                                "Выдержка": "shutter_speed",
+                                "Диафрагма": "camera",
+                                "ISO": "iso",
+                                "Фокусное расстояние": "center_focus_strong",
+                                "Вспышка": "flash_on"
+                            })[modelData[0]] ?? "info"
+                        title: modelData[0]
+                        value: modelData[1]
+                    }
                 }
             }
 

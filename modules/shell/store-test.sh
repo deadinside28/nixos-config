@@ -106,9 +106,10 @@ export PIXEL_APPSTREAM_DIRS="$as" PIXEL_APPSTREAM_PY="$(dirname "$script")/store
 run catalog
 cat_json=$(printf '%s' "$out" | cut -f2)
 check "каталог: два приложения, без среды выполнения" '[[ $out == catalog*2 ]] && [ "$(jq -r ".apps | map(.id) | join(\",\")" "$cat_json")" = "org.gnome.Calculator,com.example.Plain" ]'
-check "каталог: русские название и описание, версия, проверено" '[ "$(jq -r ".apps[0] | [.name, .summary, .description, .version, .verified] | @tsv" "$cat_json")" = "$(printf "Калькулятор\tВычисления\tРешает.\\\\n\\\\n• Обычный\t47\ttrue")" ]'
+check "каталог: русские название и кратко, версия, проверено; без описаний" '[ "$(jq -r ".apps[0] | [.name, .summary, .version, .verified, (.description == null)] | @tsv" "$cat_json")" = "$(printf "Калькулятор\tВычисления\t47\ttrue\ttrue")" ]'
+check "подробности: русское описание по пунктам" '[ "$(jq -r .description "$cat_json.d/org.gnome.Calculator.json")" = "$(printf "Решает.\n\n• Обычный")" ]'
 check "каталог: абсолютный путь к значку" '[[ $(jq -r ".apps[0].icon" "$cat_json") == /*128x128/org.gnome.Calculator.png ]]'
-check "каталог: отдельный русский description, скриншот" '[ "$(jq -r ".apps[1].description" "$cat_json")" = "Отдельно." ] && [ "$(jq -r ".apps[0].screenshots[0].thumb" "$cat_json")" = "https://x/752.png" ]'
+check "подробности: отдельный русский description, скриншот" '[ "$(jq -r .description "$cat_json.d/com.example.Plain.json")" = "Отдельно." ] && [ "$(jq -r ".screenshots[0].thumb" "$cat_json.d/org.gnome.Calculator.json")" = "https://x/752.png" ]'
 before=$(stat -c %Y "$cat_json")
 sleep 1
 run catalog

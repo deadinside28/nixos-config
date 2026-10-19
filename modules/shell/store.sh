@@ -16,6 +16,7 @@
 #   flatpak-search ЗАПРОС — «flatpak<TAB>id<TAB>версия<TAB>описание<TAB>название<TAB>remote»
 #   flatpak-installed     — id установленных приложений Flatpak
 #   flatpak-updates       — id приложений Flatpak с доступным обновлением
+#   flatpak-updates-all   — то же вместе со средами выполнения и расширениями
 #   catalog               — каталог Flathub из локального AppStream (JSON),
 #                           пересобирается, когда Flatpak обновил AppStream:
 #                           «catalog<TAB>путь<TAB>число приложений»
@@ -179,6 +180,7 @@ case "$cmd" in
     flatpak-search) flatpak_search "${1:-}" ;;
     flatpak-installed) flatpak list --app --columns=application 2>/dev/null || true ;;
     flatpak-updates) flatpak remote-ls --updates --app --columns=application 2>/dev/null || true ;;
+    flatpak-updates-all) flatpak remote-ls --updates --columns=application 2>/dev/null || true ;;
     catalog) catalog ;;
     featured) featured ;;
     nix-info) nix_info "$@" ;;

@@ -44,20 +44,22 @@ Item {
         return "";
     }
 
-    // Подложка выбранной формы
-    Shape {
-        id: plate
-        visible: root.plated
-        width: 100
-        height: 100
-        scale: root.width / 100
-        transformOrigin: Item.TopLeft
-        preferredRendererType: Shape.CurveRenderer
-        ShapePath {
-            fillColor: IconStyle.bgFor(root.role, root.look)
-            strokeWidth: -1
-            PathPolyline {
-                path: root.plated ? IconStyle.points(root.shape) : []
+    // Подложка выбранной формы — только если значки «в форме»: фигура с
+    // CurveRenderer держит геометрию, даже невидимая
+    Loader {
+        active: root.plated
+        sourceComponent: Shape {
+            width: 100
+            height: 100
+            scale: root.width / 100
+            transformOrigin: Item.TopLeft
+            preferredRendererType: Shape.CurveRenderer
+            ShapePath {
+                fillColor: IconStyle.bgFor(root.role, root.look)
+                strokeWidth: -1
+                PathPolyline {
+                    path: IconStyle.points(root.shape)
+                }
             }
         }
     }
@@ -75,22 +77,29 @@ Item {
 
     // Тематический: от значка остаётся символ в цвете темы (шейдер
     // shaders/themed-icon.frag, собирается Nix). Мип-уровни нужны шейдеру,
-    // чтобы понять, есть ли у значка своя подложка.
-    ShaderEffectSource {
-        id: tex
-        sourceItem: root.look === "themed" ? img : null
-        hideSource: root.look === "themed"
-        mipmap: true
-        smooth: true
-        textureSize: Qt.size(128, 128)
-        visible: false
-    }
-    ShaderEffect {
+    // чтобы понять, есть ли у значка своя подложка. Текстура и шейдер
+    // создаются только в этом режиме.
+    Loader {
         anchors.fill: img
-        visible: root.look === "themed" && img.visible
-        property var source: tex
-        property color tint: IconStyle.fgFor(root.role)
-        fragmentShader: Qt.resolvedUrl("../shaders/themed-icon.frag.qsb")
+        active: root.look === "themed"
+        sourceComponent: Item {
+            ShaderEffectSource {
+                id: tex
+                sourceItem: img
+                hideSource: true
+                mipmap: true
+                smooth: true
+                textureSize: Qt.size(128, 128)
+                visible: false
+            }
+            ShaderEffect {
+                anchors.fill: parent
+                visible: img.visible
+                property var source: tex
+                property color tint: IconStyle.fgFor(root.role)
+                fragmentShader: Qt.resolvedUrl("../shaders/themed-icon.frag.qsb")
+            }
+        }
     }
 
     // Значка нет в теме — буква-заглушка на подложке

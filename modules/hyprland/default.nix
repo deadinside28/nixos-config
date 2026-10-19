@@ -45,12 +45,15 @@
   # программ. ~/nixos-config — тем более: запись в flake из песочницы
   # означала бы root при следующей пересборке.
   #
-  # Рабочие папки (Загрузки, Документы, ~/Games…) пока открыты всем —
-  # TODO: раздать их конкретным приложениям, которым они нужны.
+  # Рабочие папки (Загрузки, Документы…) и всё, где лежат игры, открыты
+  # всем: эмулятор или лаунчер из Flatpak должен видеть игру на любом
+  # диске, а раздавать это по приложениям неудобно. Диски — /mnt (второй
+  # SSD /mnt/GAMES, hosts/*/disks.nix), /media и /run/media (подключённые
+  # из «Памяти» и флешки).
   xdg.dataFile."flatpak/overrides/global".text = ''
     [Context]
     devices=dri;
-    filesystems=/run/current-system/sw/share/themes:ro;/run/current-system/sw/share/icons:ro;/run/current-system/sw/share/X11/fonts:ro;~/.icons:ro;~/.themes:ro;xdg-data/icons:ro;xdg-data/themes:ro;xdg-data/fonts:ro;xdg-config/gtk-4.0:ro;xdg-config/gtk-3.0:ro;xdg-config/fontconfig:ro;xdg-config/qt5ct:ro;xdg-config/qt6ct:ro;xdg-config/Kvantum:ro;xdg-config/MangoHud:ro;/nix/store:ro;~/.var/app/com.valvesoftware.Steam/.local/share/Steam/userdata:ro;xdg-desktop;xdg-documents;xdg-download;xdg-music;xdg-pictures;xdg-public-share;xdg-templates;xdg-videos;~/AppImages;~/Games;~/winboat;~/work;
+    filesystems=/run/current-system/sw/share/themes:ro;/run/current-system/sw/share/icons:ro;/run/current-system/sw/share/X11/fonts:ro;~/.icons:ro;~/.themes:ro;xdg-data/icons:ro;xdg-data/themes:ro;xdg-data/fonts:ro;xdg-config/gtk-4.0:ro;xdg-config/gtk-3.0:ro;xdg-config/fontconfig:ro;xdg-config/qt5ct:ro;xdg-config/qt6ct:ro;xdg-config/Kvantum:ro;xdg-config/MangoHud:ro;/nix/store:ro;~/.var/app/com.valvesoftware.Steam/.local/share/Steam/userdata:ro;xdg-desktop;xdg-documents;xdg-download;xdg-music;xdg-pictures;xdg-public-share;xdg-templates;xdg-videos;~/AppImages;~/Games;~/winboat;/mnt;/media;/run/media;
 
     [Environment]
     MANGOHUD=1

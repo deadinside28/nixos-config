@@ -17,6 +17,7 @@ Singleton {
     readonly property bool available: sock.connected
     property string name: ""
     property string visibility: "hidden" // visible | hidden | temporary
+    property var trusted: [] // имена устройств, от которых приём без вопроса
     property var devices: [] // [{id, name, type, ble}]
     property var transfers: ({}) // id → {direction, state, device, files, total, done, …}
     property string lastError: ""
@@ -60,6 +61,20 @@ Singleton {
             files: files
         });
     }
+    function trust(device, on) {
+        cmd({
+            cmd: "trust",
+            name: device,
+            on: on
+        });
+    }
+    // Служба сохранит имя и перезапустится
+    function rename(n) {
+        cmd({
+            cmd: "rename",
+            name: n
+        });
+    }
     function accept(id) {
         cmd({
             cmd: "accept",
@@ -97,6 +112,7 @@ Singleton {
         case "hello":
             name = ev.name;
             visibility = ev.visibility;
+            trusted = ev.trusted ?? [];
             break;
         case "device":
             devices = [...devices.filter(d => d.id !== ev.id), ev].sort((a, b) => a.name.localeCompare(b.name));

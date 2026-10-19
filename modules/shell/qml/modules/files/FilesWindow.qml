@@ -1539,12 +1539,13 @@ FloatingWindow {
             onStatusChanged: if (status === Image.Error && th.key)
                 Thumbs.make(th.item.path, th.key)
         }
-        AppIcon {
+        FileIcon {
             anchors.centerIn: parent
             visible: !thImg.visible
-            styled: false
             size: th.iconSize
-            icon: Files.iconFor(th.item.name, th.item.path, th.item.isDir)
+            name: th.item.name
+            path: th.item.path
+            isDir: th.item.isDir
         }
         Rectangle {
             visible: th.kind === "video" && thImg.visible
