@@ -159,6 +159,134 @@ Singleton {
         }
     }
 
+    // --- Кеш по программам («Память → Кеш») -----------------------------------
+    // [{ path, size, name, icon, flatpak }] — по убыванию размера
+    property var caches: []
+    property var cachesAcc: []
+    readonly property bool cachesLoading: cachesProc.running
+    function refreshCaches() {
+        if (cachesProc.running)
+            return;
+        cachesAcc = [];
+        cachesProc.running = true;
+    }
+    // ~/.cache/<имя> или ~/.var/app/<ID>/cache → приложение
+    function cacheOwner(path) {
+        const fp = path.match(/\/\.var\/app\/([^/]+)\/cache$/);
+        const key = fp ? fp[1] : path.split("/").pop();
+        const e = DesktopEntries.byId(key) ?? (fp ? null : DesktopEntries.heuristicLookup(key.replace(/^\./, "")));
+        // имя каталога похоже на приложение, только если правда совпадает
+        const ok = e && (fp || (e.id + " " + e.name + " " + (e.startupClass ?? "")).toLowerCase().includes(key.toLowerCase().replace(/^\./, "")));
+        return {
+            name: ok ? e.name : key,
+            icon: ok ? e.icon : (fp ? "application-x-executable" : ""),
+            flatpak: fp ? fp[1] : ""
+        };
+    }
+    Process {
+        id: cachesProc
+        command: [Nix.storage, "caches"]
+        stdout: SplitParser {
+            onRead: line => {
+                const f = line.split("\t");
+                if (f[0] !== "cache")
+                    return;
+                root.cachesAcc.push(Object.assign({
+                    path: f[1],
+                    size: Number(f[2])
+                }, root.cacheOwner(f[1])));
+            }
+        }
+        onRunningChanged: if (!running)
+            root.caches = root.cachesAcc.slice().sort((a, b) => b.size - a.size)
+    }
+    // Очистить кеш выбранных путей (содержимое каталога или сам файл)
+    property bool cleaningCache: false
+    function cleanCaches(items) {
+        if (cleaningCache || !items.length)
+            return;
+        lastError = "";
+        lastDone = "";
+        cleaningCache = true;
+        // Flatpak можно проверить на запущенность — по одному
+        const fp = items.length === 1 && items[0].flatpak ? ["--flatpak", items[0].flatpak] : [];
+        cacheCleanProc.command = [Nix.storage, "clean", "cache", ...fp, "--", ...items.map(i => i.path)];
+        cacheCleanProc.running = true;
+    }
+    Process {
+        id: cacheCleanProc
+        stderr: StdioCollector {
+            id: cacheCleanErr
+        }
+        onExited: code => {
+            root.lastError = code === 0 ? "" : cacheCleanErr.text.trim().split("\n").pop();
+            root.lastDone = code === 0 ? "Кеш очищен" : "";
+            root.cleaningCache = false;
+            root.refreshCaches();
+        }
+    }
+
+    // --- Диски -------------------------------------------------------------------
+    // Все накопители и разделы (lsblk): размер, занято, куда смонтирован.
+    // [{ name, model, size, removable, transport, parts: [{ path, label, fstype, size, used, avail, mount }] }]
+    property var disks: []
+    function refreshDisks() {
+        disksProc.running = true;
+    }
+    function mountPart(part) {
+        Quickshell.execDetached(["sh", "-c", 'udisksctl mount -b "$1" >/dev/null 2>&1; true', "sh", part.path]);
+        disksTimer.restart();
+    }
+    function unmountPart(part) {
+        Quickshell.execDetached(["sh", "-c", 'udisksctl unmount -b "$1" >/dev/null 2>&1; true', "sh", part.path]);
+        disksTimer.restart();
+    }
+    Timer {
+        id: disksTimer
+        interval: 1500
+        onTriggered: root.refreshDisks()
+    }
+    Process {
+        id: disksProc
+        command: ["lsblk", "-J", "-b", "-o", "NAME,PATH,TYPE,SIZE,MODEL,RM,TRAN,LABEL,FSTYPE,FSUSED,FSAVAIL,MOUNTPOINTS"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                let j;
+                try {
+                    j = JSON.parse(text);
+                } catch (e) {
+                    return;
+                }
+                const mount = d => (d.mountpoints ?? []).filter(m => m)[0] ?? "";
+                const flat = (n, out) => {
+                    // разделы, LUKS и LVM внутри — всё, где есть файловая система
+                    if (n.fstype && n.fstype !== "swap" && !["crypto_LUKS", "LVM2_member"].includes(n.fstype) || n.type === "part" && !n.children)
+                        out.push({
+                            path: n.path,
+                            label: n.label ?? "",
+                            fstype: n.fstype ?? "",
+                            size: Number(n.size ?? 0),
+                            used: Number(n.fsused ?? 0),
+                            avail: Number(n.fsavail ?? 0),
+                            mount: mount(n),
+                            swap: n.fstype === "swap"
+                        });
+                    for (const c of n.children ?? [])
+                        flat(c, out);
+                    return out;
+                };
+                root.disks = (j.blockdevices ?? []).filter(d => d.type === "disk" && Number(d.size) > 0 && !/^(zram|loop)/.test(d.name)).map(d => ({
+                            name: d.name,
+                            model: (d.model ?? "").trim(),
+                            size: Number(d.size),
+                            removable: d.rm === true || d.rm === "1" || d.tran === "usb",
+                            transport: d.tran ?? "",
+                            parts: flat(d, []).filter(p => p.fstype !== "swap")
+                        }));
+            }
+        }
+    }
+
     // --- Действия -----------------------------------------------------------------
     property string busyId: ""
     property string lastError: ""

@@ -153,6 +153,10 @@ Scope {
         function open(path: string): void {
             Files.open(path);
         }
+        // pixel-shell files properties <путь> — окно «Свойства»
+        function properties(path: string): void {
+            Files.properties([path]);
+        }
     }
     IpcHandler {
         target: "archive"

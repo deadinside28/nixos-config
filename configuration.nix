@@ -13,7 +13,7 @@
     ./modules/system/packages.nix
     ./modules/system/nix-ld.nix
     ./modules/system/appimage.nix
-    ./modules/system/nemo.nix
+    ./modules/system/appimage-menu.nix
     ./modules/system/users.nix
     ./modules/system/gui-settings.nix
     ./modules/system/wine-portal.nix

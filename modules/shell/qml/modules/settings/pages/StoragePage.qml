@@ -9,11 +9,17 @@ import Pixel.MD3E
 // «Память»: место на диске. Подсчёт — services/Storage.qml.
 SettingsPage {
     id: page
-    title: "Память"
-    description: "Чем занят диск: приложения, их данные и кеш, система и твои файлы. Это место на диске, а не оперативная память."
+    title: sub === "cache" ? "Кеш" : "Память"
+    description: sub === "cache" ? "Временные файлы программ. Их можно удалять: программа создаст нужное заново. Открытое приложение лучше сначала закрыть." : "Чем занят диск: приложения, их данные и кеш, система и твои файлы. Это место на диске, а не оперативная память."
 
-    Component.onCompleted: if (Storage.measuredAt.getTime() === 0)
-        Storage.refresh()
+    // "" — обзор, "cache" — кеш по программам
+    property string sub: ""
+
+    Component.onCompleted: {
+        if (Storage.measuredAt.getTime() === 0)
+            Storage.refresh();
+        Storage.refreshDisks();
+    }
 
     readonly property var ov: Storage.overview
     readonly property real total: ov.disk?.[0] ?? 0
@@ -32,6 +38,7 @@ SettingsPage {
 
     // --- Диск ---------------------------------------------------------------
     Rectangle {
+        visible: page.sub === ""
         Layout.fillWidth: true
         implicitHeight: diskCol.implicitHeight + 40
         radius: Theme.radius.xl
@@ -71,8 +78,101 @@ SettingsPage {
         }
     }
 
+    // --- Все диски -------------------------------------------------------------
+    Repeater {
+        model: page.sub === "" ? Storage.disks : []
+        Group {
+            id: disk
+            required property var modelData
+            title: (modelData.model || modelData.name) + " · " + Files.humanSize(modelData.size) + (modelData.removable ? " · съёмный" : "")
+            Repeater {
+                model: disk.modelData.parts
+                ListItem {
+                    required property var modelData
+                    readonly property var part: modelData
+                    icon: part.mount === "/" ? "hard_drive" : disk.modelData.removable ? "usb" : part.mount ? "storage" : "hard_drive_2"
+                    title: part.label || (part.mount === "/" ? "Система" : part.mount === Settings.home ? "Домашняя папка" : part.path.replace("/dev/", ""))
+                    subtitle: (part.mount ? "Занято " + Files.humanSize(part.used) + " из " + Files.humanSize(part.size) + ", свободно " + Files.humanSize(part.avail) : Files.humanSize(part.size) + " · не подключён") + (part.fstype ? " · " + part.fstype : "") + (part.mount ? " · " + part.mount : "")
+                    clickable: part.mount !== ""
+                    onClicked: Files.open(part.mount)
+                    Button {
+                        visible: !part.mount && part.fstype !== "" && part.fstype !== "crypto_LUKS"
+                        variant: "tonal"
+                        text: "Подключить"
+                        onClicked: Storage.mountPart(part)
+                    }
+                    Button {
+                        visible: part.mount !== "" && !["/", "/boot", "/nix", "/home"].includes(part.mount) && !part.mount.startsWith("/nix/")
+                        variant: "text"
+                        text: "Отключить"
+                        onClicked: Storage.unmountPart(part)
+                    }
+                }
+            }
+        }
+    }
+
+    // --- Кеш по программам (page.sub === "cache") ---------------------------------
+    RowLayout {
+        visible: page.sub === "cache"
+        Layout.fillWidth: true
+        spacing: 8
+        IconButton {
+            icon: "arrow_back"
+            tooltip: "К обзору"
+            onClicked: page.sub = ""
+        }
+        MText {
+            Layout.fillWidth: true
+            text: Storage.cachesLoading ? "Считаю…" : "Всего " + Files.humanSize(Storage.caches.reduce((a, c) => a + c.size, 0)) + " в " + Storage.caches.length + " местах"
+            size: Theme.type.titleM
+        }
+        Button {
+            variant: "tonal"
+            icon: "mop"
+            text: "Очистить всё"
+            disabled: Storage.cleaningCache || Storage.caches.length === 0
+            onClicked: Storage.cleanCaches(Storage.caches)
+        }
+    }
+    MText {
+        visible: page.sub === "cache" && (Storage.lastError !== "" || Storage.lastDone !== "")
+        Layout.fillWidth: true
+        Layout.leftMargin: 20
+        wrapMode: Text.WordWrap
+        color: Storage.lastError ? Theme.error : Theme.primary
+        text: Storage.lastError || Storage.lastDone
+    }
+    Group {
+        visible: page.sub === "cache"
+        Repeater {
+            model: page.sub === "cache" ? Storage.caches.filter(c => c.size > 0) : []
+            AppListItem {
+                required property var modelData
+                appIcon: modelData.icon
+                icon: modelData.icon ? "" : "folder"
+                title: modelData.name
+                subtitle: Files.humanSize(modelData.size) + " · " + modelData.path.replace(Settings.home, "~")
+                onClicked: Files.open(modelData.path)
+                Button {
+                    variant: "text"
+                    text: "Очистить"
+                    disabled: Storage.cleaningCache
+                    onClicked: Storage.cleanCaches([modelData])
+                }
+            }
+        }
+        ListItem {
+            visible: !Storage.cachesLoading && Storage.caches.every(c => c.size === 0)
+            icon: "check_circle"
+            title: "Кеш пуст"
+            clickable: false
+        }
+    }
+
     // --- Категории ------------------------------------------------------------
     Group {
+        visible: page.sub === ""
         title: "По категориям"
         ListItem {
             first: true
@@ -110,7 +210,10 @@ SettingsPage {
             icon: "cached"
             title: "Кеш"
             subtitle: page.size(page.ov.cache?.[0] ?? 0) + " в ~/.cache — программы создадут его заново"
-            onClicked: Files.open(Settings.home + "/.cache")
+            onClicked: {
+                page.sub = "cache";
+                Storage.refreshCaches();
+            }
             chevron: true
         }
         ListItem {
@@ -142,6 +245,7 @@ SettingsPage {
     }
 
     MText {
+        visible: page.sub === ""
         Layout.fillWidth: true
         Layout.leftMargin: 20
         Layout.rightMargin: 20
@@ -153,6 +257,7 @@ SettingsPage {
 
     // --- Приложения ---------------------------------------------------------------
     Group {
+        visible: page.sub === ""
         title: "Приложения"
         TextField {
             Layout.fillWidth: true

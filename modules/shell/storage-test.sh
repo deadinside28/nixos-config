@@ -48,6 +48,17 @@ st() {
     err=$(cat "$work/err")
 }
 
+# --- caches ---------------------------------------------------------------
+mkdir -p "$HOME/.cache/chrome/Cache" "$HOME/.var/app/org.Some.App/cache" "$HOME/.cache/.hidden"
+head -c 5000 /dev/zero >"$HOME/.cache/chrome/Cache/data"
+echo x >"$HOME/.cache/loose-file"
+echo x >"$HOME/.var/app/org.Some.App/cache/c"
+out=$(bash "$script" caches)
+check "кеш: каталоги, скрытые, файлы и Flatpak" '[[ $out == *"cache	$HOME/.cache/chrome	"[1-9]* && $out == *"cache	$HOME/.cache/.hidden	"* && $out == *"cache	$HOME/.cache/loose-file	"* && $out == *"cache	$HOME/.var/app/org.Some.App/cache	"* && $out == *done ]]'
+st clean cache -- "$HOME/.cache/loose-file"
+check "кеш-файл удалён" '[ $rc -eq 0 ] && [ ! -e "$HOME/.cache/loose-file" ]'
+rm -rf "$HOME/.cache/chrome" "$HOME/.cache/.hidden" "$HOME/.var/app/org.Some.App/cache"
+
 # --- clean ----------------------------------------------------------------
 mkdir -p "$HOME/.cache/app/sub" "$HOME/.config/app" "$HOME/Documents"
 echo x >"$HOME/.cache/app/sub/f"

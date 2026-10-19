@@ -156,6 +156,7 @@ Singleton {
 
             // Уведомления
             property bool dnd: false
+            property string btAdapter: "" // hci0, hci1… — какой адаптер Bluetooth использовать
             property bool notifPopups: true
             property int notifTimeout: 6000
             property string notifPosition: "auto" // auto | top-right | top-left | bottom-right | bottom-left | top

@@ -51,13 +51,24 @@ PanelWindow {
         onTriggered: root.ready = true
     }
 
+    // Смена устройства вывода (подключились наушники) меняет громкость и
+    // mute сама по себе — это не повод показывать индикатор
+    Timer {
+        id: sinkSwitch
+        interval: 600
+    }
     Connections {
         target: Audio
+        function onSinkChanged() {
+            sinkSwitch.restart();
+        }
         function onVolumeChanged() {
-            root.show("volume");
+            if (!sinkSwitch.running)
+                root.show("volume");
         }
         function onMutedChanged() {
-            root.show("volume");
+            if (!sinkSwitch.running)
+                root.show("volume");
         }
     }
     Connections {

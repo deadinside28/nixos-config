@@ -65,6 +65,24 @@ SettingsPage {
         }
     }
 
+    // Профиль карты: HDMI или аналоговый выход, A2DP или гарнитура
+    Group {
+        title: "Профили устройств"
+        visible: Audio.cards.length > 0
+        Repeater {
+            model: Audio.cards
+            ChoiceItem {
+                required property var modelData
+                icon: /hdmi|displayport/i.test(modelData.name) ? "tv" : /bluetooth|headset|наушник/i.test(modelData.name) ? "headphones" : "speaker_group"
+                title: modelData.name
+                options: modelData.profiles
+                current: modelData.current
+                onSelected: v => Audio.setProfile(modelData, v)
+            }
+        }
+    }
+    Component.onCompleted: Audio.refreshCards()
+
     Group {
         title: "Громкость приложений"
 

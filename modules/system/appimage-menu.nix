@@ -1,11 +1,8 @@
-# Файловый менеджер Nemo (вместо Nautilus) + пункты контекстного меню
-# «Добавить в меню приложений» / «Убрать из меню» для AppImage.
+# AppImage в меню приложений: «Файлы → Добавить в меню приложений» на
+# образе вызывает appimage-menu-add, «Убрать из меню» — appimage-menu-remove.
+# Раньше это было расширением Nemo; Nemo убран — его заменяют «Файлы».
 #
-# Почему Nemo: две панели (F3), вкладки, больше настроек, свои действия
-# в меню, быстрый просмотр по пробелу (nemo-preview). Он на GTK3, поэтому
-# adw-gtk3 и оболочка (matugen) красят его так же, как остальные приложения.
-#
-# Ярлык AppImage генерируется САМ, без Gear Lever. Что важно:
+# Ярлык генерируется САМ, без Gear Lever. Что важно:
 #   • образ остаётся там, где лежит — никаких копий и переносов;
 #   • Exec идёт через шим appimage-run (см. modules/system/appimage.nix).
 #     Образ исполняется сам и шим его не распаковывает — он только
@@ -15,12 +12,6 @@
 #     внутри образа, иконка — оттуда же;
 #   • ничего не распаковывается: образ монтируется своим рантаймом
 #     через FUSE, из него копируются два файла, и он размонтируется.
-#
-# Как Nemo находит расширение: nemo-with-extensions собирает nemo вместе
-# со списком расширений и оборачивает его бинарники и D-Bus-сервисы
-# переменными NEMO_EXTENSION_DIR / NEMO_PYTHON_EXTENSION_DIR. Поэтому, в
-# отличие от Nautilus, никаких переменных окружения руками не нужно:
-# достаточно положить пакет с share/nemo-python/extensions/*.py в extensions.
 {pkgs, ...}: let
   binPath = pkgs.lib.makeBinPath (with pkgs; [
     coreutils
@@ -49,7 +40,7 @@
     }
   '';
 
-  integrate = pkgs.writeShellScript "appimage-menu-add" ''
+  integrate = pkgs.writeShellScriptBin "appimage-menu-add" ''
     set -u
     ${common}
 
@@ -235,7 +226,7 @@
     fi
   '';
 
-  remove = pkgs.writeShellScript "appimage-menu-remove" ''
+  remove = pkgs.writeShellScriptBin "appimage-menu-remove" ''
     set -u
     ${common}
 
@@ -252,134 +243,13 @@
     notify-send -i user-trash "AppImage" "Убрано из меню: $n"
   '';
 
-  extension = pkgs.writeTextFile {
-    name = "nemo-appimage-extension";
-    destination = "/share/nemo-python/extensions/appimage-menu.py";
-    text = ''
-      # Пункты контекстного меню Nemo для AppImage.
-      # Сгенерировано из modules/system/nemo.nix
-
-      import os
-      import subprocess
-
-      import gi
-
-      # nemo-python загружает namespace Nemo до импорта расширений; если
-      # версия уже выбрана хостом, повторный запрос бросает ValueError.
-      try:
-          gi.require_version("Nemo", "3.0")
-      except ValueError:
-          pass
-
-      from gi.repository import GObject, Nemo
-
-      ADD = "${integrate}"
-      REMOVE = "${remove}"
-
-      APPIMAGE_MIMES = frozenset((
-          "application/vnd.appimage",
-          "application/x-iso9660-appimage",
-          "application/x-appimage",
-      ))
-
-
-      def _has_ai_signature(path):
-          # Часть образов раздаётся без расширения, а определения MIME-типа
-          # для AppImage в системе может не быть. Тогда смотрим сами:
-          # ELF-заголовок плюс маркер AI в байтах 8-9.
-          try:
-              if not os.access(path, os.X_OK):
-                  return False
-              with open(path, "rb") as handle:
-                  head = handle.read(11)
-          except OSError:
-              return False
-
-          return head[:4] == b"\x7fELF" and head[8:10] == b"AI"
-
-
-      def _appimage_paths(files):
-          paths = []
-
-          for item in files:
-              try:
-                  if item.get_uri_scheme() != "file" or item.is_directory():
-                      continue
-
-                  location = item.get_location()
-                  if location is None:
-                      continue
-
-                  path = location.get_path()
-                  if not path:
-                      continue
-
-                  matched = (
-                      item.get_name().lower().endswith(".appimage")
-                      or item.get_mime_type() in APPIMAGE_MIMES
-                      or _has_ai_signature(path)
-                  )
-                  if matched:
-                      paths.append(path)
-              except Exception:
-                  continue
-
-          return paths
-
-
-      class AppImageMenuProvider(GObject.GObject, Nemo.MenuProvider):
-          # В Nemo сигнатура get_file_items(window, files). *args с последним
-          # аргументом — на случай, если в будущей версии window уберут,
-          # как это сделали в Nautilus 4.
-          def get_file_items(self, *args):
-              files = args[-1] if args else []
-              paths = _appimage_paths(files)
-
-              if not paths:
-                  return []
-
-              add = Nemo.MenuItem(
-                  name="AppImage::add",
-                  label="Добавить в меню приложений",
-                  tip="Создать ярлык с иконкой и описанием из образа",
-              )
-              add.connect("activate", self._run, ADD, paths)
-
-              rm = Nemo.MenuItem(
-                  name="AppImage::remove",
-                  label="Убрать из меню приложений",
-                  tip="Удалить ярлык и иконку. Сам образ останется на месте",
-              )
-              rm.connect("activate", self._run, REMOVE, paths)
-
-              return [add, rm]
-
-          def _run(self, menu_item, script, paths):
-              subprocess.Popen([script] + paths)
-    '';
-  };
-
-  # Nemo со стандартным набором расширений Linux Mint (nemo-python,
-  # сжатие/распаковка через File Roller, эмблемы, цвет папок) плюс наше
-  # расширение и быстрый просмотр по пробелу.
-  nemo = pkgs.nemo-with-extensions.override {
-    extensions = [
-      extension
-      pkgs.nemo-preview
-    ];
-  };
 in {
-  environment.systemPackages = [nemo];
+  environment.systemPackages = [integrate remove];
 
-  # Файловый менеджер по умолчанию на уровне системы. Это именно умолчание:
-  # если выбрать другое в «Настройки → Приложения», пользовательский
-  # mimeapps.list его перекроет.
+  # Папки и архивы по умолчанию — «Файлы» и архиватор оболочки. Это
+  # умолчание: выбор в «Настройки → Приложения» (mimeapps.list) его перекроет.
   xdg.mime.defaultApplications = {
-    # папки открывает «Файлы» оболочки; Nemo остаётся — в нём есть
-    # то, чего у «Файлов» нет (сеть, расширения, архивы через File Roller)
     "inode/directory" = "pixel-shell-files.desktop";
-    # архивы — в архиваторе оболочки (отдельное окно, файлы оттуда можно
-    # тянуть мышью); File Roller остаётся в «Открыть с помощью»
     "application/zip" = "pixel-shell-archive.desktop";
     "application/x-7z-compressed" = "pixel-shell-archive.desktop";
     "application/vnd.rar" = "pixel-shell-archive.desktop";
@@ -388,24 +258,5 @@ in {
     "application/x-compressed-tar" = "pixel-shell-archive.desktop";
     "application/x-xz-compressed-tar" = "pixel-shell-archive.desktop";
     "application/x-zstd-compressed-tar" = "pixel-shell-archive.desktop";
-    "application/x-gnome-saved-search" = "nemo.desktop";
   };
-
-  # Системные умолчания dconf (пользователь может их менять — это не
-  # жёсткая запись, а значения по умолчанию).
-  programs.dconf.profiles.user.databases = [
-    {
-      settings = {
-        # «Открыть в терминале» — kitty, а не gnome-terminal
-        "org/cinnamon/desktop/default-applications/terminal" = {
-          exec = "kitty";
-          exec-arg = "";
-        };
-        # Nemo не должен рисовать свой рабочий стол поверх обоев оболочки
-        "org/nemo/desktop" = {
-          show-desktop-icons = false;
-        };
-      };
-    }
-  ];
 }

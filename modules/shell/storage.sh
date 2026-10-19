@@ -103,6 +103,21 @@ paths() {
     printf 'done\n'
 }
 
+# caches — кеш по программам: каждый элемент ~/.cache и кеш каждого
+# Flatpak-приложения (~/.var/app/ID/cache). «cache<TAB>путь<TAB>байт»
+caches() {
+    local c=${XDG_CACHE_HOME:-$HOME/.cache} d
+    for d in "$c"/* "$c"/.[!.]*; do
+        [ -e "$d" ] || continue
+        printf 'cache\t%s\t%s\n' "$d" "$(dsize "$d")"
+    done
+    for d in "$HOME"/.var/app/*/cache; do
+        [ -d "$d" ] || continue
+        printf 'cache\t%s\t%s\n' "$d" "$(dsize "$d")"
+    done
+    printf 'done\n'
+}
+
 # Путь можно чистить, только если он внутри известных каталогов данных
 # программ в домашней папке — не сама домашняя папка и не документы.
 allowed() {
@@ -155,7 +170,14 @@ clean() {
             failed=$((failed + 1))
             continue
         fi
-        if [ "$what" = cache ]; then
+        if [ "$what" = cache ] && [ ! -d "$p" ]; then
+            # отдельный файл в ~/.cache — просто удалить
+            if ! err=$(rm -f -- "$p" 2>&1) || [ -e "$p" ]; then
+                fail "Не удалось удалить «$p»: $(printf '%s\n' "$err" | tail -n 1)"
+                failed=$((failed + 1))
+                continue
+            fi
+        elif [ "$what" = cache ]; then
             err=$(find "$p" -mindepth 1 -delete 2>&1) || true
             [ -z "$(find "$p" -mindepth 1 -print -quit 2>/dev/null)" ] || { fail "Не всё удалено в «$p»: $(printf '%s\n' "$err" | tail -n 1)"; failed=$((failed + 1)); continue; }
         else
@@ -179,9 +201,10 @@ case "$cmd" in
     overview) overview ;;
     apps) apps "$@" ;;
     paths) paths "$@" ;;
+    caches) caches ;;
     clean) clean "$@" ;;
     *)
-        fail "pixel-storage overview|apps|paths|clean …"
+        fail "pixel-storage overview|apps|paths|caches|clean …"
         exit 2
         ;;
 esac

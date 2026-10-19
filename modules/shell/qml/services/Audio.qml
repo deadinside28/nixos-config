@@ -12,9 +12,19 @@ Singleton {
 
     readonly property PwNode sink: Pipewire.defaultAudioSink
     readonly property PwNode source: Pipewire.defaultAudioSource
-    readonly property real volume: sink?.audio?.volume ?? 0
+    // Громкость в интерфейсе — в кубической шкале, как у wpctl, pavucontrol
+    // и клавиш громкости (binds.lua): PipeWire хранит линейный множитель, и
+    // «50%» на клавишах — это 0.125 в узле. Линейный ползунок отдавал почти
+    // весь ход тихой части, а клавиши и индикатор расходились вчетверо.
+    function toUi(linear) {
+        return Math.cbrt(Math.max(0, linear ?? 0));
+    }
+    function fromUi(v) {
+        return Math.pow(Math.max(0, Math.min(1, v)), 3);
+    }
+    readonly property real volume: toUi(sink?.audio?.volume)
     readonly property bool muted: sink?.audio?.muted ?? false
-    readonly property real micVolume: source?.audio?.volume ?? 0
+    readonly property real micVolume: toUi(source?.audio?.volume)
     readonly property bool micMuted: source?.audio?.muted ?? false
 
     readonly property var sinks: Pipewire.nodes.values.filter(n => n.isSink && !n.isStream && n.audio)
@@ -33,7 +43,7 @@ Singleton {
     function setVolume(v) {
         if (sink?.audio) {
             sink.audio.muted = false;
-            sink.audio.volume = Math.max(0, Math.min(1, v));
+            sink.audio.volume = fromUi(v);
         }
     }
     function toggleMute() {
@@ -43,7 +53,7 @@ Singleton {
     function setMicVolume(v) {
         if (source?.audio) {
             source.audio.muted = false;
-            source.audio.volume = Math.max(0, Math.min(1, v));
+            source.audio.volume = fromUi(v);
         }
     }
     function toggleMicMute() {
@@ -209,7 +219,7 @@ Singleton {
         return order.map(k => {
             const g = groups[k];
             const vols = g.nodes.map(n => n.audio?.volume ?? 0);
-            g.volume = Math.max(...vols);
+            g.volume = toUi(Math.max(...vols));
             g.muted = g.nodes.every(n => n.audio?.muted);
             return g;
         });
@@ -235,7 +245,7 @@ Singleton {
         for (const n of app.nodes)
             if (n.audio) {
                 n.audio.muted = false;
-                n.audio.volume = Math.max(0, Math.min(1, v));
+                n.audio.volume = fromUi(v);
             }
     }
     function toggleAppMute(app) {
@@ -245,14 +255,68 @@ Singleton {
                 n.audio.muted = m;
     }
     // Вывод приложения на другое устройство: WirePlumber переносит потоки
-    // по метаданным target.object.
+    // по метаданным target.object. В свойствах узла перенос не виден, поэтому
+    // выбранное устройство запоминается здесь (по ключу приложения).
+    property var appTargets: ({})
     function moveApp(app, sink) {
         for (const n of app.nodes)
             Quickshell.execDetached(["pw-metadata", String(n.id), "target.object", sink.name, "Spa:String"]);
+        const t = Object.assign({}, appTargets);
+        t[app.key] = sink.name;
+        appTargets = t;
     }
     function appSinkId(app) {
         const p = app.nodes[0]?.properties ?? {};
-        const target = p["target.object"] ?? p["node.target"];
+        const target = appTargets[app.key] ?? p["target.object"] ?? p["node.target"];
         return sinks.find(s => s.name === target || String(s.id) === String(target))?.id ?? sink?.id;
+    }
+
+    // --- Профили звуковых карт ------------------------------------------
+    //
+    // HDMI или аналоговый выход, A2DP или гарнитура у Bluetooth-наушников —
+    // это профиль устройства (то, ради чего открывали pavucontrol).
+    // [{ id, name, profiles: [{ value, label }], current }]
+    property var cards: []
+    function refreshCards() {
+        cardsTimer.restart();
+    }
+    function setProfile(card, index) {
+        Quickshell.execDetached(["wpctl", "set-profile", String(card.id), String(index)]);
+        cardsTimer.restart();
+    }
+    onSinksChanged: refreshCards()
+    onSourcesChanged: refreshCards()
+    Timer {
+        id: cardsTimer
+        interval: 400
+        onTriggered: cardsProc.running = true
+    }
+    Process {
+        id: cardsProc
+        command: ["pw-dump"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                let objs;
+                try {
+                    objs = JSON.parse(text);
+                } catch (e) {
+                    return;
+                }
+                root.cards = objs.filter(o => o.type === "PipeWire:Interface:Device" && o.info?.props?.["media.class"] === "Audio/Device").map(o => {
+                    const params = o.info.params ?? {};
+                    const current = params.Profile?.[0]?.index;
+                    const profiles = (params.EnumProfile ?? []).filter(p => p.available !== "no" || p.index === current).map(p => ({
+                                value: p.index,
+                                label: p.description || p.name
+                            }));
+                    return {
+                        id: o.id,
+                        name: o.info.props["device.description"] || o.info.props["device.nick"] || o.info.props["device.name"],
+                        profiles,
+                        current
+                    };
+                }).filter(c => c.profiles.length > 1);
+            }
+        }
     }
 }

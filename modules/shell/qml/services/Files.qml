@@ -48,6 +48,21 @@ Singleton {
             }];
         nextId++;
     }
+    // Окна «Свойства»: { id, paths }
+    property var propsWindows: []
+    function properties(paths) {
+        const list = (paths ?? []).map(p => String(p).replace(/^file:\/\//, "")).filter(p => p);
+        if (!list.length)
+            return;
+        propsWindows = [...propsWindows, {
+                id: nextId,
+                paths: list
+            }];
+        nextId++;
+    }
+    function closeProperties(id) {
+        propsWindows = propsWindows.filter(w => w.id !== id);
+    }
     function closeArchiveWindow(id) {
         archiveWindows = archiveWindows.filter(w => w.id !== id);
     }
@@ -456,7 +471,18 @@ Singleton {
     }
     // Узнать, исполняемый ли файл и есть ли он уже в меню приложений
     readonly property string appsDir: (Quickshell.env("XDG_DATA_HOME") || home + "/.local/share") + "/applications"
+    // AppImage встраивает appimage-menu-add (modules/system/appimage-menu.nix):
+    // имя, значок и категории — из .desktop внутри образа. Ярлык называется
+    // по имени файла, как в скрипте: каждый байт не из [A-Za-z0-9._-] → «_».
+    function isAppImagePath(path) {
+        return /\.appimage$/i.test(path);
+    }
     function desktopIdFor(path) {
+        if (isAppImagePath(path)) {
+            const b = path.split("/").pop().replace(/\.[Aa]pp[Ii]mage$/, "");
+            const slug = Array.from(b).map(c => /[A-Za-z0-9._-]/.test(c) ? c : "_".repeat(unescape(encodeURIComponent(c)).length)).join("");
+            return "appimage-" + slug;
+        }
         return "pixel-files-" + Qt.md5(path).slice(0, 10);
     }
     function inspect(path, cb) {
@@ -483,13 +509,16 @@ Singleton {
     }
     // Ярлык в меню приложений (лаунчер оболочки и все остальные)
     function addToMenu(path) {
+        if (isAppImagePath(path)) {
+            run(["appimage-menu-add", path]);
+            return;
+        }
         const name = path.split("/").pop().replace(/\.(appimage|sh|bash|run|py)$/i, "").replace(/[-_.]+(x86_64|amd64|linux|v?\d[\w.]*)$/i, "").replace(/[-_]+/g, " ");
         run(["sh", "-c", `
             f="$1"; out="$2"; name="$3"; term=false
             chmod +x -- "$f"
             exec_line="\\"$f\\""
             case "$f" in
-                *.[Aa]pp[Ii]mage|*.APPIMAGE) command -v appimage-run >/dev/null && exec_line="appimage-run \\"$f\\"" ;;
                 *.sh|*.bash|*.run|*.py|*.pl|*.rb) term=true ;;
             esac
             mkdir -p "$(dirname "$out")"
@@ -498,6 +527,10 @@ Singleton {
         `, "sh", path, appsDir + "/" + desktopIdFor(path) + ".desktop", name]);
     }
     function removeFromMenu(path) {
+        if (isAppImagePath(path)) {
+            run(["appimage-menu-remove", path]);
+            return;
+        }
         run(["rm", "-f", appsDir + "/" + desktopIdFor(path) + ".desktop"]);
     }
 

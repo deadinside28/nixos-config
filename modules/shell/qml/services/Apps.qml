@@ -301,9 +301,16 @@ Singleton {
     }
 
     // Окно → .desktop: по app_id/классу, как это делает heuristicLookup.
-    function forWindow(appId) {
+    // У всех окон оболочки один класс (pixel-shell), поэтому её приложения
+    // различаются по заголовку окна.
+    readonly property var shellWindows: [[/^Настройки$/, "pixel-shell-settings"], [/^Обновление системы$/, "pixel-shell-update"], [/^Заметки$/, "pixel-shell-notes"], [/^Календарь$/, "pixel-shell-calendar"], [/^Магазин$/, "pixel-shell-store"], [/^Архив — /, "pixel-shell-archive"], [/^Quick Share$/, "pixel-shell-quickshare"], [/^Файлы — | — выбор файла$|^Свойства — /, "pixel-shell-files"]]
+    function forWindow(appId, title) {
         if (!appId)
             return null;
+        if (appId === "pixel-shell" || appId === "org.quickshell") {
+            const hit = shellWindows.find(w => w[0].test(title ?? ""));
+            return hit ? byId(hit[1]) : null;
+        }
         return byId(appId);
     }
 

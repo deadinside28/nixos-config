@@ -6,13 +6,14 @@
     "electron-40.10.5"
   ];
 
+  # Календарь, файловый менеджер, архиватор, анализ диска, микшер и магазин —
+  # свои приложения оболочки («Календарь», «Файлы», «Архиватор», «Память»,
+  # «Настройки → Звук», «Магазин»), их GNOME-аналоги здесь не ставятся.
   environment.systemPackages = with pkgs; [
     # --- Базовые утилиты и разработка ---
     git
     gnome-text-editor
-    nemo
     qalculate-gtk # калькулятор с единицами, константами, комплексными числами
-    gnome-calendar
     psmisc # killall и компания
     fastfetch
     seahorse # работа с ключами
@@ -27,7 +28,7 @@
     ollama-rocm
     gemini-cli
 
-    # --- Файловый менеджер и превью ---
+    # --- Превью в «Файлах» ---
     ffmpegthumbnailer
     webp-pixbuf-loader
     poppler_gi
@@ -67,7 +68,6 @@
     mpv
     celluloid # GTK4-оболочка для mpv
     papers # просмотр PDF с аннотациями (GNOME 50)
-    baobab # что занимает место на диске
     zed-editor # лёгкий редактор кода
     ffmpeg
     # Явный Wayland: одинаковый запуск из терминала, меню и автозапуска.
@@ -84,7 +84,6 @@
     gst_all_1.gst-libav
 
     # --- Архиваторы ---
-    file-roller
     unzip
     p7zip
     unar

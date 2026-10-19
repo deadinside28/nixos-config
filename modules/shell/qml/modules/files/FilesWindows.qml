@@ -12,6 +12,13 @@ Scope {
         }
     }
     Variants {
+        model: Files.propsWindows
+        PropertiesWindow {
+            required property var modelData
+            entry: modelData
+        }
+    }
+    Variants {
         model: Files.windows
         FilesWindow {
             required property var modelData

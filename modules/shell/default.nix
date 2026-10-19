@@ -134,6 +134,11 @@
   };
 
   # Ярлык «Календаря»: без файла — открыть, с .ics — импортировать
+  # Отправить файлы через Quick Share: pixel-share <файл>…
+  pixel-share = pkgs.writeShellScriptBin "pixel-share" ''
+    exec pixel-shell quickshare send "$(printf '%s\n' "$@")"
+  '';
+
   pixel-calendar = pkgs.writeShellScriptBin "pixel-calendar" ''
     if [ $# -gt 0 ]; then exec pixel-shell calendar importFile "$1"; fi
     exec pixel-shell calendar open
@@ -143,6 +148,8 @@
   # Тема и виджеты MD3E — отдельная библиотека (md3e/), оболочка
   # подключает её через QML_IMPORT_PATH
   md3e = pkgs.callPackage ./md3e/package.nix {};
+  # Свои значки приложений оболочки (icons/)
+  icons = pkgs.callPackage ./icons/package.nix {};
 
   pixel-reminders = pkgs.writeShellApplication {
     name = "pixel-reminders";
@@ -410,6 +417,7 @@ in {
   home.sessionVariables.QML_IMPORT_PATH = "${md3e}/${md3e.qmlPath}";
 
   home.packages = [
+    icons
     quickshell
     pixel-shell
     pixel-screenshot
@@ -417,6 +425,7 @@ in {
     pixel-rebuild
     pixel-lens
     pixel-calendar
+    pixel-share
     pixel-metrics
   ];
 
@@ -506,40 +515,36 @@ in {
     name = "Настройки";
     genericName = "Настройки системы";
     comment = "Сеть, экран, звук, обои, приложения и параметры NixOS";
-    icon = "preferences-system";
+    icon = "pixel-shell-settings";
     exec = "pixel-shell settings toggle";
     categories = ["Settings" "System"];
-    settings.StartupWMClass = "pixel-shell";
   };
 
   xdg.desktopEntries.pixel-shell-notes = {
     name = "Заметки";
     genericName = "Заметки";
     comment = "Заметки в Markdown: папки, поиск, закреплённые";
-    icon = "accessories-text-editor";
+    icon = "pixel-shell-notes";
     exec = "pixel-shell notes open";
     categories = ["Office" "Utility"];
-    settings.StartupWMClass = "pixel-shell";
   };
   xdg.desktopEntries.pixel-shell-calendar = {
     name = "Календарь";
     genericName = "Календарь";
     comment = "События, повторы, напоминания, импорт и экспорт .ics";
-    icon = "x-office-calendar";
+    icon = "pixel-shell-calendar";
     exec = "pixel-calendar %f";
     categories = ["Office" "Calendar"];
     mimeType = ["text/calendar"];
-    settings.StartupWMClass = "pixel-shell";
   };
 
   xdg.desktopEntries.pixel-shell-store = {
     name = "Магазин";
     genericName = "Установка приложений";
     comment = "Приложения из Nixpkgs, Chaotic-Nyx и Flatpak";
-    icon = "system-software-install";
+    icon = "pixel-shell-store";
     exec = "pixel-shell store open";
     categories = ["System" "PackageManager"];
-    settings.StartupWMClass = "pixel-shell";
   };
 
   # «Файлы» — свой проводник оболочки; он же открывает папки по умолчанию
@@ -548,19 +553,33 @@ in {
     name = "Файлы";
     genericName = "Файловый менеджер";
     comment = "Папки, загрузки, диски и корзина";
-    icon = "system-file-manager";
+    icon = "pixel-shell-files";
     exec = "pixel-shell files open %U";
     categories = ["System" "FileManager" "Utility"];
     mimeType = ["inode/directory"];
-    settings.StartupWMClass = "pixel-shell";
   };
 
   # Архиватор оболочки: zip, 7z, rar, tar — отдельным окном
+  # Окна без пункта в меню, но со своим значком на панели задач
+  xdg.desktopEntries.pixel-shell-quickshare = {
+    name = "Quick Share";
+    comment = "Отправить файлы на телефон";
+    icon = "pixel-shell-quickshare";
+    exec = "pixel-share %F";
+    noDisplay = true;
+  };
+  xdg.desktopEntries.pixel-shell-update = {
+    name = "Обновление системы";
+    icon = "pixel-shell-update";
+    exec = "pixel-shell settings open system";
+    noDisplay = true;
+  };
+
   xdg.desktopEntries.pixel-shell-archive = {
     name = "Архиватор";
     genericName = "Архивы";
     comment = "Открыть, распаковать и дополнить zip, 7z, rar, tar";
-    icon = "package-x-generic";
+    icon = "pixel-shell-archive";
     exec = "pixel-shell archive open %f";
     categories = ["Utility" "Archiving" "Compression"];
     mimeType = [
@@ -576,7 +595,6 @@ in {
       "application/gzip"
     ];
     noDisplay = true;
-    settings.StartupWMClass = "pixel-shell";
   };
 
   # Каталоги, куда оболочка пишет сама.

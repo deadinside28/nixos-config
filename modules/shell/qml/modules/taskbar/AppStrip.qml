@@ -24,7 +24,7 @@ Item {
         const result = [];
         const seen = {};
         const keyFor = t => {
-            const e = Apps.forWindow(t.appId);
+            const e = Apps.forWindow(t.appId, t.title);
             return e ? e.id : "window:" + t.appId;
         };
         const groups = {};

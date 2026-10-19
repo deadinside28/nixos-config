@@ -96,7 +96,7 @@ Overlay {
                             AppIcon {
                                 required property var modelData
                                 size: 28
-                                icon: Apps.forWindow(modelData.wayland?.appId ?? modelData.lastIpcObject?.class)?.icon ?? (modelData.wayland?.appId ?? "")
+                                icon: Apps.forWindow(modelData.wayland?.appId ?? modelData.lastIpcObject?.class, modelData.title)?.icon ?? (modelData.wayland?.appId ?? "")
                             }
                         }
                     }
@@ -138,7 +138,7 @@ Overlay {
                             spacing: 8
                             AppIcon {
                                 size: 22
-                                icon: Apps.forWindow(win.tl?.appId)?.icon ?? win.tl?.appId ?? ""
+                                icon: Apps.forWindow(win.tl?.appId, win.tl?.title)?.icon ?? win.tl?.appId ?? ""
                             }
                             MText {
                                 Layout.fillWidth: true

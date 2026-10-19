@@ -175,6 +175,7 @@ hl.window_rule({ match = { class = "^(pixel-shell)$", title = "^(Настрой�
 hl.window_rule({ match = { class = "^(pixel-shell)$", title = "^(Настройки)$" }, size = { "1180", "800" } })
 hl.window_rule({ match = { class = "^(pixel-shell)$", title = "^(Обновление системы)$" }, size = { "760", "640" } })
 hl.window_rule({ match = { class = "^(pixel-shell)$", title = "^(Quick Share)$" }, size = { "460", "560" } })
+hl.window_rule({ match = { class = "^(pixel-shell)$", title = "^(Свойства — .*)$" }, float = true, center = true, size = { "540", "680" } })
 
 -- Autostart Apps to Monitor 2
 hl.window_rule({ match = { class = "^(discord)$" }, workspace = "6" })

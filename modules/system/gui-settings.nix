@@ -104,6 +104,10 @@ in {
       enable = s.services.bluetooth;
       powerOnBoot = true;
     };
+    # bluetoothd — с загрузки, а не когда udev заметит адаптер: иначе он
+    # может подняться позже оболочки, и та не увидит адаптер до перезапуска.
+    # USB-адаптеры, вставленные потом, BlueZ подхватывает сам.
+    systemd.services.bluetooth.wantedBy = lib.mkIf s.services.bluetooth ["multi-user.target"];
     services.printing.enable = s.services.printing;
     services.avahi.enable = s.services.avahi;
     virtualisation.docker.enable = s.services.docker;

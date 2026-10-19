@@ -1746,7 +1746,7 @@ FloatingWindow {
                     l.push({
                         icon: "info",
                         text: "Свойства",
-                        act: () => dialog.ask("info")
+                        act: () => Files.properties(sel)
                     });
                 }
             } else {
@@ -1919,7 +1919,6 @@ FloatingWindow {
         property var one: null
         property var apps: []
         property string defApp: ""
-        property string info: ""
 
         property string connErr: ""
         function askConnect(uri, user) {
@@ -1970,9 +1969,6 @@ FloatingWindow {
                     dialog.defApp = def;
                     dialog.appsLoaded = true;
                 });
-            } else if (k === "info" && one) {
-                info = "";
-                infoProc.running = true;
             }
         }
         function accept() {
@@ -1991,14 +1987,6 @@ FloatingWindow {
             } else if (kind === "empty")
                 Files.emptyTrash();
             visible = false;
-        }
-
-        Process {
-            id: infoProc
-            command: ["sh", "-c", 'du -sb -- "$1" 2>/dev/null | cut -f1; stat -c "%A|%U|%y" -- "$1"; xdg-mime query filetype "$1" 2>/dev/null', "sh", dialog.one?.path ?? "/"]
-            stdout: StdioCollector {
-                onStreamFinished: dialog.info = text
-            }
         }
 
         Rectangle {
@@ -2132,36 +2120,6 @@ FloatingWindow {
                     visible: dialog.kind === "mkdir" || dialog.kind === "rename"
                     implicitHeight: 52
                     onAccepted: dialog.accept()
-                }
-
-                // Свойства
-                GridLayout {
-                    Layout.fillWidth: true
-                    visible: dialog.kind === "info" && dialog.one !== null
-                    columns: 2
-                    columnSpacing: 16
-                    rowSpacing: 6
-                    readonly property var lines: dialog.info.split("\n")
-                    readonly property var st: (lines[1] ?? "").split("|")
-                    Repeater {
-                        model: dialog.one ? [["Тип", Files.kindLabel(Files.kindOf(dialog.one.name, dialog.one.isDir)) + (parent.lines[2] ? " (" + parent.lines[2] + ")" : "")], ["Размер", parent.lines[0] ? Files.humanSize(parseInt(parent.lines[0])) : "…"], ["Где", dialog.one.path.slice(0, dialog.one.path.lastIndexOf("/")) || "/"], ["Изменён", Files.humanDate(dialog.one.modified)], ["Права", (parent.st[0] ?? "") + "  " + (parent.st[1] ?? "")]] : []
-                        delegate: RowLayout {
-                            required property var modelData
-                            Layout.columnSpan: 2
-                            Layout.fillWidth: true
-                            MText {
-                                Layout.preferredWidth: 90
-                                text: modelData[0]
-                                color: Theme.fgSurfaceVariant
-                            }
-                            MText {
-                                Layout.fillWidth: true
-                                text: modelData[1]
-                                wrapMode: Text.WrapAnywhere
-                                elide: Text.ElideNone
-                            }
-                        }
-                    }
                 }
 
                 // Открыть с помощью
