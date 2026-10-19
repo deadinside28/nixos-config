@@ -78,6 +78,20 @@ busy=$(cpu)
     printf '%s\n' "${top[@]}" | sort -rn | awk 'NR <= 15' | while IFS=$'\t' read -r p u c pid; do
         printf '| %s | %s | %s | %s |\n' "$c" "$pid" "$(mib "$p")" "$(mib "$u")"
     done
+    # Оболочка подробно: из чего её RSS и какие потоки. GPU-буферы,
+    # отображённые в процесс (/dev/dri), считаются в RSS, но это видеопамять
+    # драйвера, а не данные оболочки.
+    for d in /proc/[0-9]*; do
+        case "$(cat "$d/comm" 2>/dev/null)" in quickshell | qs | .quickshell-wra*) ;; *) continue ;; esac
+        printf '\n## Оболочка (PID %s)\n\n' "${d#/proc/}"
+        awk '/^(VmRSS|RssAnon|RssFile|RssShmem):/ {printf "- %s %.1f МиБ\n", $1, $2/1024}' "$d/status"
+        awk '/^[0-9a-f]+-[0-9a-f]+ / {dri = ($6 ~ /^\/dev\/dri/ || $6 ~ /^\/memfd:/ || $6 ~ /dmabuf|anon_inode:dmabuf/)} /^Rss:/ && dri {k += $2} END {printf "- из них отображено GPU-буферов (/dev/dri, dmabuf, memfd): %.1f МиБ\n", k/1024}' "$d/smaps" 2>/dev/null
+        printf -- '- потоков: %s; по именам:\n\n' "$(find "$d/task" -mindepth 1 -maxdepth 1 | wc -l)"
+        for t in "$d"/task/*; do cat "$t/comm" 2>/dev/null; done | sed 's/[0-9]*$//' | sort | uniq -c | sort -rn | awk 'NR <= 12 {printf "  - %s × %d\n", $2, $1}'
+        n=$(hyprctl layers -j 2>/dev/null | jq '[.. | objects | select(.namespace? and (.namespace | test("^pixel-shell|^quickshell")))] | length' 2>/dev/null)
+        printf -- '- слоёв оболочки в Hyprland: %s\n' "${n:-?}"
+        break
+    done
     if [ "$(id -u)" -ne 0 ]; then
         printf '\nСнято без root: системные службы (Xwayland от root, демоны) не учтены — для полного замера: sudo pixel-metrics.\n'
     fi

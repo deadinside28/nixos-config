@@ -272,17 +272,36 @@ QtObject {
 
     readonly property QtObject anim: QtObject {
         readonly property real scale: root.animationScale
-        readonly property int fast: 150 * scale
-        readonly property int normal: 300 * scale
-        readonly property int slow: 450 * scale
-        readonly property int extraSlow: 600 * scale
-        // cubic-bezier кривые Material 3
-        readonly property var emphasized: [0.05, 0.7, 0.1, 1, 1, 1]
+        // Длительности и кривые M3 Expressive — те же, что у Caelestia
+        // (caelestia-dots/shell, plugin/src/Caelestia/Config/tokens.hpp)
+        readonly property int fast: 200 * scale
+        readonly property int normal: 400 * scale
+        readonly property int slow: 600 * scale
+        readonly property int extraSlow: 1000 * scale
+        readonly property int expressiveFastSpatialDuration: 350 * scale
+        readonly property int expressiveDefaultSpatialDuration: 500 * scale
+        readonly property int expressiveSlowSpatialDuration: 650 * scale
+        readonly property int expressiveFastEffectsDuration: 150 * scale
+        readonly property int expressiveDefaultEffectsDuration: 200 * scale
+        readonly property int expressiveSlowEffectsDuration: 300 * scale
+        readonly property int emphasizedAccelDuration: 250 * scale
+        // cubic-bezier кривые Material 3 (для Easing.BezierSpline)
+        readonly property var emphasized: [0.05, 0, 2 / 15, 0.06, 1 / 6, 0.4, 5 / 24, 0.82, 0.25, 1, 1, 1]
         readonly property var emphasizedDecel: [0.05, 0.7, 0.1, 1, 1, 1]
         readonly property var emphasizedAccel: [0.3, 0, 0.8, 0.15, 1, 1]
         readonly property var standard: [0.2, 0, 0, 1, 1, 1]
-        // «пружина» с лёгким перелётом — для раскрытия панелей
-        readonly property var expressiveSpatial: [0.38, 1.21, 0.22, 1, 1, 1]
-        readonly property var expressiveEffects: [0.34, 0.8, 0.34, 1, 1, 1]
+        readonly property var standardAccel: [0.3, 0, 1, 1, 1, 1]
+        readonly property var standardDecel: [0, 0, 0, 1, 1, 1]
+        // «пружины» с перелётом — движение (позиция, размер, масштаб)
+        readonly property var expressiveFastSpatial: [0.42, 1.67, 0.21, 0.9, 1, 1]
+        readonly property var expressiveDefaultSpatial: [0.38, 1.21, 0.22, 1, 1, 1]
+        readonly property var expressiveSlowSpatial: [0.39, 1.29, 0.35, 0.98, 1, 1]
+        // без перелёта — цвет и прозрачность
+        readonly property var expressiveFastEffects: [0.31, 0.94, 0.34, 1, 1, 1]
+        readonly property var expressiveDefaultEffects: [0.34, 0.8, 0.34, 1, 1, 1]
+        readonly property var expressiveSlowEffects: [0.34, 0.88, 0.34, 1, 1, 1]
+        // старые имена
+        readonly property var expressiveSpatial: expressiveDefaultSpatial
+        readonly property var expressiveEffects: expressiveDefaultEffects
     }
 }

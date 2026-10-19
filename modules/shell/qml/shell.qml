@@ -51,15 +51,11 @@ ShellRoot {
         Taskbar {}
     }
 
+    // Окно-хост на каждом мониторе: рамка, выдвижные панели и перехват
+    // клика мимо панели (modules/frame/ScreenHost.qml)
     Variants {
-        model: Quickshell.screens.filter(s => Bar.frameOn(s.name))
-        ScreenFrame {}
-    }
-
-    // Клик на другом мониторе закрывает открытую панель
-    Variants {
-        model: Ui.panel !== "" ? Quickshell.screens.filter(s => s.name !== Ui.activeScreen) : []
-        ClickCatcher {}
+        model: Quickshell.screens
+        ScreenHost {}
     }
 
     Launcher {}

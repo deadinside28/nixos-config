@@ -1,10 +1,16 @@
-// Рамка экрана со скруглёнными внутренними углами — как у экрана
-// телефона. Рисуется поверх окон и не ловит мышь; со стороны панели задач
-// рамкой служит сама панель. Толщина 0 — остаются только углы.
+// Окно-хост экрана — одно постоянное полноэкранное окно на монитор, как
+// ContentWindow в Caelestia. В нём:
+//  • рамка экрана со скруглёнными внутренними углами, как у телефона (со
+//    стороны панели задач рамкой служит сама панель; толщина 0 — углы);
+//  • все выдвижные панели (widgets/Overlay.qml) — элементы этого окна;
+//  • перехват клика на других мониторах, пока открыта панель.
+// Пока ничего не открыто, окно не ловит мышь (пустая маска) и живёт в
+// слое Top — под полноэкранными окнами, игре оно не мешает.
 import QtQuick
 import QtQuick.Shapes
 import Quickshell
 import Quickshell.Wayland
+import Quickshell.Hyprland
 import qs.common
 import Pixel.MD3E
 
@@ -19,6 +25,14 @@ Scope {
         return Bar.inset(modelData.name, side);
     }
 
+    readonly property string name: modelData.name
+    // панели на этом экране (открыты или закрываются)
+    readonly property var panels: Hosts.shownOn(name)
+    readonly property bool active: panels.length > 0
+    // панель открыта на другом мониторе — клик здесь её закрывает
+    readonly property bool catching: Ui.panel !== "" && Ui.activeScreen !== name
+    readonly property var keyPanel: panels.find(p => p.open && p.grabKeyboard) ?? null
+
     PanelWindow {
         id: win
         screen: root.modelData
@@ -30,11 +44,43 @@ Scope {
         }
         exclusionMode: ExclusionMode.Ignore
         color: "transparent"
-        mask: Region {}
-        WlrLayershell.layer: WlrLayer.Top
-        WlrLayershell.namespace: "pixel-shell:frame"
+        // ввод — только когда есть что показать или что закрыть
+        mask: root.active || root.catching ? null : emptyRegion
+        Region {
+            id: emptyRegion
+        }
+        WlrLayershell.layer: root.active || root.catching ? WlrLayer.Overlay : WlrLayer.Top
+        WlrLayershell.namespace: "pixel-shell:host"
+        WlrLayershell.keyboardFocus: !root.keyPanel ? WlrKeyboardFocus.None : root.keyPanel.exclusiveFocus ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.OnDemand
+
+        // Фокус клавиатуры открытой панели; клик мимо окон оболочки её закрывает
+        HyprlandFocusGrab {
+            active: root.keyPanel !== null && !root.keyPanel.exclusiveFocus
+            windows: [win]
+            onCleared: if (root.keyPanel)
+                root.keyPanel.dismissed()
+        }
+
+        // клик на этом мониторе, когда панель открыта на другом
+        MouseArea {
+            anchors.fill: parent
+            visible: root.catching && !root.active
+            acceptedButtons: Qt.AllButtons
+            onPressed: Ui.close()
+            onWheel: Ui.close()
+        }
+
+        // сюда встают панели (Overlay)
+        Item {
+            id: panelLayer
+            anchors.fill: parent
+            z: 1
+            Component.onCompleted: Hosts.register(root.name, panelLayer)
+            Component.onDestruction: Hosts.unregister(root.name, panelLayer)
+        }
 
         Shape {
+            visible: Bar.frameOn(root.name)
             anchors.fill: parent
             preferredRendererType: Shape.CurveRenderer
             ShapePath {
@@ -73,7 +119,7 @@ Scope {
 
     // Окна не заходят под рамку: невидимые полоски с exclusiveZone
     Variants {
-        model: root.w > 0 ? ["top", "bottom", "left", "right"].filter(s => !(Bar.edge === s && Bar.shownOn(root.modelData.name))) : []
+        model: Bar.frameOn(root.name) && root.w > 0 ? ["top", "bottom", "left", "right"].filter(s => !(Bar.edge === s && Bar.shownOn(root.modelData.name))) : []
         PanelWindow {
             required property string modelData
             screen: root.modelData

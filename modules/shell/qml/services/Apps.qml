@@ -292,12 +292,25 @@ Singleton {
         run(commandFor(app), app.workingDirectory);
     }
 
+    // Кеш id → запись. byId зовут привязки панели задач, обзора и микшера
+    // на каждое событие окон, а heuristicLookup перебирает все .desktop
+    // нечётким сравнением. Сбрасывается, когда меняется список приложений.
+    property var byIdCache: ({})
+    onEverythingChanged: byIdCache = {}
     function byId(id) {
-        const hit = everything.find(a => a.id === id);
-        if (hit)
-            return hit;
-        const e = DesktopEntries.byId(id) ?? DesktopEntries.heuristicLookup(id);
-        return e ? everything.find(a => a.id === e.id) ?? wrap(e, override(e.id), origins) : null;
+        if (!id)
+            return null;
+        const cache = byIdCache;
+        if (id in cache)
+            return cache[id];
+        let r = everything.find(a => a.id === id) ?? null;
+        if (!r) {
+            const e = DesktopEntries.byId(id) ?? DesktopEntries.heuristicLookup(id);
+            r = e ? everything.find(a => a.id === e.id) ?? wrap(e, override(e.id), origins) : null;
+        }
+        // без присваивания свойства: привязки не пересчитываются из-за кеша
+        cache[id] = r;
+        return r;
     }
 
     // Окно → .desktop: по app_id/классу, как это делает heuristicLookup.

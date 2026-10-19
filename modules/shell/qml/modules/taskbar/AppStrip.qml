@@ -24,7 +24,10 @@ Item {
         const result = [];
         const seen = {};
         const keyFor = t => {
-            const e = Apps.forWindow(t.appId, t.title);
+            // заголовок нужен только окнам оболочки; читать его у всех —
+            // значит пересчитывать панель на каждую смену заголовка
+            // (браузер, мессенджер, терминал меняют его постоянно)
+            const e = t.appId === "pixel-shell" ? Apps.forWindow(t.appId, t.title) : Apps.forWindow(t.appId);
             return e ? e.id : "window:" + t.appId;
         };
         const groups = {};

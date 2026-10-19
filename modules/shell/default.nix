@@ -129,7 +129,7 @@
   # Исходные метрики ресурсов: PSS/USS по группам процессов, память, VRAM, CPU
   pixel-metrics = pkgs.writeShellApplication {
     name = "pixel-metrics";
-    runtimeInputs = with pkgs; [coreutils gawk jq];
+    runtimeInputs = with pkgs; [coreutils findutils gnused gawk jq];
     text = builtins.readFile ./metrics.sh;
   };
 

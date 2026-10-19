@@ -52,46 +52,36 @@ hl.config({
 
     // Анимации окон — из той же таблицы движения, что и у панелей оболочки
     // (Theme.anim): те же кривые M3 и длительности, одна шкала скорости.
-    // Пружины масштабируются с сохранением демпфирования ζ: k' = k / s²,
-    // c' = 2ζ√k' — движение то же, только быстрее или медленнее.
+    // Набор — как у Caelestia (caelestia-dots, hypr/hyprland/animations.lua):
+    // кривые M3 без пружин, окна появляются за 500 мс с замедлением и
+    // уходят за 300 мс с ускорением, рабочие столы скользят за 500 мс.
     readonly property string animLua: {
         const s = Settings.data.animationScale;
         const on = s >= 0.05;
-        const spring = (name, k, z) => {
-            const kk = k / (s * s);
-            return `hl.curve("${name}", { type = "spring", mass = 1, stiffness = ${kk.toFixed(2)}, dampening = ${(2 * z * Math.sqrt(kk)).toFixed(2)} })`;
-        };
         const bez = (name, p) => `hl.curve("${name}", { type = "bezier", points = { {${p[0]}, ${p[1]}}, {${p[2]}, ${p[3]}} } })`;
         // длительность в мс → speed Hyprland (десятые доли секунды)
-        const sp = ms => (ms / 100 * s).toFixed(2);
+        const sp = ms => Math.max(0.1, ms / 100 * s).toFixed(2);
         const a = Theme.anim;
         const anim = (leaf, extra) => `hl.animation({ leaf = "${leaf}", enabled = true, ${extra} })`;
         return `-- Сгенерировано оболочкой: Настройки → Рабочий стол и окна. Не править руками.
 hl.config({ animations = { enabled = ${lua(on)} } })
-${spring("m3FastSpatial", 800, 0.6)}
-${spring("m3DefaultSpatial", 380, 0.8)}
-${spring("m3SlowSpatial", 200, 0.8)}
-${spring("m3DefaultSpatialCalm", 380, 1)}
-${spring("m3DefaultEffects", 1600, 1)}
-${spring("m3FastEffects", 3800, 1)}
 ${bez("m3EmphasizedDecel", a.emphasizedDecel)}
 ${bez("m3EmphasizedAccel", a.emphasizedAccel)}
 ${bez("m3Standard", a.standard)}
-${anim("global", `speed = ${sp(300)}, bezier = "m3Standard"`)}
-${anim("windowsIn", `speed = ${sp(300)}, bezier = "m3EmphasizedDecel", style = "popin 85%"`)}
-${anim("windowsOut", `speed = ${sp(200)}, bezier = "m3EmphasizedAccel", style = "popin 85%"`)}
-${anim("windowsMove", `speed = ${sp(300)}, spring = "m3DefaultSpatialCalm"`)}
-${anim("fadeIn", `speed = ${sp(200)}, spring = "m3DefaultEffects"`)}
-${anim("fadeOut", `speed = ${sp(150)}, bezier = "m3EmphasizedAccel"`)}
-${anim("fadeSwitch", `speed = ${sp(200)}, spring = "m3DefaultEffects"`)}
-${anim("fadeDim", `speed = ${sp(200)}, spring = "m3DefaultEffects"`)}
-${anim("border", `speed = ${sp(200)}, spring = "m3FastEffects"`)}
-${anim("workspaces", `speed = ${sp(450)}, spring = "m3SlowSpatial", style = "slidefadevert 15%"`)}
-${anim("specialWorkspace", `speed = ${sp(450)}, spring = "m3SlowSpatial", style = "slidefadevert 20%"`)}
-${anim("zoomFactor", `speed = ${sp(300)}, spring = "m3DefaultSpatial"`)}
-${anim("layers", `speed = ${sp(200)}, spring = "m3DefaultEffects"`)}
-${anim("layersIn", `speed = ${sp(200)}, spring = "m3DefaultEffects", style = "fade"`)}
-${anim("layersOut", `speed = ${sp(150)}, bezier = "m3EmphasizedAccel", style = "fade"`)}
+${bez("m3SpecialWorkSwitch", [0.05, 0.7, 0.1, 1])}
+${anim("global", `speed = ${sp(500)}, bezier = "m3Standard"`)}
+${anim("windowsIn", `speed = ${sp(500)}, bezier = "m3EmphasizedDecel"`)}
+${anim("windowsOut", `speed = ${sp(300)}, bezier = "m3EmphasizedAccel"`)}
+${anim("windowsMove", `speed = ${sp(600)}, bezier = "m3Standard"`)}
+${anim("fade", `speed = ${sp(600)}, bezier = "m3Standard"`)}
+${anim("fadeDim", `speed = ${sp(600)}, bezier = "m3Standard"`)}
+${anim("border", `speed = ${sp(600)}, bezier = "m3Standard"`)}
+${anim("workspaces", `speed = ${sp(500)}, bezier = "m3Standard"`)}
+${anim("specialWorkspace", `speed = ${sp(400)}, bezier = "m3SpecialWorkSwitch", style = "slidefadevert 15%"`)}
+${anim("layersIn", `speed = ${sp(500)}, bezier = "m3EmphasizedDecel", style = "slide"`)}
+${anim("layersOut", `speed = ${sp(400)}, bezier = "m3EmphasizedAccel", style = "slide"`)}
+${anim("fadeLayers", `speed = ${sp(500)}, bezier = "m3Standard"`)}
+${anim("zoomFactor", `speed = ${sp(500)}, bezier = "m3Standard"`)}
 `;
     }
 

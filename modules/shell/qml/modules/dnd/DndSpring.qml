@@ -106,7 +106,11 @@ Item {
                 implicitHeight: inset + (expanded ? 88 : 2)
                 color: "transparent"
 
-                WlrLayershell.layer: WlrLayer.Overlay
+                // Слой Overlay лежит поверх полноэкранных окон, и даже
+                // 2 пикселя в нём лишают игру прямого вывода на экран
+                // (direct scanout, tearing). Поверх — только во время
+                // перетаскивания.
+                WlrLayershell.layer: expanded ? WlrLayer.Overlay : WlrLayer.Top
                 WlrLayershell.namespace: "pixel-shell:dnd-spring"
                 WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
 
@@ -303,7 +307,7 @@ Item {
                     implicitWidth: inset + (active ? 56 : 2)
                     color: "transparent"
 
-                    WlrLayershell.layer: WlrLayer.Overlay
+                    WlrLayershell.layer: active ? WlrLayer.Overlay : WlrLayer.Top
                     WlrLayershell.namespace: "pixel-shell:dnd-spring"
                     WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
 
