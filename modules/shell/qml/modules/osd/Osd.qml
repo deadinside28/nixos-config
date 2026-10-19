@@ -9,27 +9,29 @@ import qs.widgets
 import qs.services
 import Pixel.MD3E
 
-PanelWindow {
+// Элемент окна-хоста экрана (modules/frame/ScreenHost.qml), а не своё
+// окно: мышь не ловит, место — над панелью задач.
+Item {
     id: root
 
     property string kind: "volume"
     property bool shown: false
     property bool ready: false
 
-    screen: Quickshell.screens.find(s => s.name === Ui.focusedScreen) ?? Quickshell.screens[0]
-    visible: shown || pill.opacity > 0
-    anchors.bottom: Bar.edge !== "top"
-    anchors.top: Bar.edge === "top"
-    margins.bottom: 24
-    margins.top: 24
-    exclusionMode: ExclusionMode.Normal
-    implicitWidth: 340
-    implicitHeight: 64
-    color: "transparent"
-    WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.namespace: "pixel-shell:osd"
-    // OSD не должен перехватывать мышь
-    mask: Region {}
+    readonly property string screenName: Ui.focusedScreen || (Quickshell.screens[0]?.name ?? "")
+    readonly property bool visibleNow: shown || pill.opacity > 0
+    readonly property bool takesInput: false
+    // для хоста: виден ли (в том числе пока гаснет)
+    readonly property bool hostShown: visibleNow
+    parent: visibleNow ? Hosts.items[screenName] ?? null : null
+    visible: visibleNow
+    z: 3
+    width: 340
+    height: 64
+    x: ((parent?.width ?? 0) - width) / 2
+    y: Bar.edge === "top" ? Bar.inset(screenName, "top") + 24 : (parent?.height ?? 0) - Bar.inset(screenName, "bottom") - 24 - height
+    Component.onCompleted: Hosts.addFloater(root)
+    Component.onDestruction: Hosts.removeFloater(root)
 
     function show(k) {
         if (!ready || Ui.locked || Ui.panel === "quicksettings")

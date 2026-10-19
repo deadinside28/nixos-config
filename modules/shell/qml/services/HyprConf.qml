@@ -261,10 +261,20 @@ hl.config({
 `;
     }
 
+    // Место под рамку экрана резервирует сам Hyprland (reserved в правиле
+    // монитора), а не невидимые окна-полоски с exclusiveZone: у каждого
+    // окна оболочки свой GL-контекст и потоки драйвера. Правило монитора
+    // заменяет прежнее целиком, поэтому режим берётся из «Настройки →
+    // Экран», иначе из host.nix (Nix.hostMonitors), иначе по умолчанию.
     readonly property string monitorsLua: {
         const m = Settings.data.monitors ?? {};
-        const lines = Object.keys(m).map(name => {
-            const c = m[name];
+        const hostMon = {};
+        for (const h of Nix.hostMonitors)
+            hostMon[h.name] = h;
+        const frameNames = Quickshell.screens.map(s => s.name).filter(n => Bar.frameOn(n) && Settings.data.frameWidth > 0);
+        const names = [...new Set([...Object.keys(m), ...frameNames])];
+        const lines = names.map(name => {
+            const c = m[name] ?? hostMon[name] ?? {};
             const parts = [`output = ${lua(name)}`];
             if (c.disabled)
                 parts.push("disabled = true");
@@ -274,6 +284,12 @@ hl.config({
                 parts.push(`scale = ${lua(String(c.scale ?? "auto"))}`);
                 if (c.vrr !== undefined)
                     parts.push(`vrr = ${c.vrr}`);
+                if (frameNames.includes(name)) {
+                    // со стороны панели задач место занимает она сама
+                    const w = Settings.data.frameWidth;
+                    const side = s => Bar.edge === s && Bar.shownOn(name) ? 0 : w;
+                    parts.push(`reserved = { top = ${side("top")}, right = ${side("right")}, bottom = ${side("bottom")}, left = ${side("left")} }`);
+                }
             }
             return `hl.monitor({ ${parts.join(", ")} })`;
         });
@@ -307,7 +323,11 @@ ${lines.join("\n")}
                 return;
             lookFile.setText(root.lookLua);
             inputFile.setText(root.inputLua);
-            monitorsFile.setText(root.monitorsLua);
+            // Hyprland уже прочитал monitors.lua при запуске: если файл
+            // устарел (например, место под рамку теперь резервирует правило
+            // монитора), его нужно не только переписать, но и перечитать
+            if (monitorsFile.text() !== root.monitorsLua)
+                root.applyMonitors(root.monitorsLua);
             tilingFile.setText(root.tilingLua);
             animFile.setText(root.animLua);
             bindsFile.setText(root.bindsLua);
@@ -435,6 +455,8 @@ ${lines.join("\n")}
         path: Settings.hyprDir + "/monitors.lua"
         printErrors: false
         atomicWrites: true
+        // сравнение с прежним содержимым при старте — синхронно
+        blockLoading: true
     }
 
     // Параметры записи экрана — для pixel-record (shell-файл, его source-ят)

@@ -32,6 +32,8 @@ Scope {
     // панель открыта на другом мониторе — клик здесь её закрывает
     readonly property bool catching: Ui.panel !== "" && Ui.activeScreen !== name
     readonly property var keyPanel: panels.find(p => p.open && p.grabKeyboard) ?? null
+    readonly property var floating: Hosts.floatersOn(name)
+    readonly property var inputFloater: floating.find(f => f.takesInput) ?? null
 
     PanelWindow {
         id: win
@@ -44,12 +46,18 @@ Scope {
         }
         exclusionMode: ExclusionMode.Ignore
         color: "transparent"
-        // ввод — только когда есть что показать или что закрыть
-        mask: root.active || root.catching ? null : emptyRegion
+        // ввод — только когда есть что показать или что закрыть; при одних
+        // уведомлениях — только в их области
+        mask: root.active || root.catching ? null : root.inputFloater ? floaterRegion : emptyRegion
         Region {
             id: emptyRegion
         }
-        WlrLayershell.layer: root.active || root.catching ? WlrLayer.Overlay : WlrLayer.Top
+        Region {
+            id: floaterRegion
+            item: root.inputFloater
+        }
+        // поверх полноэкранных окон — только пока что-то показано
+        WlrLayershell.layer: root.active || root.catching || root.floating.length > 0 ? WlrLayer.Overlay : WlrLayer.Top
         WlrLayershell.namespace: "pixel-shell:host"
         WlrLayershell.keyboardFocus: !root.keyPanel ? WlrKeyboardFocus.None : root.keyPanel.exclusiveFocus ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.OnDemand
 
@@ -116,24 +124,6 @@ Scope {
             }
         }
     }
-
-    // Окна не заходят под рамку: невидимые полоски с exclusiveZone
-    Variants {
-        model: Bar.frameOn(root.name) && root.w > 0 ? ["top", "bottom", "left", "right"].filter(s => !(Bar.edge === s && Bar.shownOn(root.modelData.name))) : []
-        PanelWindow {
-            required property string modelData
-            screen: root.modelData
-            anchors.top: modelData !== "bottom"
-            anchors.bottom: modelData !== "top"
-            anchors.left: modelData !== "right"
-            anchors.right: modelData !== "left"
-            implicitWidth: root.w
-            implicitHeight: root.w
-            exclusiveZone: root.w
-            color: "transparent"
-            mask: Region {}
-            WlrLayershell.layer: WlrLayer.Bottom
-            WlrLayershell.namespace: "pixel-shell:frame-zone"
-        }
-    }
+    // Окна не заходят под рамку: место резервирует Hyprland (reserved в
+    // правиле монитора, services/HyprConf.qml monitorsLua)
 }

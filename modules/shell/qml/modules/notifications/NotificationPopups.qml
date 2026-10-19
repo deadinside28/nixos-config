@@ -8,36 +8,30 @@ import qs.common
 import qs.services
 import Pixel.MD3E
 
-PanelWindow {
+// Элемент окна-хоста экрана (modules/frame/ScreenHost.qml), а не своё
+// окно: хост пропускает мышь только в область карточек.
+Item {
     id: root
 
     // Монитор и угол — «Настройки → Уведомления»
     readonly property string screenName: Settings.data.notifScreen === "focused" ? Ui.focusedScreen : Settings.data.notifScreen === "primary" ? (Quickshell.screens[0]?.name ?? "") : Settings.data.notifScreen
-    screen: Quickshell.screens.find(s => s.name === screenName) ?? Quickshell.screens[0]
     readonly property string pos: Settings.data.notifPosition !== "auto" ? Settings.data.notifPosition : (Bar.edge === "top" ? "top-" : "bottom-") + (Bar.edge === "left" ? "left" : "right")
     readonly property bool atTop: pos.startsWith("top")
     readonly property bool showUpdate: !SystemConfig.popupHidden && !SystemConfig.cardDismissed && !Ui.updateWindowOpen
-    visible: (Notifs.popups.length > 0 || showUpdate) && !Ui.locked && Ui.panel === ""
-    // Угол со стороны «таблетки» статуса; место под панелью задач
-    // слой отступит сам (ExclusionMode.Normal).
-    anchors {
-        bottom: !atTop
-        top: atTop
-        right: pos.endsWith("right")
-        left: pos.endsWith("left")
-    }
-    margins {
-        bottom: 12
-        top: 12
-        right: 12
-        left: 12
-    }
-    implicitWidth: 400
-    implicitHeight: Math.max(1, column.implicitHeight)
-    exclusionMode: ExclusionMode.Normal
-    color: "transparent"
-    WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.namespace: "pixel-shell:notifications"
+    readonly property bool hostShown: (Notifs.popups.length > 0 || showUpdate) && !Ui.locked && Ui.panel === ""
+    readonly property bool takesInput: true
+    // экран, которого нет (монитор отключили), — первый
+    readonly property string hostScreen: Hosts.items[screenName] ? screenName : (Quickshell.screens[0]?.name ?? "")
+    parent: hostShown ? Hosts.items[hostScreen] ?? null : null
+    visible: hostShown
+    z: 2
+    width: 400
+    height: Math.max(1, column.implicitHeight)
+    // угол со стороны «таблетки» статуса, место под панелью задач — сбоку
+    x: pos.endsWith("left") ? Bar.inset(hostScreen, "left") + 12 : (parent?.width ?? 0) - Bar.inset(hostScreen, "right") - 12 - width
+    y: atTop ? Bar.inset(hostScreen, "top") + 12 : (parent?.height ?? 0) - Bar.inset(hostScreen, "bottom") - 12 - height
+    Component.onCompleted: Hosts.addFloater(root)
+    Component.onDestruction: Hosts.removeFloater(root)
 
     ColumnLayout {
         id: column

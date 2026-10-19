@@ -34,6 +34,19 @@ Singleton {
     function removeOverlay(ov) {
         overlays = overlays.filter(x => x !== ov);
     }
+    // OSD и уведомления: свои места на экране, без затемнения; уведомлениям
+    // нужен ввод (takesInput) — хост пропускает мышь только в их область
+    property var floaters: []
+    function addFloater(f) {
+        floaters = [...floaters, f];
+    }
+    function removeFloater(f) {
+        floaters = floaters.filter(x => x !== f);
+    }
+    function floatersOn(screenName) {
+        return floaters.filter(f => f.hostShown && (f.hostScreen ?? f.screenName) === screenName);
+    }
+
     // панели, которые сейчас видны на экране (открыты или закрываются)
     function shownOn(screenName) {
         return overlays.filter(o => o.shown && o.screenName === screenName);

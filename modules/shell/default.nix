@@ -16,6 +16,7 @@
   hostname,
   configDir,
   osConfig,
+  host,
   ...
 }: let
   flake = configDir;
@@ -79,6 +80,19 @@
         readonly property string hostname: "${hostname}"
         readonly property string quickshellVersion: "${quickshell.version}"
         readonly property bool quickShare: ${lib.boolToString osConfig.pixel.system.services.quickShare}
+        // мониторы из hosts/<хост>/host.nix: стартовые режимы (hypr/host.lua)
+        readonly property var hostMonitors: ${builtins.toJSON (map (m: let
+            md =
+              if (m.mode or null) == null
+              then {}
+              else m.mode;
+          in {
+            inherit (m) name;
+            mode = md.mode or "preferred";
+            position = md.position or "auto";
+            scale = toString (md.scale or "auto");
+          })
+          host.monitors)}
     }
   '';
 
@@ -470,6 +484,12 @@ in {
       Environment = [
         "QT_QPA_PLATFORM=wayland"
         "QML_IMPORT_PATH=${md3e}/${md3e.qmlPath}"
+        # Mesa на каждый GL-контекст (у каждого окна оболочки свой) заводит
+        # поток glthread и поток драйвера (u_threaded_context) со своими
+        # буферами: при 20 окнах это ~90 потоков и сотни МБ. Оболочке,
+        # которая рисует мало, они не дают выигрыша — отключаем.
+        "mesa_glthread=false"
+        "GALLIUM_THREAD=0"
         "PATH=${lib.makeBinPath (with pkgs; [
           coreutils
           findutils
