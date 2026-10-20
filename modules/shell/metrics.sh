@@ -84,6 +84,17 @@ busy=$(cpu)
     for d in /proc/[0-9]*; do
         case "$(cat "$d/comm" 2>/dev/null)" in quickshell | qs | .quickshell-wra*) ;; *) continue ;; esac
         printf '\n## Оболочка (PID %s)\n\n' "${d#/proc/}"
+        # Когда запущена и не старше ли её конфиг: после пересборки
+        # home-manager перекладывает ссылки ~/.config/quickshell/pixel, и
+        # замер старого процесса показал бы старый код.
+        btime=$(awk '/^btime/ {print $2}' /proc/stat)
+        ticks=$(getconf CLK_TCK 2>/dev/null || echo 100)
+        started=$(($(awk '{print $22}' "$d/stat") / ticks + btime))
+        printf -- '- запущена: %s\n' "$(date -d "@$started" '+%Y-%m-%d %H:%M')"
+        cfg=${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/pixel/shell.qml
+        if [ -L "$cfg" ] && [ "$(stat -c %Y "$cfg")" -gt "$started" ]; then
+            printf -- '- **конфиг оболочки новее процесса** (обновлён %s): замер может быть по старому коду — systemctl --user restart pixel-shell\n' "$(date -d "@$(stat -c %Y "$cfg")" '+%Y-%m-%d %H:%M')"
+        fi
         awk '/^(VmRSS|RssAnon|RssFile|RssShmem):/ {printf "- %s %.1f МиБ\n", $1, $2/1024}' "$d/status"
         awk '/^[0-9a-f]+-[0-9a-f]+ / {dri = ($6 ~ /^\/dev\/dri/ || $6 ~ /^\/memfd:/ || $6 ~ /dmabuf|anon_inode:dmabuf/)} /^Rss:/ && dri {k += $2} END {printf "- из них отображено GPU-буферов (/dev/dri, dmabuf, memfd): %.1f МиБ\n", k/1024}' "$d/smaps" 2>/dev/null
         printf -- '- потоков: %s; по именам:\n\n' "$(find "$d/task" -mindepth 1 -maxdepth 1 | wc -l)"
