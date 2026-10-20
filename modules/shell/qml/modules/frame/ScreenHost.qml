@@ -1,17 +1,24 @@
 // Окно-хост экрана — одно постоянное полноэкранное окно на монитор, как
-// ContentWindow в Caelestia. В нём:
+// ContentWindow в Caelestia. У каждого окна оболочки свой GL-контекст и
+// потоки драйвера, поэтому всё постоянное на экране живёт здесь:
 //  • рамка экрана со скруглёнными внутренними углами, как у телефона (со
 //    стороны панели задач рамкой служит сама панель; толщина 0 — углы);
-//  • все выдвижные панели (widgets/Overlay.qml) — элементы этого окна;
+//  • панель задач (modules/taskbar/Taskbar.qml);
+//  • зоны перетаскивания файлов у краёв (modules/dnd/DndSpring.qml);
+//  • все выдвижные панели (widgets/Overlay.qml), OSD и уведомления;
 //  • перехват клика на других мониторах, пока открыта панель.
-// Пока ничего не открыто, окно не ловит мышь (пустая маска) и живёт в
-// слое Top — под полноэкранными окнами, игре оно не мешает.
+// Пока ничего не открыто, окно ловит мышь только над панелью задач,
+// уведомлениями и зонами у краёв и живёт в слое Top — под полноэкранными
+// окнами, игре оно не мешает. Место под панель и рамку резервирует
+// Hyprland (reserved в правиле монитора, services/HyprConf.qml).
 import QtQuick
 import QtQuick.Shapes
 import Quickshell
 import Quickshell.Wayland
 import Quickshell.Hyprland
 import qs.common
+import qs.modules.taskbar
+import qs.modules.dnd
 import Pixel.MD3E
 
 Scope {
@@ -46,18 +53,29 @@ Scope {
         }
         exclusionMode: ExclusionMode.Ignore
         color: "transparent"
-        // ввод — только когда есть что показать или что закрыть; при одних
-        // уведомлениях — только в их области
-        mask: root.active || root.catching ? null : root.inputFloater ? floaterRegion : emptyRegion
+        // весь ввод — пока открыта панель или её надо закрыть кликом;
+        // иначе — только панель задач, уведомления и зоны у краёв
+        mask: root.active || root.catching ? null : idleRegion
         Region {
-            id: emptyRegion
-        }
-        Region {
-            id: floaterRegion
-            item: root.inputFloater
+            id: idleRegion
+            Region {
+                item: taskbar.item
+            }
+            Region {
+                item: root.inputFloater
+            }
+            Region {
+                item: dnd.topZone
+            }
+            Region {
+                item: dnd.leftZone
+            }
+            Region {
+                item: dnd.rightZone
+            }
         }
         // поверх полноэкранных окон — только пока что-то показано
-        WlrLayershell.layer: root.active || root.catching || root.floating.length > 0 ? WlrLayer.Overlay : WlrLayer.Top
+        WlrLayershell.layer: root.active || root.catching || root.floating.length > 0 || dnd.engaged ? WlrLayer.Overlay : WlrLayer.Top
         WlrLayershell.namespace: "pixel-shell:host"
         WlrLayershell.keyboardFocus: !root.keyPanel ? WlrKeyboardFocus.None : root.keyPanel.exclusiveFocus ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.OnDemand
 
@@ -78,6 +96,23 @@ Scope {
             onWheel: Ui.close()
         }
 
+        Loader {
+            id: taskbar
+            z: 0.5
+            active: Bar.shownOn(root.name)
+            sourceComponent: Taskbar {
+                modelData: root.modelData
+                window: win
+            }
+        }
+
+        DndSpring {
+            id: dnd
+            z: 0.6
+            screen: root.modelData
+            window: win
+        }
+
         // сюда встают панели (Overlay)
         Item {
             id: panelLayer
@@ -95,23 +130,13 @@ Scope {
                 fillColor: root.color
                 strokeWidth: -1
                 fillRule: ShapePath.OddEvenFill
-                // снаружи — весь экран, включая место под панелью задач: полоски
-                // рамки сдвигают панель на свою толщину, и у её концов иначе
-                // просвечивали бы обои. Цвет у панели тот же, стыка не видно.
+                // снаружи — весь экран, включая место под панелью задач: её
+                // фон и есть рамка, того же цвета
                 PathRectangle {
                     x: 0
                     y: 0
                     width: win.width
                     height: win.height
-                }
-                // сама панель задач (сдвинута полосками рамки на их толщину)
-                PathRectangle {
-                    readonly property bool has: Bar.shownOn(root.modelData.name)
-                    readonly property int t: root.w
-                    x: !has ? 0 : Bar.edge === "right" ? win.width - Bar.size : Bar.vertical ? 0 : t
-                    y: !has ? 0 : Bar.edge === "bottom" ? win.height - Bar.size : Bar.vertical ? t : 0
-                    width: !has ? 0 : Bar.vertical ? Bar.size : win.width - 2 * t
-                    height: !has ? 0 : Bar.vertical ? win.height - 2 * t : Bar.size
                 }
                 // внутри — скруглённое «окно» рабочего стола
                 PathRectangle {
@@ -124,6 +149,4 @@ Scope {
             }
         }
     }
-    // Окна не заходят под рамку: место резервирует Hyprland (reserved в
-    // правиле монитора, services/HyprConf.qml monitorsLua)
 }

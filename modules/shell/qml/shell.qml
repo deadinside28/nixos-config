@@ -11,7 +11,6 @@ import Quickshell
 import qs.common
 import qs.services
 import qs.widgets
-import qs.modules.taskbar
 import qs.modules.wallpaper
 import qs.modules.launcher
 import qs.modules.quicksettings
@@ -23,7 +22,6 @@ import qs.modules.clipboard
 import qs.modules.overview
 import qs.modules.polkit
 import qs.modules.settings
-import qs.modules.dnd
 import qs.modules.frame
 import qs.modules.files
 import qs.modules.share
@@ -46,13 +44,8 @@ ShellRoot {
         Wallpaper {}
     }
 
-    Variants {
-        model: Quickshell.screens.filter(s => Bar.shownOn(s.name))
-        Taskbar {}
-    }
-
-    // Окно-хост на каждом мониторе: рамка, выдвижные панели и перехват
-    // клика мимо панели (modules/frame/ScreenHost.qml)
+    // Окно-хост на каждом мониторе: рамка, панель задач, зоны
+    // перетаскивания, выдвижные панели (modules/frame/ScreenHost.qml)
     Variants {
         model: Quickshell.screens
         ScreenHost {}
@@ -78,7 +71,6 @@ ShellRoot {
     CalendarWindows {}
     FileChooserWindows {}
     ShareWindows {}
-    DndSpring {}
 
     Ipc {}
     ThemeBridge {}

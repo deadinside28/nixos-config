@@ -77,7 +77,6 @@ Rectangle {
 
     PopupWindow {
         id: popup
-        anchor.window: root.bar
         anchor.item: root
         anchor.edges: Bar.popupEdge
         anchor.gravity: Bar.popupEdge

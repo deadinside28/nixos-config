@@ -2,46 +2,44 @@
 // в начале кнопка лаунчера и воркспейсы, по центру закреплённые и
 // запущенные приложения, в конце трей, уведомления и «таблетка» статуса.
 // Встаёт к любому краю экрана (Настройки → Рабочий стол и окна).
+//
+// Это элемент окна-хоста экрана (modules/frame/ScreenHost.qml), а не своё
+// окно: у каждого окна оболочки свой GL-контекст и потоки драйвера. Место
+// под панель резервирует Hyprland (reserved в правиле монитора,
+// services/HyprConf.qml monitorsLua).
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
-import Quickshell.Wayland
 import qs.common
 import qs.widgets
 import qs.services
 import Pixel.MD3E
 
-PanelWindow {
+Item {
     id: bar
 
     required property ShellScreen modelData
-    screen: modelData
+    // окно-хост: к нему привязаны меню трея
+    required property var window
 
     readonly property bool vertical: Bar.vertical
     readonly property int barSize: Bar.size
 
-    anchors {
-        bottom: Bar.edge !== "top"
-        top: Bar.edge !== "bottom"
-        left: Bar.edge !== "right"
-        right: Bar.edge !== "left"
-    }
-    implicitHeight: barSize
-    implicitWidth: barSize
-    exclusiveZone: barSize
-    color: "transparent"
-    WlrLayershell.namespace: "pixel-shell:taskbar"
-    WlrLayershell.layer: WlrLayer.Top
+    x: Bar.edge === "right" ? window.width - barSize : 0
+    y: Bar.edge === "bottom" ? window.height - barSize : 0
+    width: vertical ? barSize : window.width
+    height: vertical ? window.height : barSize
 
     readonly property bool framed: Bar.frameOn(bar.modelData.name)
 
+    // с рамкой фон панели рисует сама рамка (тот же цвет, без стыка)
     Rectangle {
         anchors.fill: parent
-        color: bar.framed ? Theme.frame : Theme.panel
+        visible: !bar.framed
+        color: Theme.panel
 
-        // тонкая линия со стороны рабочего стола (с рамкой не нужна)
+        // тонкая линия со стороны рабочего стола
         Rectangle {
-            visible: !bar.framed
             color: Theme.alpha(Theme.outlineVariant, 0.5)
             width: bar.vertical ? 1 : parent.width
             height: bar.vertical ? parent.height : 1

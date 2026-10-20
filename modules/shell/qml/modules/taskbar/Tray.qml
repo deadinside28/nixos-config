@@ -63,7 +63,6 @@ Rectangle {
 
     PopupWindow {
         id: overflow
-        anchor.window: root.bar
         anchor.item: more
         anchor.edges: Bar.popupEdge
         anchor.gravity: Bar.popupEdge

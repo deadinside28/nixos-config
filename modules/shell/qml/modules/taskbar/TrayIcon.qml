@@ -12,7 +12,7 @@ Rectangle {
     required property var item
     required property var bar
     // окно, относительно которого открывать меню (панель или всплывашка)
-    property var menuWindow: bar
+    property var menuWindow: bar.window
     // В списке скрытых значков — строкой с названием приложения
     property bool labeled: false
     readonly property string label: item.tooltipTitle || item.title || item.id

@@ -17,7 +17,6 @@ PopupWindow {
     readonly property var entry: item.entry
     readonly property bool pinned: entry ? Settings.data.pinnedApps.includes(entry.id) : false
 
-    anchor.window: bar
     anchor.item: anchorItem
     anchor.edges: Bar.popupEdge
     anchor.gravity: Bar.popupEdge
